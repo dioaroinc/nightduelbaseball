@@ -891,10 +891,65 @@
       fa.landT = tEnd / animScale; fa.caught = bb.result === 'OUT'; fa.hr = bb.result === 'HR';
       if (bb.result !== 'OUT' && bb.result !== 'HR') fa.dur += 1.2 / 1;
     }
+    fa.runners = planRunners(fa);
     G.fa = fa;
     setPhase('field');
   }
 
+  // Work out where each runner ends up from the bases before and after the play, then give each a path and a speed.
+  const BASE_XY = [[0, 0], [62.8, 63.6], [0, 127.3], [-62.8, 63.6], [0, 0]]; // home, 1B, 2B, 3B, home
+  function planRunners(fa) {
+    const before = G.basesBefore, after = st().bases, info = G.afterInfo || {};
+    let runs = info.r ? info.r.runs : 0;
+    const free = [2, 1, 0].filter((i) => after[i]); // occupied after-bases, lead base first
+    const list = [];
+    const runnerAt = (i) => { // i = base index (0 = 1B) or -1 for the batter; base numbers are 1..4
+      const start = i + 1;
+      let dest, out = false;
+      if (runs > 0) { dest = 4; runs--; }
+      else { const j = free.find((b) => b + 1 > start); if (j !== undefined) { dest = j + 1; free.splice(free.indexOf(j), 1); } else { dest = Math.min(4, start + 1); out = true; } }
+      return { start, dest, out };
+    };
+    for (let i = 2; i >= 0; i--) if (before[i]) list.push(runnerAt(i));
+    if (fa.bb) list.push(runnerAt(-1));
+    for (const r of list) {
+      const dist = (r.dest - r.start) * 90;
+      r.speed = Math.max(27, dist / (fa.dur + 1.6));
+      r.T = dist / r.speed;
+      if (r.out) r.T = Math.min(r.T, fa.dur + 0.4); // called out when the throw beats them
+    }
+    return list;
+  }
+  function runnerPos(r, t) {
+    const u = Math.min(1, t / r.T), d = (r.start + (r.dest - r.start) * u);
+    const seg = Math.min(3, Math.floor(d)), f = d - seg;
+    const a = BASE_XY[seg], b = BASE_XY[seg + 1];
+    return [lerp(a[0], b[0], f), lerp(a[1], b[1], f), u >= 1];
+  }
+  function drawRunners(T, fa, el) {
+    const mine = S.role === 'batter';
+    ctx.font = `700 ${Math.max(8, T.sc * 11)}px "Saira Condensed", sans-serif`; ctx.textAlign = 'center';
+    for (const r of fa.runners) {
+      const [x, z, done] = runnerPos(r, el);
+      const s = F(T, x, z);
+      const since = el - r.T;
+      if (done && r.dest === 4 && !r.out) { // scored: fade out at the plate
+        const a = Math.max(0, 1 - since / 1.2); if (a <= 0) continue;
+        ctx.globalAlpha = a; ctx.fillStyle = COL.wallTop; ctx.beginPath(); ctx.arc(s[0], s[1], Math.max(4, T.sc * 6), 0, 7); ctx.fill();
+        ctx.fillText('+1', s[0], s[1] - Math.max(8, T.sc * 10) - since * 12); ctx.globalAlpha = 1; continue;
+      }
+      if (done && r.out) {
+        const a = Math.max(0, 1 - Math.max(0, since - 0.8) / 0.8); if (a <= 0) continue;
+        ctx.globalAlpha = a; ctx.strokeStyle = '#ff5d52'; ctx.lineWidth = 2.5; const k = Math.max(4, T.sc * 6);
+        ctx.beginPath(); ctx.moveTo(s[0] - k, s[1] - k); ctx.lineTo(s[0] + k, s[1] + k); ctx.moveTo(s[0] + k, s[1] - k); ctx.lineTo(s[0] - k, s[1] + k); ctx.stroke();
+        ctx.fillStyle = '#ff5d52'; ctx.fillText('OUT', s[0], s[1] - k - 4); ctx.globalAlpha = 1; continue;
+      }
+      const bob = done ? 0 : Math.abs(Math.sin(el * 14)) * 2;
+      ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(s[0], s[1] + 2, Math.max(4, T.sc * 6), 2.5, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = mine ? '#e9e4d4' : '#9aa3b5'; ctx.strokeStyle = COL.wallTop; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(s[0], s[1] - bob, Math.max(4, T.sc * 6), 0, 7); ctx.fill(); ctx.stroke();
+    }
+  }
   function fieldTransform() {
     const sc = Math.min((W - 20) / 520, (H - 110) / 440);
     return { sc, ox: W / 2, oy: Math.min(H - 22, (H + 470 * sc) / 2 + 40) };
@@ -925,11 +980,9 @@
     // bases
     for (const [bx, bz] of [[62.8, 63.6], [0, 127.3], [-62.8, 63.6]]) { const s = F(T, bx, bz); ctx.fillStyle = '#fff'; ctx.fillRect(s[0] - 2.5, s[1] - 2.5, 5, 5); }
     const hp = F(T, 0, 0); ctx.fillStyle = '#fff'; ctx.fillRect(hp[0] - 2.5, hp[1] - 2.5, 5, 5);
-    // runners before the play
-    G.basesBefore.forEach((on, i) => { if (!on) return; const b = [[62.8, 63.6], [0, 127.3], [-62.8, 63.6]][i]; const s = F(T, b[0], b[1]); ctx.fillStyle = COL.wallTop; ctx.beginPath(); ctx.arc(s[0], s[1], 5, 0, 7); ctx.fill(); });
-
     const fa = G.fa; if (!fa) return;
     const el = (now - fa.t0) / 1000;
+    drawRunners(T, fa, el);
     const t = Math.min(el, fa.dur);
     const u = Math.min(1, Math.max(0, (t - 0.25) / Math.max(0.3, fa.dur - 0.25)));
     // fielders
@@ -1672,7 +1725,7 @@
     }
     requestAnimationFrame(frame);
   }
-  window.__nd = G; window.__ndS = S; window.__ndStartPA = startPA;
+  window.__nd = G; window.__ndS = S; window.__ndStartPA = startPA; window.__ndState = st;
   window.__ndProj = () => { const p = G.pitch; if (!p || !cam) return null; const q = P(cam, p.px + (Math.random() - 0.5) * 0.4, p.py + (Math.random() - 0.5) * 0.3, 0); return q ? [q.x, q.y] : null; };
   // idle preview behind the start screen
   G.pHand = S.myThrow; G.bHand = 'R';
