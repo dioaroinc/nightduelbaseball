@@ -286,7 +286,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   <div class="ov" id="startOv">
     <div class="inner">
       <div class="logo">NIGHT DUEL<br><em>BASEBALL</em></div>
-      <div class="sub">Pitcher vs. batter, one on one, forever. Every three outs you switch sides: pitch a half inning, then bat a half inning. The CPU plays at a league-average MLB level by default; change it in Settings.</div>
+      <div class="sub">Pitcher vs. batter, one on one, nine innings by default. Every three outs you switch sides: pitch a half inning, then bat a half inning. The CPU plays at a league-average MLB level by default; change it in Settings.</div>
       <div class="grp">
         <h3>START AS</h3>
         <div class="roles">
@@ -319,7 +319,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         <div class="mpstatus" id="mpStatus" hidden></div>
         <div class="note">The room creator picks the length and starts in the role picked above; the friend starts in the other. You switch sides every three outs. If the game is tied after the last inning it goes to extras. A pitcher who does not throw for 20 seconds forfeits.</div>
       </div>
-      <div class="note">Stats are saved in this browser only. No sign-up needed. <span id="buildTag">Build 2026-10-21 09:54 UTC</span></div>
+      <div class="note">Stats are saved in this browser only. No sign-up needed. <span id="buildTag">Build 2026-10-21 09:57 UTC</span></div>
     </div>
   </div>
 
@@ -329,7 +329,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       <div class="sub" id="endSub"></div>
       <div class="line" id="endScore" style="text-align:center;font-size:20px"></div>
       <button class="cta" id="endBack">Back to menu</button>
-      <div class="note">Your vs Friend stats are saved under My stats.</div>
+      <div class="note">Stats are saved under My stats.</div>
     </div>
   </div>
 
@@ -338,6 +338,9 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       <div class="topbar"><button class="backbtn" aria-label="Back">‹ Back</button><div class="logo" style="font-size:34px">SET<em>TINGS</em></div></div>
       <div class="grp"><h3>UNITS</h3>
         <div class="seg wide" id="unitSeg"><button data-v="mph">mph · feet</button><button data-v="kmh">km/h · meters</button></div></div>
+      <div class="grp"><h3>GAME LENGTH (VS CPU)</h3>
+        <div class="seg wide" id="innSeg"><button data-v="3">3 inn</button><button data-v="6">6 inn</button><button data-v="9">9 inn</button><button data-v="0">Endless</button></div>
+        <div class="note">Normal rules: no bottom half if the home side already leads, walk-offs end it, ties go to extras.</div></div>
       <div class="grp"><h3>CPU PITCHER (WHEN YOU BAT)</h3>
         <div class="seg wide" id="cpuPitchSeg"><button data-v="0">Rookie</button><button data-v="1">MLB average</button><button data-v="2">All-Star</button></div>
         <div class="note">Rookie throws slower and misses over the plate more. All-Star throws harder with sharper command.</div></div>
@@ -871,6 +874,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
   if (S.cpuPitchLv == null) S.cpuPitchLv = 1;
   if (S.cpuBatLv == null) S.cpuBatLv = 1;
   if (![3, 6, 9].includes(S.mpInn)) S.mpInn = 3;
+  if (![0, 3, 6, 9].includes(S.innings)) S.innings = 9; // vs CPU; 0 = endless
   const metric = () => S.units === 'kmh';
   const spd = (mph, d = 0) => (metric() ? `${(mph * KMH).toFixed(d)} km/h` : `${mph.toFixed(d)} mph`);
   const distNum = (ft) => String(Math.round(metric() ? ft * 0.3048 : ft));
@@ -1673,18 +1677,42 @@ if (typeof module !== 'undefined') module.exports = Engine;
     const info = G.afterInfo;
     hideToast();
     if (info && info.paEnd) {
+      const s = st(), len = gameLen();
+      // walk-off: the side batting in the bottom of the last inning (or later) takes the lead
+      if (!info.ended && s.half && s.inning >= len && battingScore(S.role) > battingScore(S.role === 'pitcher' ? 'batter' : 'pitcher')) { endGame(s.score.me > s.score.opp, `Walk-off in the ${ordinal(s.inning)}!`); return; }
       if (info.ended) {
-        const s = st();
         s.outs = 0; s.bases = [0, 0, 0]; s.inningRuns = 0;
+        const wasBottom = s.half;
         if (s.half) { s.half = 0; s.inning++; } else s.half = 1;
-        if (G.mp && !s.half && s.inning > G.mp.innings && s.score.me !== s.score.opp) { mpEnd(s.score.me > s.score.opp, `Final after ${s.inning - 1} innings.`); return; }
-        S.role = S.role === 'pitcher' ? 'batter' : 'pitcher';
+        const nextRole = S.role === 'pitcher' ? 'batter' : 'pitcher';
+        if (wasBottom && s.inning > len && s.score.me !== s.score.opp) { endGame(s.score.me > s.score.opp, `Final after ${s.inning - 1} innings.`); return; }
+        // no need for the bottom half when the side batting next already leads
+        if (!wasBottom && s.inning >= len && battingScore(nextRole) > battingScore(S.role)) { endGame(s.score.me > s.score.opp, `Final after ${s.inning} innings, no bottom half needed.`); return; }
+        S.role = nextRole;
         if (G.mp) { G.mp.myRole = S.role; mpPresence(); } else s.role = S.role;
         setRolePanels(); persist();
         bannerFlash(`3 outs! Switch sides: you're ${S.role === 'pitcher' ? 'pitching' : 'batting'} now`);
       }
       startPA();
     } else { renderHUD(); nextPitch(); }
+  }
+
+  const gameLen = () => (G.mp ? G.mp.innings : (S.innings || Infinity));
+  const battingScore = (role) => (role === 'batter' ? st().score.me : st().score.opp); // the score of whoever is batting when I hold `role`
+  const ordinal = (n) => `${n}${['st', 'nd', 'rd'][n - 1] || 'th'}`;
+  function endGame(win, reason) {
+    if (G.mp) { mpEnd(win, reason); return; }
+    const s = st();
+    showEnd(win, reason, s.score.me, s.score.opp, 'CPU', Math.min(s.inning, S.innings || s.inning));
+    save.games.duel = newDuel(); persist();
+    G.started = false; G.phase = 'menu'; G.pwr = null; renderPower(0); hideToast(); banner('');
+  }
+  function showEnd(win, reason, me, opp, oppName, inn) {
+    $('endTitle').textContent = ''; const em = document.createElement('em');
+    $('endTitle').append('YOU ', em); em.textContent = win ? 'WIN' : 'LOSE';
+    $('endSub').textContent = reason;
+    $('endScore').textContent = `YOU ${me}   :   ${opp} ${oppName}   ·   ${inn} inn`;
+    closeAllOv(); openOv('endOv');
   }
 
   // ---------------- Field view ----------------
@@ -2465,11 +2493,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
     const s = m.state;
     G.started = false; G.phase = 'menu'; G.pwr = null; renderPower(0); hideToast(); banner('');
     if (keepRoomMs) { G.mp = null; setTimeout(() => { G.mp = m; mpLeave(); }, keepRoomMs); } else mpLeave();
-    $('endTitle').textContent = ''; const em = document.createElement('em');
-    $('endTitle').append(win ? 'YOU ' : 'YOU ', em); em.textContent = win ? 'WIN' : 'LOSE';
-    $('endSub').textContent = reason;
-    $('endScore').textContent = `YOU ${s.score.me}   :   ${s.score.opp} FRIEND   ·   ${Math.min(s.inning, m.innings)} inn`;
-    closeAllOv(); openOv('endOv');
+    showEnd(win, reason, s.score.me, s.score.opp, 'FRIEND', Math.min(s.inning, m.innings));
   }
   function mpForfeit() {
     const m = G.mp; if (!m) return;
@@ -2574,7 +2598,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
   }
   $('statTabs').addEventListener('click', (e) => { const t = e.target.closest('button')?.dataset.t; if (t) { statTab = t; renderStats(); } });
   // ---------------- Settings overlay ----------------
-  const SET_SEGS = { unitSeg: ['units', String], speedSeg: ['speed', Number], cpuPitchSeg: ['cpuPitchLv', Number], cpuBatSeg: ['cpuBatLv', Number] };
+  const SET_SEGS = { unitSeg: ['units', String], innSeg: ['innings', Number], speedSeg: ['speed', Number], cpuPitchSeg: ['cpuPitchLv', Number], cpuBatSeg: ['cpuBatLv', Number] };
   function renderSettings() {
     for (const id in SET_SEGS) { const [key] = SET_SEGS[id]; [...$(id).children].forEach((b) => b.setAttribute('aria-pressed', String(S[key]) === b.dataset.v ? 'true' : 'false')); }
     $('zoneChk').checked = S.zone; $('soundChk').checked = S.sound;

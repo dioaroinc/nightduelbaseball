@@ -33,6 +33,7 @@
   if (S.cpuPitchLv == null) S.cpuPitchLv = 1;
   if (S.cpuBatLv == null) S.cpuBatLv = 1;
   if (![3, 6, 9].includes(S.mpInn)) S.mpInn = 3;
+  if (![0, 3, 6, 9].includes(S.innings)) S.innings = 9; // vs CPU; 0 = endless
   const metric = () => S.units === 'kmh';
   const spd = (mph, d = 0) => (metric() ? `${(mph * KMH).toFixed(d)} km/h` : `${mph.toFixed(d)} mph`);
   const distNum = (ft) => String(Math.round(metric() ? ft * 0.3048 : ft));
@@ -835,18 +836,42 @@
     const info = G.afterInfo;
     hideToast();
     if (info && info.paEnd) {
+      const s = st(), len = gameLen();
+      // walk-off: the side batting in the bottom of the last inning (or later) takes the lead
+      if (!info.ended && s.half && s.inning >= len && battingScore(S.role) > battingScore(S.role === 'pitcher' ? 'batter' : 'pitcher')) { endGame(s.score.me > s.score.opp, `Walk-off in the ${ordinal(s.inning)}!`); return; }
       if (info.ended) {
-        const s = st();
         s.outs = 0; s.bases = [0, 0, 0]; s.inningRuns = 0;
+        const wasBottom = s.half;
         if (s.half) { s.half = 0; s.inning++; } else s.half = 1;
-        if (G.mp && !s.half && s.inning > G.mp.innings && s.score.me !== s.score.opp) { mpEnd(s.score.me > s.score.opp, `Final after ${s.inning - 1} innings.`); return; }
-        S.role = S.role === 'pitcher' ? 'batter' : 'pitcher';
+        const nextRole = S.role === 'pitcher' ? 'batter' : 'pitcher';
+        if (wasBottom && s.inning > len && s.score.me !== s.score.opp) { endGame(s.score.me > s.score.opp, `Final after ${s.inning - 1} innings.`); return; }
+        // no need for the bottom half when the side batting next already leads
+        if (!wasBottom && s.inning >= len && battingScore(nextRole) > battingScore(S.role)) { endGame(s.score.me > s.score.opp, `Final after ${s.inning} innings, no bottom half needed.`); return; }
+        S.role = nextRole;
         if (G.mp) { G.mp.myRole = S.role; mpPresence(); } else s.role = S.role;
         setRolePanels(); persist();
         bannerFlash(`3 outs! Switch sides: you're ${S.role === 'pitcher' ? 'pitching' : 'batting'} now`);
       }
       startPA();
     } else { renderHUD(); nextPitch(); }
+  }
+
+  const gameLen = () => (G.mp ? G.mp.innings : (S.innings || Infinity));
+  const battingScore = (role) => (role === 'batter' ? st().score.me : st().score.opp); // the score of whoever is batting when I hold `role`
+  const ordinal = (n) => `${n}${['st', 'nd', 'rd'][n - 1] || 'th'}`;
+  function endGame(win, reason) {
+    if (G.mp) { mpEnd(win, reason); return; }
+    const s = st();
+    showEnd(win, reason, s.score.me, s.score.opp, 'CPU', Math.min(s.inning, S.innings || s.inning));
+    save.games.duel = newDuel(); persist();
+    G.started = false; G.phase = 'menu'; G.pwr = null; renderPower(0); hideToast(); banner('');
+  }
+  function showEnd(win, reason, me, opp, oppName, inn) {
+    $('endTitle').textContent = ''; const em = document.createElement('em');
+    $('endTitle').append('YOU ', em); em.textContent = win ? 'WIN' : 'LOSE';
+    $('endSub').textContent = reason;
+    $('endScore').textContent = `YOU ${me}   :   ${opp} ${oppName}   ·   ${inn} inn`;
+    closeAllOv(); openOv('endOv');
   }
 
   // ---------------- Field view ----------------
@@ -1627,11 +1652,7 @@
     const s = m.state;
     G.started = false; G.phase = 'menu'; G.pwr = null; renderPower(0); hideToast(); banner('');
     if (keepRoomMs) { G.mp = null; setTimeout(() => { G.mp = m; mpLeave(); }, keepRoomMs); } else mpLeave();
-    $('endTitle').textContent = ''; const em = document.createElement('em');
-    $('endTitle').append(win ? 'YOU ' : 'YOU ', em); em.textContent = win ? 'WIN' : 'LOSE';
-    $('endSub').textContent = reason;
-    $('endScore').textContent = `YOU ${s.score.me}   :   ${s.score.opp} FRIEND   ·   ${Math.min(s.inning, m.innings)} inn`;
-    closeAllOv(); openOv('endOv');
+    showEnd(win, reason, s.score.me, s.score.opp, 'FRIEND', Math.min(s.inning, m.innings));
   }
   function mpForfeit() {
     const m = G.mp; if (!m) return;
@@ -1736,7 +1757,7 @@
   }
   $('statTabs').addEventListener('click', (e) => { const t = e.target.closest('button')?.dataset.t; if (t) { statTab = t; renderStats(); } });
   // ---------------- Settings overlay ----------------
-  const SET_SEGS = { unitSeg: ['units', String], speedSeg: ['speed', Number], cpuPitchSeg: ['cpuPitchLv', Number], cpuBatSeg: ['cpuBatLv', Number] };
+  const SET_SEGS = { unitSeg: ['units', String], innSeg: ['innings', Number], speedSeg: ['speed', Number], cpuPitchSeg: ['cpuPitchLv', Number], cpuBatSeg: ['cpuBatLv', Number] };
   function renderSettings() {
     for (const id in SET_SEGS) { const [key] = SET_SEGS[id]; [...$(id).children].forEach((b) => b.setAttribute('aria-pressed', String(S[key]) === b.dataset.v ? 'true' : 'false')); }
     $('zoneChk').checked = S.zone; $('soundChk').checked = S.sound;
