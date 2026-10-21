@@ -871,6 +871,17 @@
       if (!(bb.result === 'OUT' || bb.how === 'Infield single')) f = bb.phi < -15 ? 'LF' : bb.phi > 15 ? 'RF' : 'CF';
       fa.fielder = f; fa.from = fpos(f); fa.to = end;
       fa.land = end; fa.landT = tStop; fa.caught = bb.result === 'OUT';
+      fa.scale = 1; fa.movers = [];
+      if (bb.result === 'OUT' || bb.how === 'Infield single') {
+        // the infielder gets to the ball right as it arrives
+        fa.movers.push(mover(f, fpos(f), end, 0.3, Math.hypot(end[0] - fpos(f)[0], end[1] - fpos(f)[1]) / Math.max(0.25, tStop - 0.3)));
+      } else {
+        // nearest infielder lunges toward where the ball goes by, and comes up short; the outfielder collects it
+        const inf = bb.fielder && E.FIELDERS[bb.fielder] && E.FIELDERS[bb.fielder][1] < 200 ? bb.fielder : null;
+        if (inf) { const pass = dirXY(bb.gbAlong); fa.movers.push(mover(inf, fpos(inf), pass, 0.4, 9, bb.gbT + 0.4)); }
+        const m = mover(f, fpos(f), end, 0.5, 26); fa.movers.push(m);
+        fa.dur = Math.max(fa.dur, m.arrive + 0.3);
+      }
       if (bb.result === 'OUT') fa.throwTo = f === '1B' ? null : [62.8, 63.6];
     } else {
       let tEnd = bb.T;
@@ -881,7 +892,7 @@
       fa.ball = (tA) => {
         const t = tA * animScale;
         if (t <= tEnd) { const s = ptAt(t); const [x, z] = dirXY(s.d); return { x, z, h: s.h }; }
-        const u = Math.min(1, (t - tEnd) / 1.2); const d = ptAt(tEnd).d + roll * (1 - (1 - u) * (1 - u)); const [x, z] = dirXY(d); return { x, z, h: 0 };
+        const u = Math.min(1, (t - tEnd) / 1.2); const d = ptAt(tEnd).d + roll * (1 - (1 - u) * (1 - u)); const [x, z] = dirXY(d); return { x, z, h: roll ? Math.abs(Math.sin(u * Math.PI * 2.5)) * 6 * Math.pow(1 - u, 1.6) : 0 };
       };
       fa.fielder = bb.fielder || 'CF';
       fa.from = fpos(fa.fielder);
@@ -889,7 +900,21 @@
       fa.to = bb.result === 'HR' ? dirXY(E.fenceDist(bb.phi) - 6) : dirXY(bb.result === 'OUT' ? landD : landD + roll);
       fa.land = bb.result === 'HR' ? dirXY(Math.min(bb.dist, E.fenceDist(bb.phi) + 40)) : dirXY(landD);
       fa.landT = tEnd / animScale; fa.caught = bb.result === 'OUT'; fa.hr = bb.result === 'HR';
-      if (bb.result !== 'OUT' && bb.result !== 'HR') fa.dur += 1.2 / 1;
+      fa.scale = animScale; fa.movers = [];
+      const isOF = E.FIELDERS[fa.fielder][1] > 200, base = isOF ? 21 : 15;
+      if (bb.result === 'OUT') {
+        // camp under it: arrive by the catch
+        const D = Math.hypot(fa.to[0] - fa.from[0], fa.to[1] - fa.from[1]);
+        fa.movers.push(mover(fa.fielder, fa.from, fa.to, 0.6, Math.max(base, D / Math.max(0.3, tEnd - 0.6))));
+      } else if (bb.result === 'HR') {
+        fa.movers.push(mover(fa.fielder, fa.from, fa.to, 0.6, base));
+      } else {
+        // run for it at real speed, come up short, then chase the ball down after it bounces
+        // a slower, later break on hits so the gap between glove and ball is obvious on the small map
+        const m = mover(fa.fielder, fa.from, fa.land, 0.9, base * 0.7, null, fa.to, tEnd);
+        fa.movers.push(m);
+        fa.dur = Math.max(fa.dur + 1.2, (m.arrive + 0.4) / animScale);
+      }
     }
     fa.runners = planRunners(fa);
     G.fa = fa;
@@ -950,6 +975,22 @@
       ctx.beginPath(); ctx.arc(s[0], s[1] - bob, Math.max(4, T.sc * 6), 0, 7); ctx.fill(); ctx.stroke();
     }
   }
+  // A fielder's run: toward A at a set speed from t0, then (optionally) on to B once the ball is down at tB.
+  function mover(f, from, A, t0, speed, stopAt, B, tB) {
+    const DA = Math.hypot(A[0] - from[0], A[1] - from[1]);
+    const arriveA = t0 + DA / speed;
+    const m = { f, from, A, t0, speed, stopAt, B, tB, arrive: arriveA };
+    if (B) { const DB = Math.hypot(B[0] - A[0], B[1] - A[1]); m.startB = Math.max(arriveA, tB || 0); m.arrive = m.startB + DB / speed; }
+    m.pos = (t) => {
+      if (stopAt != null) t = Math.min(t, stopAt);
+      const d1 = Math.min(DA, Math.max(0, (t - t0) * speed));
+      if (d1 < DA || !B) { const u = DA ? d1 / DA : 1; return [lerp(from[0], A[0], u), lerp(from[1], A[1], u)]; }
+      const DB = Math.hypot(B[0] - A[0], B[1] - A[1]);
+      const d2 = Math.min(DB, Math.max(0, (t - m.startB) * speed)); const u = DB ? d2 / DB : 1;
+      return [lerp(A[0], B[0], u), lerp(A[1], B[1], u)];
+    };
+    return m;
+  }
   function fieldTransform() {
     const sc = Math.min((W - 20) / 520, (H - 110) / 440);
     return { sc, ox: W / 2, oy: Math.min(H - 22, (H + 470 * sc) / 2 + 40) };
@@ -984,12 +1025,12 @@
     const el = (now - fa.t0) / 1000;
     drawRunners(T, fa, el);
     const t = Math.min(el, fa.dur);
-    const u = Math.min(1, Math.max(0, (t - 0.25) / Math.max(0.3, fa.dur - 0.25)));
     // fielders
     ctx.font = `700 ${Math.max(8, T.sc * 12)}px "Saira Condensed", sans-serif`;
     for (const f in E.FIELDERS) {
       const [fa2, fr] = E.FIELDERS[f]; let [x, z] = E.fieldXY(fa2, fr);
-      if (f === fa.fielder) { x = lerp(fa.from[0], fa.to[0], ease(u)); z = lerp(fa.from[1], fa.to[1], ease(u)); }
+      const mv = fa.movers && fa.movers.find((m) => m.f === f);
+      if (mv) [x, z] = mv.pos(t * fa.scale);
       const s = F(T, x, z);
       ctx.fillStyle = S.role === 'pitcher' ? '#e9e4d4' : '#9aa3b5';
       ctx.beginPath(); ctx.arc(s[0], s[1], Math.max(4, T.sc * 7), 0, 7); ctx.fill();
@@ -1007,11 +1048,15 @@
     const br = 3.5 + Math.min(5, b.h / 25);
     ctx.fillStyle = '#fff'; ctx.shadowColor = '#fff'; ctx.shadowBlur = 8; ctx.beginPath(); ctx.arc(bs[0], bs[1], br, 0, 7); ctx.fill(); ctx.shadowBlur = 0;
 
+    // the call goes up the moment the ball lands or is caught, while the runners finish the play
+    if (G.phase === 'field' && !fa.called && el >= fa.landT) {
+      fa.called = true;
+      const info = G.afterInfo;
+      toast(info.txt.main, statcastLine(fa.bb) + (info.txt.sub ? `  ·  ${info.txt.sub}` : ''), info.txt.good);
+    }
     if (G.phase === 'field' && el > fa.dur + (fa.throwTo ? 0.5 : 0.15)) {
       setPhase('fieldDone');
       renderHUD(); G.hudFrozen = false;
-      const info = G.afterInfo;
-      toast(info.txt.main, statcastLine(fa.bb) + (info.txt.sub ? `  ·  ${info.txt.sub}` : ''), info.txt.good);
     }
   }
   // where the ball will come down: a shrinking target during the flight, then a dust burst and a lasting mark
@@ -1027,11 +1072,18 @@
       ctx.beginPath(); ctx.moveTo(s[0] - 5, s[1]); ctx.lineTo(s[0] + 5, s[1]); ctx.moveTo(s[0], s[1] - 3); ctx.lineTo(s[0], s[1] + 3); ctx.stroke();
     } else {
       const a = Math.min(1, (el - fa.landT) / 0.7);
-      if (a < 1) { // dust burst
+      if (a < 1 && fa.caught) { // glove flash
+        ctx.strokeStyle = '#fff'; ctx.globalAlpha = 1 - a; ctx.lineWidth = 3 - a * 2;
+        ctx.beginPath(); ctx.arc(s[0], s[1], T.sc * (8 + a * 26), 0, 7); ctx.stroke();
+        ctx.fillStyle = '#fff'; ctx.font = `800 ${Math.max(10, T.sc * 13)}px "Saira Condensed", sans-serif`; ctx.textAlign = 'center';
+        ctx.fillText('CAUGHT', s[0], s[1] - T.sc * 12 - a * 10); ctx.globalAlpha = 1;
+      } else if (a < 1) { // dust burst
         ctx.strokeStyle = col; ctx.globalAlpha = 1 - a; ctx.lineWidth = 3 - a * 2;
         const r = T.sc * (6 + a * 40);
         ctx.beginPath(); ctx.ellipse(s[0], s[1], r, r * 0.5, 0, 0, 7); ctx.stroke();
         ctx.fillStyle = fa.hr ? 'rgba(255,220,120,.9)' : 'rgba(210,180,140,.85)';
+        ctx.font = `800 ${Math.max(10, T.sc * 13)}px "Saira Condensed", sans-serif`; ctx.textAlign = 'center';
+        if (!fa.hr) ctx.fillText('SAFE', s[0], s[1] - T.sc * 12 - a * 10);
         for (let i = 0; i < 7; i++) { const an = i * 0.9 + 0.4, d = T.sc * (4 + a * 22); ctx.beginPath(); ctx.arc(s[0] + Math.cos(an) * d, s[1] - Math.abs(Math.sin(an)) * d * 0.6 - a * 6, (3 - a * 2.5) * Math.max(1, T.sc), 0, 7); ctx.fill(); }
         ctx.globalAlpha = 1;
       }
