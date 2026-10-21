@@ -57,12 +57,25 @@ const Engine = (() => {
   }
 
   // ---------- Pitch execution ----------
-  function executePitch(type, tx, ty, hand) {
+  // CPU skill levels: 0 = Rookie, 1 = MLB average, 2 = All-Star
+  const PITCHER_LV = [
+    { cmd: 1.45, velo: -3.5, heart: 0.32, zone: 0.04 },
+    { cmd: 1.0, velo: 0, heart: 0, zone: 0 },
+    { cmd: 0.72, velo: 2.5, heart: -0.08, zone: -0.02 },
+  ];
+  const BATTER_LV = [
+    { chase: 1.35, contact: -0.09, ev: -4.5 },
+    { chase: 1.0, contact: 0, ev: 0 },
+    { chase: 0.78, contact: 0.05, ev: 3 },
+  ];
+  const lv = (arr, k) => arr[k == null ? 1 : clamp(Math.round(k), 0, 2)];
+  function executePitch(type, tx, ty, hand, level) {
     const P = PITCHES[type];
-    const ctl = P.ctl;
+    const L = level == null ? PITCHER_LV[1] : lv(PITCHER_LV, level);
+    const ctl = P.ctl * L.cmd;
     const px = tx + gauss() * CMD_SD.x * ctl;
     const py = ty + gauss() * CMD_SD.y * ctl;
-    const mph = P.mph + gauss() * 0.9;
+    const mph = P.mph + L.velo + gauss() * 0.9;
     const handSign = hand === 'R' ? 1 : -1; // glove side direction for RHP = +x
     const brk = [P.brk[0] * handSign * (1 + gauss() * 0.08), P.brk[1] * (1 + gauss() * 0.06)];
     const release = { x: hand === 'R' ? -1.9 : 1.9, y: 5.9 + gauss() * 0.1, z: RELEASE_Z };
@@ -83,7 +96,8 @@ const Engine = (() => {
 
   // ---------- CPU pitcher ----------
   const CPU_ARSENAL = { FF: 40, SI: 10, SL: 20, CU: 10, CH: 14, FC: 6 };
-  function cpuChoosePitch(st, pHand, bHand) {
+  function cpuChoosePitch(st, pHand, bHand, level) {
+    const L = lv(PITCHER_LV, level);
     const b = st.balls, s = st.strikes;
     const same = pHand === bHand;
     const w = Object.assign({}, CPU_ARSENAL);
@@ -97,11 +111,12 @@ const Engine = (() => {
     else if (b - s >= 2) pZone = 0.72;
     else if (s === 2 && b < 2) pZone = 0.35;
     else if (s - b >= 1) pZone = 0.45;
+    pZone += L.zone;
     const gloveX = pHand === 'R' ? 1 : -1;
     let tx, ty;
     if (rnd() < pZone) {
       // aim at the edges / corners inside the zone
-      const heart = b === 3 || b - s >= 2 ? 0.45 : 0.15;
+      const heart = (b === 3 || b - s >= 2 ? 0.45 : 0.15) + L.heart;
       if (rnd() < heart) { tx = gauss() * 0.25; ty = 2.5 + gauss() * 0.3; }
       else {
         tx = (rnd() < 0.5 ? -1 : 1) * (0.45 + rnd() * 0.3);
@@ -126,14 +141,15 @@ const Engine = (() => {
   }
 
   // ---------- CPU batter ----------
-  function cpuBatter(p, st, bHand) {
+  function cpuBatter(p, st, bHand, level) {
+    const L = lv(BATTER_LV, level);
     const zone = inZone(p.px, p.py);
     const od = outDist(p.px, p.py), dep = zone ? inDepth(p.px, p.py) : 0;
     const b = st.balls, s = st.strikes;
     const last = st.history[st.history.length - 1];
     let swing;
     if (zone) swing = 0.62 + dep * 0.28;
-    else swing = 0.6 * Math.exp(-od / 0.45);
+    else swing = 0.6 * Math.exp(-od / 0.45) * L.chase;
     if (s === 2) swing += zone ? 0.18 : 0.12;
     if (b === 3 && s === 0) swing *= 0.15;
     else if (b - s >= 2) swing *= zone ? 1.05 : 0.8;
@@ -149,12 +165,13 @@ const Engine = (() => {
       if (Math.abs(last.mph - p.mph) > 8) contact -= 0.03;
     }
     if (s === 2) contact += 0.01; // protect mode
+    contact += L.contact;
     if (rnd() >= clamp(contact, 0.2, 0.97)) return { swing: true, result: 'miss' };
 
     const foulP = zone ? 0.48 - dep * 0.15 : 0.6;
     if (rnd() < foulP) return { swing: true, result: 'foul' };
 
-    let evMu = 86.6 + dep * 7 - od * 10;
+    let evMu = 86.6 + dep * 7 - od * 10 + L.ev;
     if (BREAKING[p.type] || OFFSPEED[p.type]) evMu -= 1.5;
     const ev = clamp(evMu + gauss() * 12.5, 35, 117);
     const la = clamp(11 + (p.py - 2.45) * 10 + gauss() * 25, -60, 80);

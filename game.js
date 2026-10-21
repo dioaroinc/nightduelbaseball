@@ -29,6 +29,13 @@
   const newDuel = () => Object.assign(E.newState(), { half: 0, score: { me: 0, opp: 0 } });
   if (!save.games.duel) save.games.duel = newDuel();
   const st = () => (G.mp ? G.mp.state : save.games.duel);
+  if (!S.units) S.units = 'mph';
+  if (S.cpuPitchLv == null) S.cpuPitchLv = 1;
+  if (S.cpuBatLv == null) S.cpuBatLv = 1;
+  const metric = () => S.units === 'kmh';
+  const spd = (mph, d = 0) => (metric() ? `${(mph * KMH).toFixed(d)} km/h` : `${mph.toFixed(d)} mph`);
+  const distNum = (ft) => String(Math.round(metric() ? ft * 0.3048 : ft));
+  const dist = (ft) => `${distNum(ft)} ${metric() ? 'm' : 'ft'}`;
 
   // ---------------- Runtime ----------------
   const G = {
@@ -138,7 +145,23 @@
       crowd.push({ p: [x, 11 + u * 72, z], c: ['#2c3850', '#3b4a66', '#5a4b52', '#28406a', '#6b6f7e'][i % 5] });
     }
     for (let i = 0; i < 500; i++) { const u = Math.random(); crowd.push({ p: [-180 + Math.random() * 360, 13 + u * 70, -62 - u * 130], c: ['#2c3850', '#3b4a66', '#5a4b52', '#28406a', '#6b6f7e'][i % 5] }); }
+    // seat rows between the wall top and the back of the stands
+    const standRows = [];
+    for (let k = 0; k < 10; k++) {
+      const mix = (u) => wallT.map((w, i) => [w[0] + (standT[i][0] - w[0]) * u, w[1] + (standT[i][1] - w[1]) * u, w[2] + (standT[i][2] - w[2]) * u]);
+      const a = mix(k / 10), b = mix((k + 0.5) / 10);
+      standRows.push([...a, ...b.slice().reverse()]);
+    }
+    // padded wall panels, alternating shades, with an ad board every few panels
+    const wallPanels = [];
+    for (let i = 0; i < wallB.length - 1; i++) wallPanels.push({ poly: [wallB[i], wallB[i + 1], wallT[i + 1], wallT[i]], ad: i % 6 === 2 });
+    const stars = []; for (let i = 0; i < 90; i++) stars.push([Math.random(), Math.random() * 0.55, 0.6 + Math.random() * 1.1]);
     return {
+      standRows, wallPanels, stars,
+      board: [g(-56, 500, 30), g(56, 500, 30), g(56, 500, 66), g(-56, 500, 66)],
+      boardPost: [g(-3, 499, 10), g(3, 499, 10), g(3, 499, 30), g(-3, 499, 30)],
+      vStripes: (() => { const s = []; for (let x = -480; x < 480; x += 30) s.push([g(x, 0), g(x + 15, 0), g(x + 15, 460), g(x, 460)]); return s; })(),
+      onDeck: [circle(-25, -40, 2.5, 14), circle(25, -40, 2.5, 14)],
       foul: [g(-700, -59), g(700, -59), g(700, 650), g(-700, 650)],
       track: fan(0), grass: fan(15),
       dirt: [g(0, 0), ...dirtArc, g(0, 0)].slice(0, -1),
@@ -155,7 +178,7 @@
       backRail: [g(-200, -59.9, 11.2), g(200, -59.9, 11.2), g(200, -59.9, 12), g(-200, -59.9, 12)],
       backStand: [g(-200, -61, 12), g(200, -61, 12), g(220, -200, 85), g(-220, -200, 85)],
       poles: [[233.3, 233.3], [-233.3, 233.3]],
-      lights: [[-260, 140, 380], [260, 140, 380], [-120, 150, 470], [120, 150, 470], [-230, 120, -150], [230, 120, -150]],
+      lights: [[-215, 125, 430], [215, 125, 430], [-95, 140, 520], [95, 140, 520], [-230, 120, -150], [230, 120, -150]],
       crowd,
       stripes: (() => { const s = []; for (let z = 0; z < 430; z += 26) s.push([g(-500, z), g(500, z), g(500, z + 13), g(-500, z + 13)]); return s; })(),
     };
@@ -165,6 +188,8 @@
     const sky = ctx.createLinearGradient(0, 0, 0, H);
     sky.addColorStop(0, COL.sky0); sky.addColorStop(0.6, COL.sky1); sky.addColorStop(1, '#0c1a2a');
     ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
+    ctx.fillStyle = 'rgba(255,255,255,.55)';
+    for (const [u, v, r] of GEO.stars) { ctx.beginPath(); ctx.arc(u * W, v * H * 0.5, r, 0, 7); ctx.fill(); }
     // light towers glow
     for (const L of GEO.lights) {
       const p = P(c, L[0], L[1], L[2]); if (!p) continue;
@@ -174,6 +199,7 @@
       ctx.fillStyle = gr; ctx.fillRect(p.x - r, p.y - r, r * 2, r * 2);
     }
     fillPoly(c, GEO.stands, COL.stand);
+    for (const r of GEO.standRows) fillPoly(c, r, COL.stand2);
     fillPoly(c, GEO.backStand, COL.stand);
     for (const q of GEO.crowd) { const p = P(c, q.p[0], q.p[1], q.p[2]); if (!p) continue; const s = Math.max(1, p.k * 1.4); ctx.fillStyle = q.c; ctx.fillRect(p.x, p.y, s, s); }
     fillPoly(c, GEO.foul, COL.foul);
@@ -182,8 +208,11 @@
       ctx.fillStyle = COL.grassA; ctx.fill();
       ctx.save(); ctx.clip();
       for (const s of GEO.stripes) fillPoly(c, s, COL.grassB);
+      ctx.globalAlpha = 0.35;
+      for (const s of GEO.vStripes) fillPoly(c, s, COL.grassB);
       ctx.restore();
     }
+    for (const o of GEO.onDeck) fillPoly(c, o, COL.dirt);
     fillPoly(c, GEO.dirt, COL.dirt);
     fillPoly(c, GEO.infGrass, COL.grassA);
     fillPoly(c, GEO.cut1, COL.dirt); fillPoly(c, GEO.cut3, COL.dirt);
@@ -193,13 +222,51 @@
     fillPoly(c, GEO.plate, '#ffffff');
     fillPoly(c, GEO.rubber, '#ffffff');
     for (const b of GEO.bases) fillPoly(c, b, '#ffffff');
-    fillPoly(c, GEO.wall, COL.wall);
+    for (let i = 0; i < GEO.wallPanels.length; i++) { const w = GEO.wallPanels[i]; fillPoly(c, w.poly, w.ad ? '#1f3d6b' : i % 2 ? COL.wall : '#1a443c'); }
     fillPoly(c, GEO.wallTop, COL.wallTop);
+    // distance markers painted on the wall
+    ctx.fillStyle = COL.chalk; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    for (const a of [-45, -22, 0, 22, 45]) {
+      const r = E.fenceDist(a), [x, z] = E.fieldXY(a, r - 0.5), m = P(c, x, 5.5, z);
+      if (m && m.k > 0.5) { ctx.font = `700 ${Math.max(6, m.k * 5.5)}px "Saira Condensed", sans-serif`; ctx.fillText(distNum(r), m.x, m.y); }
+    }
+    ctx.textBaseline = 'alphabetic';
+    drawScoreboard(c);
+    drawTowers(c);
     fillPoly(c, GEO.backWall, '#1c4a44');
     fillPoly(c, GEO.backRail, COL.wallTop);
     for (const [x, z] of GEO.poles) {
       const a = P(c, x, 0, z), b = P(c, x, 60, z);
       if (a && b) { ctx.strokeStyle = COL.wallTop; ctx.lineWidth = Math.max(1, a.k * 0.8); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+    }
+  }
+
+  // center field scoreboard, showing the live score
+  function drawScoreboard(c) {
+    fillPoly(c, GEO.boardPost, '#2a3447');
+    if (!polyPath(c, GEO.board)) return;
+    ctx.fillStyle = '#0b0f16'; ctx.fill(); ctx.strokeStyle = '#3a4559'; ctx.lineWidth = 1; ctx.stroke();
+    const m = P(c, 0, 48, 500); if (!m || m.k < 0.4) return;
+    const s = st(), k = m.k;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = COL.wallTop; ctx.font = `800 ${k * 7}px "Saira Condensed", sans-serif`;
+    ctx.fillText('NIGHT DUEL', m.x, m.y - k * 11);
+    ctx.fillStyle = '#ffd36a'; ctx.font = `800 ${k * 12}px "Saira Condensed", sans-serif`;
+    ctx.fillText(`${G.mp ? 'FRIEND' : 'CPU'} ${s.score.opp}   YOU ${s.score.me}`, m.x, m.y + k * 1);
+    ctx.fillStyle = '#9bb0d6'; ctx.font = `700 ${k * 6}px "Saira Condensed", sans-serif`;
+    ctx.fillText(`${s.half ? 'BOT' : 'TOP'} ${s.inning}   B ${s.balls}  S ${s.strikes}  O ${s.outs}`, m.x, m.y + k * 12);
+    ctx.textBaseline = 'alphabetic';
+  }
+  // light towers: pole plus a bank of bulbs, billboarded toward the camera
+  function drawTowers(c) {
+    for (const L of GEO.lights) {
+      const a = P(c, L[0], 0, L[2]), b = P(c, L[0], L[1], L[2]); if (!a || !b) continue;
+      ctx.strokeStyle = '#2a3346'; ctx.lineWidth = Math.max(1, b.k * 2.5); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+      const w = b.k * 26, h = b.k * 11; if (w < 3) continue;
+      ctx.fillStyle = '#1b2232'; ctx.fillRect(b.x - w / 2, b.y - h, w, h);
+      ctx.fillStyle = '#fff6dc';
+      const cols = 6, rows = 2, bw = w / cols, bh = h / rows;
+      for (let i = 0; i < cols; i++) for (let j = 0; j < rows; j++) ctx.fillRect(b.x - w / 2 + i * bw + bw * 0.15, b.y - h + j * bh + bh * 0.15, bw * 0.7, bh * 0.7);
     }
   }
 
@@ -401,6 +468,32 @@
     renderFigure(foot.x, foot.y, foot.k, arm, alpha, 5.6, 8, () => pitcherArt(TEAM[team], w == null ? 0 : w, fromBehind, arm));
   }
 
+  // ---- Fielder (ready stance, facing the plate) ----
+  function fielderArt(T, sway) {
+    const S2 = { pants: T.pants, jerseyD: T.jerseyD, sock: T.sock };
+    leg([-0.32, 2.95], [-0.8, 1.55], [-0.95, 0.12], S2, -1, false);
+    leg([0.32, 2.95], [0.8, 1.55], [0.95, 0.12], S2, 1, false);
+    blob([[-0.55, 2.85], [-0.75, 4.0], [-0.72, 4.95], [0, 5.15], [0.72, 4.95], [0.75, 4.0], [0.55, 2.85]], T.jersey);
+    poly([[-0.52, 2.8], [0.52, 2.8], [0.52, 3.02], [-0.52, 3.02]], '#202228');
+    seg([-0.68, 4.8], [-1.05, 3.9 + sway], 0.19, 0.15, T.jersey); seg([-1.05, 3.9 + sway], [-1.0, 3.0], 0.15, 0.12, T.skin);
+    seg([0.68, 4.8], [1.05, 3.9 - sway], 0.19, 0.15, T.jersey); seg([1.05, 3.9 - sway], [1.0, 3.0], 0.15, 0.12, T.skin);
+    blob([[-1.3, 2.7], [-1.4, 3.15], [-1.0, 3.4], [-0.65, 3.1], [-0.75, 2.65]], T.glove);
+    dot([1.0, 2.95], 0.16, T.skin);
+    seg([0, 5.05], [0, 5.3], 0.16, 0.15, T.skin);
+    ell(0, 5.6, 0.35, 0.4, 0, T.skin);
+    X.fillStyle = T.cap; X.beginPath(); X.ellipse(0, 5.72, 0.38, 0.33, 0, 0, Math.PI); X.fill();
+    ell(0, 5.7, 0.47, 0.1, 0, T.cap);
+  }
+  function drawFielders(c, team, now) {
+    const list = Object.keys(E.FIELDERS).filter((f) => f !== 'P' && f !== 'C').map((f) => { const [a, r] = E.FIELDERS[f]; const [x, z] = E.fieldXY(a, r); return { f, x, z }; });
+    list.sort((a, b) => b.z - a.z);
+    for (const q of list) {
+      const p = P(c, q.x, 0, q.z); if (!p) continue;
+      const sway = Math.sin(now / 900 + q.x) * 0.08;
+      renderFigure(p.x, p.y, p.k, 1, 1, 3.2, 6.4, () => fielderArt(TEAM[team], sway), 0.9);
+    }
+  }
+
   function drawCatcherUmp(c, mitt) {
     let p = P(c, 0, 0, -5.2);
     if (p) renderFigure(p.x, p.y, p.k, 1, 1, 3.4, 5.6, () => {
@@ -443,7 +536,7 @@
   }
 
   // ---------------- Pitch flow ----------------
-  function timeScale() { return S.role === 'batter' ? S.speed : 1; }
+  function timeScale() { return G.tsLock || (S.role === 'batter' ? S.speed : 1); } // locked per pitch so a settings change waits for the next one
   function setPhase(ph) { G.phase = ph; G.t0 = G.now; }
   const statsBucket = () => (G.mp ? save.mpStats : save.stats);
   const logBucket = () => (G.mp ? save.mpLogs : save.logs[S.role]);
@@ -466,7 +559,7 @@
     nextPitch();
   }
   function nextPitch() {
-    G.pitch = null; G.cpuDec = null; G.swing = null; G.swingAnim = null; G.outcome = null; G.trail = []; G.hit = null; G.reticle = null;
+    G.tsLock = 0; G.pitch = null; G.cpuDec = null; G.swing = null; G.swingAnim = null; G.outcome = null; G.trail = []; G.hit = null; G.reticle = null;
     G.basesBefore = st().bases.slice();
     if (S.role === 'pitcher') { setPhase('idle'); $('throw').disabled = false; banner(PITCH_HINT); }
     else if (G.mp) { setPhase('waitPitch'); banner('Waiting for your friend to pitch…'); if (G.mp.pendingPitch) takePitch(G.mp.pendingPitch); else mpReplay(); }
@@ -479,14 +572,16 @@
     audio();
     $('throw').disabled = true;
     G.pitch = E.executePitch(G.pitchType, G.target.x, G.target.y, G.pHand);
+    G.tsLock = timeScale();
     if (G.mp) { G.mp.seq++; G.cpuDec = null; mpSend({ t: 'pitch', seq: G.mp.seq, p: G.pitch }); }
-    else G.cpuDec = E.cpuBatter(G.pitch, st(), G.bHand);
+    else G.cpuDec = E.cpuBatter(G.pitch, st(), G.bHand, S.cpuBatLv);
     setPhase('windup'); banner('');
   }
 
   function cpuPitch() {
-    const c = E.cpuChoosePitch(st(), G.pHand, G.bHand);
-    G.pitch = E.executePitch(c.type, c.tx, c.ty, G.pHand);
+    const c = E.cpuChoosePitch(st(), G.pHand, G.bHand, S.cpuPitchLv);
+    G.pitch = E.executePitch(c.type, c.tx, c.ty, G.pHand, S.cpuPitchLv);
+    G.tsLock = timeScale();
     setPhase('windup');
   }
   // multiplayer: the friend's pitch arrived
@@ -495,7 +590,7 @@
     if (msg.seq <= G.mp.lastPitchSeq) return;
     if (G.phase !== 'waitPitch') { G.mp.pendingPitch = msg; return; }
     G.mp.lastPitchSeq = msg.seq;
-    G.pitch = msg.p; banner('');
+    G.pitch = msg.p; banner(''); G.tsLock = timeScale();
     setPhase('windup');
   }
 
@@ -759,7 +854,7 @@
     for (let a = -45; a <= 45; a += 2.5) { const [x, z] = E.fieldXY(a, E.fenceDist(a)); const s = F(T, x, z); if (a === -45) ctx.moveTo(s[0], s[1]); else ctx.lineTo(s[0], s[1]); }
     ctx.stroke();
     ctx.fillStyle = 'rgba(241,236,220,.7)'; ctx.font = `600 ${Math.max(9, T.sc * 14)}px "Saira Condensed", sans-serif`; ctx.textAlign = 'center';
-    for (const a of [-45, -22, 0, 22, 45]) { const r = E.fenceDist(a); const [x, z] = E.fieldXY(a, r + 14); const s = F(T, x, z); ctx.fillText(String(Math.round(r)), s[0], s[1]); }
+    for (const a of [-45, -22, 0, 22, 45]) { const r = E.fenceDist(a); const [x, z] = E.fieldXY(a, r + 14); const s = F(T, x, z); ctx.fillText(distNum(r), s[0], s[1]); }
     // bases
     for (const [bx, bz] of [[62.8, 63.6], [0, 127.3], [-62.8, 63.6]]) { const s = F(T, bx, bz); ctx.fillStyle = '#fff'; ctx.fillRect(s[0] - 2.5, s[1] - 2.5, 5, 5); }
     const hp = F(T, 0, 0); ctx.fillStyle = '#fff'; ctx.fillRect(hp[0] - 2.5, hp[1] - 2.5, 5, 5);
@@ -799,8 +894,8 @@
     }
   }
   function statcastLine(bb) {
-    const base = `Exit velo ${bb.ev.toFixed(1)} mph · Launch ${Math.round(bb.la)}°`;
-    return bb.kind === 'GB' ? base : `${base} · ${Math.round(bb.dist)} ft`;
+    const base = `Exit velo ${spd(bb.ev, 1)} · Launch ${Math.round(bb.la)}°`;
+    return bb.kind === 'GB' ? base : `${base} · ${dist(bb.dist)}`;
   }
 
   // ---------------- Pitch view render ----------------
@@ -850,6 +945,7 @@
       if (ball) drawBall3D(cam, ball, true);
     } else {
       const w = G.phase === 'windup' ? el / WINDUP : (G.phase === 'flight') ? 1 + Math.min(0.3, el) : (G.phase === 'after' || G.phase === 'contact') ? 1.3 : 0;
+      drawFielders(cam, 'cpu', now);
       drawPitcher(cam, G.pHand, w, 'cpu', false, 1);
       if (ball) { drawTrail(ball); drawBall3D(cam, ball, false); }
       drawBatter(cam, G.bHand, swingT, 'me', 0.75);
@@ -936,8 +1032,8 @@
 
   function showPitchInfo() {
     const p = G.pitch; const el = $('pinfo'); el.textContent = '';
-    const b = document.createElement('b'); b.textContent = `${p.mph.toFixed(1)} mph`;
-    const s = document.createElement('span'); s.textContent = `${E.PITCHES[p.type].name} · ${Math.round(p.mph * KMH)} km/h`;
+    const b = document.createElement('b'); b.textContent = spd(p.mph, 1);
+    const s = document.createElement('span'); s.textContent = E.PITCHES[p.type].name;
     el.append(b, s);
   }
 
@@ -966,7 +1062,7 @@
     for (const k of Object.keys(E.PITCHES)) {
       const b = document.createElement('button'); b.className = 'pbtn'; b.dataset.k = k;
       const n = document.createElement('b'); n.textContent = E.PITCHES[k].name;
-      const i = document.createElement('i'); i.textContent = `${Math.round(E.PITCHES[k].mph)} mph`;
+      const i = document.createElement('i'); i.textContent = spd(E.PITCHES[k].mph);
       b.append(n, i); b.setAttribute('aria-pressed', k === G.pitchType ? 'true' : 'false');
       b.addEventListener('click', () => { G.pitchType = k; [...box.children].forEach((c) => c.setAttribute('aria-pressed', c.dataset.k === k ? 'true' : 'false')); });
       box.append(b);
@@ -1031,9 +1127,10 @@
       logs = save.mpLogs;
     } else {
       statBlock(body, save.stats, statTab);
+      const LV = ['Rookie', 'MLB average', 'All-Star'];
       note.textContent = statTab === 'pitcher'
-        ? 'Average MLB starter: about 4.20 ERA, 1.30 WHIP, 8.5 K/9. The CPU hitters are tuned to league-average MLB hitters.'
-        : 'Average MLB hitter: about .245 AVG, .315 OBP, .400 SLG, .715 OPS. The CPU pitcher is tuned to a league-average MLB starter.';
+        ? `Average MLB starter: about 4.20 ERA, 1.30 WHIP, 8.5 K/9. CPU hitters are set to ${LV[S.cpuBatLv]} (change in Settings).`
+        : `Average MLB hitter: about .245 AVG, .315 OBP, .400 SLG, .715 OPS. The CPU pitcher is set to ${LV[S.cpuPitchLv]} (change in Settings).`;
       logs = save.logs[statTab];
     }
     body.append(note);
@@ -1330,15 +1427,30 @@
   $('closeStats').addEventListener('click', () => { $('statsOv').hidden = true; G.paused = false; if (!G.started) $('startOv').hidden = false; });
   $('changeRole').addEventListener('click', () => { mpLeave(); $('statsOv').hidden = true; G.started = false; G.phase = 'menu'; hideToast(); banner(''); $('startOv').hidden = false; renderStart(); });
   $('statTabs').addEventListener('click', (e) => { const t = e.target.closest('button')?.dataset.t; if (t) { statTab = t; renderStats(); } });
-  const speedBtns = [...$('speedSeg').children];
-  const renderSpeed = () => speedBtns.forEach((b) => b.setAttribute('aria-pressed', Number(b.dataset.v) === S.speed ? 'true' : 'false'));
-  $('speedSeg').addEventListener('click', (e) => { const v = e.target.closest('button')?.dataset.v; if (v && (G.phase === 'think' || G.phase === 'after' || G.phase === 'idle')) { S.speed = Number(v); renderSpeed(); persist(); } });
-  $('zoneChk').checked = S.zone; $('soundChk').checked = S.sound;
+  // ---------------- Settings overlay ----------------
+  const SET_SEGS = { unitSeg: ['units', String], speedSeg: ['speed', Number], cpuPitchSeg: ['cpuPitchLv', Number], cpuBatSeg: ['cpuBatLv', Number] };
+  function renderSettings() {
+    for (const id in SET_SEGS) { const [key] = SET_SEGS[id]; [...$(id).children].forEach((b) => b.setAttribute('aria-pressed', String(S[key]) === b.dataset.v ? 'true' : 'false')); }
+    $('zoneChk').checked = S.zone; $('soundChk').checked = S.sound;
+  }
+  for (const id in SET_SEGS) {
+    $(id).addEventListener('click', (e) => {
+      const v = e.target.closest('button')?.dataset.v; if (v == null) return;
+      const [key, cast] = SET_SEGS[id]; S[key] = cast(v); persist(); renderSettings();
+      if (key === 'units') { buildPitchList(); if (G.pitch && S.role === 'pitcher' && $('pinfo').textContent) showPitchInfo(); }
+    });
+  }
   $('zoneChk').addEventListener('change', (e) => { S.zone = e.target.checked; persist(); });
   $('soundChk').addEventListener('change', (e) => { S.sound = e.target.checked; persist(); });
+  let setFrom = null;
+  const openSettings = (from) => { setFrom = from; if (from) from.hidden = true; renderSettings(); $('setOv').hidden = false; };
+  $('setDone').addEventListener('click', () => { $('setOv').hidden = true; if (setFrom) setFrom.hidden = false; else G.paused = false; });
+  $('startSet').addEventListener('click', () => openSettings($('startOv')));
+  $('statsSet').addEventListener('click', () => openSettings($('statsOv')));
+  $('setBtn').addEventListener('click', () => { G.paused = !G.mp; openSettings(null); });
   window.addEventListener('keydown', (e) => { if (e.code === 'Space' && S.role === 'pitcher' && G.started && !e.repeat) { e.preventDefault(); throwPitch(); } });
 
-  buildPitchList(); renderSpeed(); renderStart(); renderHUD();
+  buildPitchList(); renderSettings(); renderStart(); renderHUD();
 
   let last = performance.now();
   function frame(now) {

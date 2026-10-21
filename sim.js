@@ -1,12 +1,12 @@
-const E=require('./engine.js');
+const E=require('./engine.js');const PL=+(process.argv[2]??1),BL=+(process.argv[3]??1);
 function simPA(st, stats, pH, bH){
   st.balls=0; st.strikes=0; st.history=[];
   let pitches=0;
   while(true){
     pitches++;
-    const c=E.cpuChoosePitch(st,pH,bH);
-    const p=E.executePitch(c.type,c.tx,c.ty,pH);
-    const d=E.cpuBatter(p,st,bH);
+    const c=E.cpuChoosePitch(st,pH,bH,PL);
+    const p=E.executePitch(c.type,c.tx,c.ty,pH,PL);
+    const d=E.cpuBatter(p,st,bH,BL);
     st.history.push(p);
     let ev=null, bb=null;
     if(!d.swing){ const call=E.callPitch(p,bH); if(call==='hbp') ev='HBP'; else if(call==='ball'){ if(++st.balls===4) ev='BB'; } else { if(++st.strikes===3) ev='K'; } }
