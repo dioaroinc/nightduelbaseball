@@ -870,6 +870,7 @@
       let f = bb.fielder;
       if (!(bb.result === 'OUT' || bb.how === 'Infield single')) f = bb.phi < -15 ? 'LF' : bb.phi > 15 ? 'RF' : 'CF';
       fa.fielder = f; fa.from = fpos(f); fa.to = end;
+      fa.land = end; fa.landT = tStop; fa.caught = bb.result === 'OUT';
       if (bb.result === 'OUT') fa.throwTo = f === '1B' ? null : [62.8, 63.6];
     } else {
       let tEnd = bb.T;
@@ -886,6 +887,8 @@
       fa.from = fpos(fa.fielder);
       const landD = bb.result === 'OUT' && bb.catchD ? bb.catchD : Math.min(bb.dist, E.fenceDist(bb.phi) - 3);
       fa.to = bb.result === 'HR' ? dirXY(E.fenceDist(bb.phi) - 6) : dirXY(bb.result === 'OUT' ? landD : landD + roll);
+      fa.land = bb.result === 'HR' ? dirXY(Math.min(bb.dist, E.fenceDist(bb.phi) + 40)) : dirXY(landD);
+      fa.landT = tEnd / animScale; fa.caught = bb.result === 'OUT'; fa.hr = bb.result === 'HR';
       if (bb.result !== 'OUT' && bb.result !== 'HR') fa.dur += 1.2 / 1;
     }
     G.fa = fa;
@@ -939,6 +942,7 @@
       ctx.beginPath(); ctx.arc(s[0], s[1], Math.max(4, T.sc * 7), 0, 7); ctx.fill();
       ctx.fillStyle = '#0b1424'; ctx.fillText(f, s[0], s[1] + Math.max(3, T.sc * 4.5));
     }
+    drawLanding(T, fa, t, el);
     // ball trail + ball
     ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.5; ctx.setLineDash([2, 4]); ctx.beginPath();
     for (let i = 0; i <= 30; i++) { const b = fa.ball((t * i) / 30); const s = F(T, b.x, b.z, b.h); if (i) ctx.lineTo(s[0], s[1]); else ctx.moveTo(s[0], s[1]); }
@@ -956,6 +960,35 @@
       const info = G.afterInfo;
       toast(info.txt.main, statcastLine(fa.bb) + (info.txt.sub ? `  ·  ${info.txt.sub}` : ''), info.txt.good);
     }
+  }
+  // where the ball will come down: a shrinking target during the flight, then a dust burst and a lasting mark
+  function drawLanding(T, fa, t, el) {
+    if (!fa.land) return;
+    const s = F(T, fa.land[0], fa.land[1]);
+    const col = fa.hr ? '#ffbb4a' : fa.caught ? '#9aa3b5' : '#4fd88a';
+    ctx.save();
+    if (t < fa.landT) {
+      const u = t / fa.landT, r = Math.max(5, T.sc * (26 - u * 18));
+      ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.setLineDash([4, 4]); ctx.lineDashOffset = -el * 40;
+      ctx.beginPath(); ctx.ellipse(s[0], s[1], r, r * 0.55, 0, 0, 7); ctx.stroke(); ctx.setLineDash([]);
+      ctx.beginPath(); ctx.moveTo(s[0] - 5, s[1]); ctx.lineTo(s[0] + 5, s[1]); ctx.moveTo(s[0], s[1] - 3); ctx.lineTo(s[0], s[1] + 3); ctx.stroke();
+    } else {
+      const a = Math.min(1, (el - fa.landT) / 0.7);
+      if (a < 1) { // dust burst
+        ctx.strokeStyle = col; ctx.globalAlpha = 1 - a; ctx.lineWidth = 3 - a * 2;
+        const r = T.sc * (6 + a * 40);
+        ctx.beginPath(); ctx.ellipse(s[0], s[1], r, r * 0.5, 0, 0, 7); ctx.stroke();
+        ctx.fillStyle = fa.hr ? 'rgba(255,220,120,.9)' : 'rgba(210,180,140,.85)';
+        for (let i = 0; i < 7; i++) { const an = i * 0.9 + 0.4, d = T.sc * (4 + a * 22); ctx.beginPath(); ctx.arc(s[0] + Math.cos(an) * d, s[1] - Math.abs(Math.sin(an)) * d * 0.6 - a * 6, (3 - a * 2.5) * Math.max(1, T.sc), 0, 7); ctx.fill(); }
+        ctx.globalAlpha = 1;
+      }
+      // lasting mark
+      ctx.fillStyle = col; ctx.beginPath(); ctx.ellipse(s[0], s[1], Math.max(4, T.sc * 7), Math.max(2.5, T.sc * 4), 0, 0, 7); ctx.fill();
+      ctx.strokeStyle = '#0b1424'; ctx.lineWidth = 1.5; ctx.stroke();
+      ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(s[0] - 4, s[1] - 3); ctx.lineTo(s[0] + 4, s[1] + 3); ctx.moveTo(s[0] + 4, s[1] - 3); ctx.lineTo(s[0] - 4, s[1] + 3); ctx.stroke();
+      if (fa.hr) { ctx.fillStyle = col; ctx.font = `800 ${Math.max(11, T.sc * 16)}px "Saira Condensed", sans-serif`; ctx.textAlign = 'center'; ctx.fillText('HR', s[0], s[1] - Math.max(8, T.sc * 10)); }
+    }
+    ctx.restore();
   }
   function statcastLine(bb) {
     const base = `Exit velo ${spd(bb.ev, 1)} · Launch ${Math.round(bb.la)}°`;
