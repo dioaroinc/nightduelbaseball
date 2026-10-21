@@ -783,13 +783,13 @@
     if (S.role === 'pitcher') { st0.pitcher.pitches++; if (O.kind !== 'ball' && O.ev !== 'HBP') st0.pitcher.strikes++; }
     else st0.batter.pitches++;
     G.hit = O.hitV ? { ...O.hitV, t0: G.now } : null;
-    if (!O.dec.swing || O.dec.result === 'miss') sfx.mitt();
+    if (!O.dec.swing || O.dec.result === 'miss') { sfx.mitt(); G.freeze = { kind: 'plate', t0: G.now, dur: 380 }; } // hold the frame so the location is readable
     else if (O.dec.result === 'foul') sfx.foul();
     else {
       sfx.bat(O.dec.quality); buzz(25);
       if (O.dec.result === 'play' && O.dec.quality >= 0.74 && G.pitch) { // sweet-spot contact: freeze the frame for a beat
         const c = P(cam, G.pitch.px, G.pitch.py, 0);
-        G.freeze = { t0: G.now, dur: 220, x: c ? c.x : W / 2, y: c ? c.y : H / 2, q: O.dec.quality };
+        G.freeze = { kind: 'hit', t0: G.now, dur: 220, x: c ? c.x : W / 2, y: c ? c.y : H / 2, q: O.dec.quality };
         buzz([30, 30, 60]);
       }
     }
@@ -1045,9 +1045,16 @@
     // pitch location marker after the pitch
     if (G.phase === 'after' && p && !(G.hit && !G.hit.foul)) {
       const m = P(cam, p.px, p.py, 0);
+      const hold = G.freeze && G.freeze.kind === 'plate';
+      if (hold) drawZone(cam, 0.95);
       if (m) {
-        const zone = E.inZone(p.px, p.py);
-        ctx.fillStyle = zone ? 'rgba(255,187,74,.9)' : 'rgba(79,216,138,.9)';
+        const zone = E.inZone(p.px, p.py), col = zone ? 'rgba(255,187,74,.9)' : 'rgba(79,216,138,.9)';
+        if (hold) {
+          const u = Math.min(1, (now - G.freeze.t0) / G.freeze.dur);
+          ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(m.x, m.y, Math.max(10, m.k * 0.25) + u * 10, 0, 7); ctx.stroke();
+          ctx.lineWidth = 1.5; ctx.beginPath(); ctx.moveTo(m.x - 16, m.y); ctx.lineTo(m.x + 16, m.y); ctx.moveTo(m.x, m.y - 16); ctx.lineTo(m.x, m.y + 16); ctx.stroke();
+        }
+        ctx.fillStyle = col;
         ctx.beginPath(); ctx.arc(m.x, m.y, Math.max(4, m.k * 0.121), 0, 7); ctx.fill();
         ctx.strokeStyle = '#0a111d'; ctx.lineWidth = 1.5; ctx.stroke();
       }
@@ -1167,7 +1174,7 @@
     const side = $('padSide');
     const batterOnRight = G.bHand === 'R';
     side.textContent = batterOnRight ? 'Batter ▸' : '◂ Batter';
-    side.style.left = batterOnRight ? '' : '4px'; side.style.right = batterOnRight ? '4px' : '';
+    side.style.left = batterOnRight ? '' : '22px'; side.style.right = batterOnRight ? '4px' : '';
   }
   function padPointer(e) {
     if (G.phase !== 'idle') return;
@@ -1623,9 +1630,10 @@
     if (G.pwr) renderPower(powerAt(now));
     if (G.phase === 'field' || G.phase === 'fieldDone') { if (G.fa && G.paused) G.fa.t0 += dt; drawField(now); }
     else {
-      if (frozen) { const j = 3; ctx.save(); ctx.translate((Math.random() - 0.5) * j * 2, (Math.random() - 0.5) * j * 2); drawPitchView(now); ctx.restore(); }
+      if (frozen && G.freeze.kind === 'hit') { const j = 3; ctx.save(); ctx.translate((Math.random() - 0.5) * j * 2, (Math.random() - 0.5) * j * 2); drawPitchView(now); ctx.restore(); }
       else drawPitchView(now);
-      if (G.freeze) drawImpact(now);
+      if (G.freeze && G.freeze.kind === 'hit') drawImpact(now);
+      else if (G.freeze && now - G.freeze.t0 >= G.freeze.dur) G.freeze = null;
     }
     requestAnimationFrame(frame);
   }
