@@ -111,6 +111,10 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 #pad .zone i { border: 1px dashed rgba(241,236,220,.18); }
 #pad .mk { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; border: 3px solid var(--accent); box-shadow: 0 0 10px var(--accent); pointer-events: none; }
 #pad .side { position: absolute; bottom: 4px; font-size: 11px; color: var(--muted); }
+#pad .pwr { position: absolute; left: 5px; top: 8px; bottom: 8px; width: 12px; border-radius: 6px; background: #070c16; border: 1px solid var(--line); overflow: hidden; }
+#pad .pwr div { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: linear-gradient(to top, #4fd88a, #ffbb4a 70%, #ff5d52); transition: none; }
+#pad .pwr div.max { box-shadow: 0 0 10px #ff5d52; }
+#pad .pwr span { position: absolute; left: 0; right: 0; top: 2px; text-align: center; font-size: 8px; font-family: var(--f-board); color: var(--chalk); }
 .padlab { font-size: 11px; color: var(--muted); }
 #throw {
   margin-top: 8px; width: 100%; height: 46px; border: 0; border-radius: 12px; background: var(--accent); color: #1a1205;
@@ -227,8 +231,9 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
             <div class="zone"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
             <div class="mk" id="padMk"></div>
             <span class="side" id="padSide"></span>
+            <div class="pwr" aria-hidden="true"><div id="pwrFill"></div><span id="pwrLab"></span></div>
           </div>
-          <span class="padlab">Lift to throw</span>
+          <span class="padlab">Hold, lift at the top for power</span>
         </div>
       </div>
       <button id="throw">Throw same spot again</button>
@@ -263,15 +268,27 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       <div class="row2"><button class="ghost" id="startStats">My stats</button><button class="ghost" id="startSet">Settings</button></div>
       <div class="grp mp" id="mpGrp">
         <h3>PLAY WITH A FRIEND</h3>
+        <div class="grp"><h3>GAME LENGTH</h3>
+          <div class="seg wide" id="mpInnSeg"><button data-v="3">3 innings</button><button data-v="6">6 innings</button><button data-v="9">9 innings</button></div></div>
         <div class="row2"><button class="ghost" id="mpCreate">Create room</button><button class="ghost" id="mpJoinShow">Join with code</button></div>
         <div class="joinrow" id="mpJoinRow" hidden>
           <input id="mpCode" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="4-digit code" autocomplete="off" aria-label="Room code">
           <button class="cta" id="mpJoin">Join</button>
         </div>
         <div class="mpstatus" id="mpStatus" hidden></div>
-        <div class="note">The room creator starts in the role picked above, the friend starts in the other. You switch sides every three outs.</div>
+        <div class="note">The room creator picks the length and starts in the role picked above; the friend starts in the other. You switch sides every three outs. If the game is tied after the last inning it goes to extras. A pitcher who does not throw for 20 seconds forfeits.</div>
       </div>
       <div class="note">Stats are saved in this browser only. No sign-up needed. <span id="buildTag"></span></div>
+    </div>
+  </div>
+
+  <div class="ov" id="endOv" hidden>
+    <div class="inner">
+      <div class="logo" id="endTitle">GAME <em>OVER</em></div>
+      <div class="sub" id="endSub"></div>
+      <div class="line" id="endScore" style="text-align:center;font-size:20px"></div>
+      <button class="cta" id="endBack">Back to menu</button>
+      <div class="note">Your vs Friend stats are saved under My stats.</div>
     </div>
   </div>
 

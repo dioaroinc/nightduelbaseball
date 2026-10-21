@@ -69,19 +69,26 @@ const Engine = (() => {
     { chase: 0.78, contact: 0.05, ev: 3 },
   ];
   const lv = (arr, k) => arr[k == null ? 1 : clamp(Math.round(k), 0, 2)];
-  function executePitch(type, tx, ty, hand, level) {
+  // power: 0..1 from the pitcher's effort gauge. Near the top adds velocity; max effort costs a little command.
+  function executePitch(type, tx, ty, hand, level, power) {
     const P = PITCHES[type];
     const L = level == null ? PITCHER_LV[1] : lv(PITCHER_LV, level);
-    const ctl = P.ctl * L.cmd;
+    let velo = L.velo, cmd = L.cmd;
+    if (power != null) {
+      const pw = clamp(power, 0, 1);
+      velo += pw >= 0.95 ? 3.5 : (pw - 0.5) * 6;
+      cmd *= pw >= 0.95 ? 1 : 1 + Math.max(0, pw - 0.75) * 0.8;
+    }
+    const ctl = P.ctl * cmd;
     const px = tx + gauss() * CMD_SD.x * ctl;
     const py = ty + gauss() * CMD_SD.y * ctl;
-    const mph = P.mph + L.velo + gauss() * 0.9;
+    const mph = P.mph + velo + gauss() * 0.9;
     const handSign = hand === 'R' ? 1 : -1; // glove side direction for RHP = +x
     const brk = [P.brk[0] * handSign * (1 + gauss() * 0.08), P.brk[1] * (1 + gauss() * 0.06)];
     const release = { x: hand === 'R' ? -1.9 : 1.9, y: 5.9 + gauss() * 0.1, z: RELEASE_Z };
     // average speed ~ 92% of release speed
     const T = RELEASE_Z / (mph * 1.4667 * 0.92);
-    return { type, mph: Math.round(mph * 10) / 10, px, py, tx, ty, brk, release, T, hand };
+    return { type, mph: Math.round(mph * 10) / 10, px, py, tx, ty, brk, release, T, hand, pw: power == null ? null : Math.round(clamp(power, 0, 1) * 100) / 100 };
   }
 
   // Position of the ball at fraction s (0..1) of the flight

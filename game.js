@@ -32,6 +32,7 @@
   if (!S.units) S.units = 'mph';
   if (S.cpuPitchLv == null) S.cpuPitchLv = 1;
   if (S.cpuBatLv == null) S.cpuBatLv = 1;
+  if (![3, 6, 9].includes(S.mpInn)) S.mpInn = 3;
   const metric = () => S.units === 'kmh';
   const spd = (mph, d = 0) => (metric() ? `${(mph * KMH).toFixed(d)} km/h` : `${mph.toFixed(d)} mph`);
   const distNum = (ft) => String(Math.round(metric() ? ft * 0.3048 : ft));
@@ -44,8 +45,11 @@
     pitchType: 'FF', target: { x: 0.45, y: 2.1 },
     pitch: null, cpuDec: null, swing: null, swingAnim: null, outcome: null,
     trail: [], hit: null, fa: null, hudFrozen: false, afterInfo: null, basesBefore: [0, 0, 0],
-    reticle: null, pendingInning: false, aim: null,
+    reticle: null, pendingInning: false, aim: null, pwr: null, tsLock: 0,
   };
+  const TURN_SECS = 20, REMOTE_SECS = 30;
+  const POWER_PERIOD = 1300;
+  const powerAt = (now) => { const u = ((now - G.pwr.t0) / POWER_PERIOD) % 1; return u < 0.5 ? u * 2 : 2 - u * 2; };
 
   // ---------------- Audio ----------------
   let AC = null;
@@ -569,7 +573,7 @@
   function setPhase(ph) { G.phase = ph; G.t0 = G.now; }
   const statsBucket = () => (G.mp ? save.mpStats : save.stats);
   const logBucket = () => (G.mp ? save.mpLogs : save.logs[S.role]);
-  const PITCH_HINT = 'Pick a pitch, then lift your finger on the zone pad to throw';
+  const PITCH_HINT = 'Pick a pitch, hold the zone pad, lift at the top of the gauge for max power';
 
   function startPA() {
     const s = st();
@@ -595,12 +599,12 @@
     else { setPhase('think'); banner(''); }
   }
 
-  function throwPitch() {
+  function throwPitch(power) {
     if (G.phase !== 'idle' || S.role !== 'pitcher') return;
     if (G.mp && !G.mp.oppPeer) return;
     audio();
     $('throw').disabled = true;
-    G.pitch = E.executePitch(G.pitchType, G.target.x, G.target.y, G.pHand);
+    G.pitch = E.executePitch(G.pitchType, G.target.x, G.target.y, G.pHand, null, power == null ? 0.5 : power);
     G.tsLock = timeScale();
     if (G.mp) { G.mp.seq++; G.cpuDec = null; mpSend({ t: 'pitch', seq: G.mp.seq, p: G.pitch }); }
     else G.cpuDec = E.cpuBatter(G.pitch, st(), G.bHand, S.cpuBatLv);
@@ -630,6 +634,10 @@
     const el = (now - G.t0) / 1000;
     switch (G.phase) {
       case 'think': if (el > 1.1) cpuPitch(); break;
+      case 'idle':
+        if (G.mp && G.mp.started) { const left = TURN_SECS - el; if (left <= 0) mpForfeit(); else if (left <= 10) banner(`Throw within ${Math.ceil(left)}s or you forfeit`); }
+        break;
+      case 'waitPitch': if (G.mp && el > REMOTE_SECS) mpEnd(true, 'Your friend stopped playing.'); break;
       case 'windup':
         if (el >= WINDUP) { setPhase('flight'); if (S.role === 'pitcher') showPitchInfo(); }
         break;
@@ -645,7 +653,7 @@
         }
         break;
       }
-      case 'waitResult': if (el > 1.2) banner('Waiting for your friend…'); break;
+      case 'waitResult': if (el > 1.2) banner('Waiting for your friend…'); if (G.mp && el > REMOTE_SECS) mpEnd(true, 'Your friend stopped playing.'); break;
       case 'contact': if (el > 0.6) startField(); break;
       case 'after': if (el > (G.afterInfo && G.afterInfo.paEnd ? 1.7 : 1.05)) afterDone(); break;
       case 'fieldDone': if (el > 2.6) afterDone(); break;
@@ -805,6 +813,7 @@
         const s = st();
         s.outs = 0; s.bases = [0, 0, 0]; s.inningRuns = 0;
         if (s.half) { s.half = 0; s.inning++; } else s.half = 1;
+        if (G.mp && !s.half && s.inning > G.mp.innings && s.score.me !== s.score.opp) { mpEnd(s.score.me > s.score.opp, `Final after ${s.inning - 1} innings.`); return; }
         S.role = S.role === 'pitcher' ? 'batter' : 'pitcher';
         if (G.mp) { G.mp.myRole = S.role; mpPresence(); }
         setRolePanels(); persist();
@@ -1062,7 +1071,9 @@
   function showPitchInfo() {
     const p = G.pitch; const el = $('pinfo'); el.textContent = '';
     const b = document.createElement('b'); b.textContent = spd(p.mph, 1);
-    const s = document.createElement('span'); s.textContent = E.PITCHES[p.type].name;
+    const pw = p.pw == null ? 0.5 : p.pw;
+    const eff = pw >= 0.95 ? ' · PERFECT power' : pw >= 0.8 ? ' · Max effort' : pw <= 0.25 ? ' · Easy' : '';
+    const s = document.createElement('span'); s.textContent = E.PITCHES[p.type].name + eff;
     el.append(b, s);
   }
 
@@ -1081,7 +1092,7 @@
   function renderMatchup() {
     const me = S.role === 'pitcher' ? `You ${handName(G.pHand, 'pitcher')}` : `You ${handName(G.bHand, 'batter')}`;
     const cpu = S.role === 'pitcher' ? `CPU ${handName(G.bHand, 'batter')}` : `CPU ${handName(G.pHand, 'pitcher')}`;
-    const opp = G.mp ? cpu.replace('CPU', 'Friend') + `  ·  Room ${G.mp.code}` : cpu;
+    const opp = G.mp ? cpu.replace('CPU', 'Friend') + `  ·  ${G.mp.innings} inn` : cpu;
     $('matchup').textContent = `${me}  vs  ${opp}`;
   }
 
@@ -1196,8 +1207,8 @@
   function renderStart() {
     $('rolePitcher').setAttribute('aria-pressed', S.role === 'pitcher' ? 'true' : 'false');
     $('roleBatter').setAttribute('aria-pressed', S.role === 'batter' ? 'true' : 'false');
-    const segs = { myThrowSeg: 'myThrow', myBatSeg: 'myBat', cpuThrowSeg: 'cpuThrow', cpuBatSeg: 'cpuBat' };
-    for (const id in segs) [...$(id).children].forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === S[segs[id]] ? 'true' : 'false'));
+    const segs = { myThrowSeg: 'myThrow', myBatSeg: 'myBat', cpuThrowSeg: 'cpuThrow', cpuBatSeg: 'cpuBat', mpInnSeg: 'mpInn' };
+    for (const id in segs) [...$(id).children].forEach((b) => b.setAttribute('aria-pressed', b.dataset.v === String(S[segs[id]]) ? 'true' : 'false'));
   }
   function setRolePanels() {
     $('pitcherPanel').hidden = S.role !== 'pitcher';
@@ -1307,7 +1318,7 @@
     try { room = await api.join(`nd-${code}`); } catch (e) { mpStatus([elt('div', '', 'Could not open the room. Check your connection and try again.')]); return; }
     G.mp = {
       code, room, host, myRole: host ? S.role : null, oppPeer: null, oppHand: 'R', seq: 0, lastPitchSeq: 0, resultSeq: 0,
-      pendingPitch: null, pendingResult: null, state: newDuel(), started: false, unsub: null, leftTimer: null,
+      pendingPitch: null, pendingResult: null, state: newDuel(), started: false, unsub: null, leftTimer: null, innings: S.mpInn,
     };
     G.mp.unsub = room.onPeers(mpPeers, () => mpGone('The connection to the room was lost.'));
     mpPresence();
@@ -1315,7 +1326,7 @@
   function mpPresence(msg) {
     const m = G.mp; if (!m) return;
     if (msg !== undefined) m.out = msg;
-    m.room.presence({ app: 'nd', v: 1, host: m.host, role: m.myRole, th: S.myThrow, bh: S.myBat, msg: m.out || null }).catch(() => {});
+    m.room.presence({ app: 'nd', v: 1, host: m.host, role: m.myRole, th: S.myThrow, bh: S.myBat, inn: m.innings, msg: m.out || null }).catch(() => {});
   }
   const mpSend = (msg) => mpPresence(msg);
 
@@ -1327,7 +1338,7 @@
         : others.find((p) => p.presence.host && (p.presence.role === 'pitcher' || p.presence.role === 'batter'));
       if (!cand) return;
       m.oppPeer = cand.peer;
-      if (!m.host) { m.myRole = cand.presence.role === 'pitcher' ? 'batter' : 'pitcher'; S.role = m.myRole; mpPresence(); }
+      if (!m.host) { m.myRole = cand.presence.role === 'pitcher' ? 'batter' : 'pitcher'; S.role = m.myRole; m.innings = [3, 6, 9].includes(cand.presence.inn) ? cand.presence.inn : 3; mpPresence(); }
     }
     const opp = others.find((p) => p.peer === m.oppPeer);
     if (!opp) { if (m.started && !m.leftTimer) m.leftTimer = setTimeout(() => mpGone('Your friend left the room.'), 4000); return; }
@@ -1347,13 +1358,14 @@
     const m = G.mp; if (!m || !m.started) return;
     if (msg.t === 'pitch' && m.myRole === 'batter') { const p = cleanPitch(msg.p); if (p) takePitch({ seq: msg.seq | 0, p }); }
     else if (msg.t === 'result' && m.myRole === 'pitcher' && msg.o && msg.o.dec) takeResult(cleanResult(msg));
+    else if (msg.t === 'forfeit') mpEnd(true, 'Your friend ran out of time.');
   }
   const num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
   function cleanPitch(p) {
     if (!p || !E.PITCHES[p.type]) return null;
     const rel = p.release || {};
     return {
-      type: p.type, mph: num(p.mph, 90), px: num(p.px), py: num(p.py, 2.5), tx: num(p.tx), ty: num(p.ty, 2.5), hand: p.hand === 'L' ? 'L' : 'R',
+      type: p.type, mph: num(p.mph, 90), pw: p.pw == null ? null : num(p.pw, 0.5), px: num(p.px), py: num(p.py, 2.5), tx: num(p.tx), ty: num(p.ty, 2.5), hand: p.hand === 'L' ? 'L' : 'R',
       brk: [num(p.brk && p.brk[0]), num(p.brk && p.brk[1])], release: { x: num(rel.x), y: num(rel.y, 5.9), z: num(rel.z, E.RELEASE_Z) },
       T: Math.min(1, Math.max(0.3, num(p.T, 0.43))),
     };
@@ -1383,19 +1395,33 @@
     G.started = true; G.paused = false;
     setRolePanels();
     persist();
-    bannerFlash(S.role === 'pitcher' ? 'Your friend is in. You pitch first!' : 'Your friend is in. Get ready to hit!');
+    bannerFlash(S.role === 'pitcher' ? `${G.mp.innings}-inning game. You pitch first!` : `${G.mp.innings}-inning game. Get ready to hit!`);
     startPA();
   }
   function mpGone(text) {
     if (!G.mp) return;
-    const wasStarted = G.mp.started;
+    if (G.mp.started) { mpEnd(true, 'Your friend left the game.'); return; }
     mpLeave();
-    if (wasStarted) {
-      G.started = false; G.phase = 'menu'; hideToast(); banner('');
-      $('startOv').hidden = false; renderStart();
-    }
     mpStatus([elt('div', '', text)]);
   }
+  // the game is over: show the result and drop the room
+  function mpEnd(win, reason, keepRoomMs) {
+    const m = G.mp; if (!m || !m.started) return;
+    const s = m.state;
+    G.started = false; G.phase = 'menu'; G.pwr = null; renderPower(0); hideToast(); banner('');
+    if (keepRoomMs) { G.mp = null; setTimeout(() => { G.mp = m; mpLeave(); }, keepRoomMs); } else mpLeave();
+    $('endTitle').textContent = ''; const em = document.createElement('em');
+    $('endTitle').append(win ? 'YOU ' : 'YOU ', em); em.textContent = win ? 'WIN' : 'LOSE';
+    $('endSub').textContent = reason;
+    $('endScore').textContent = `YOU ${s.score.me}   :   ${s.score.opp} FRIEND   ·   ${Math.min(s.inning, m.innings)} inn`;
+    $('endOv').hidden = false; $('statsOv').hidden = true; $('setOv').hidden = true;
+  }
+  function mpForfeit() {
+    const m = G.mp; if (!m) return;
+    m.seq++; mpSend({ t: 'forfeit', seq: m.seq });
+    mpEnd(false, `You did not pitch within ${TURN_SECS} seconds.`, 1500);
+  }
+  $('endBack').addEventListener('click', () => { $('endOv').hidden = true; $('startOv').hidden = false; renderStart(); });
   function mpLeave() {
     const m = G.mp; if (!m) return;
     G.mp = null;
@@ -1410,7 +1436,7 @@
     mpStatus([elt('div', '', 'Opening a room…')]);
     await mpOpen(code, true);
     if (!G.mp) return;
-    mpStatus([elt('div', '', `You play ${S.role === 'pitcher' ? 'pitcher' : 'batter'}. Ask your friend to tap Join with code and enter:`), elt('div', 'code', code), elt('div', '', 'Waiting for your friend…'), cancelBtn()]);
+    mpStatus([elt('div', '', `${S.mpInn}-inning game. You play ${S.role === 'pitcher' ? 'pitcher' : 'batter'}. Ask your friend to tap Join with code and enter:`), elt('div', 'code', code), elt('div', '', 'Waiting for your friend…'), cancelBtn()]);
   });
   $('mpJoinShow').addEventListener('click', () => { $('mpJoinRow').hidden = false; mpStatus(null); $('mpCode').focus(); });
   $('mpCode').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4); });
@@ -1441,14 +1467,21 @@
   cv.addEventListener('pointermove', onCanvasMove);
   cv.addEventListener('pointerup', onCanvasUp);
   cv.addEventListener('pointercancel', onCanvasUp);
-  $('pad').addEventListener('pointerdown', (e) => { $('pad').setPointerCapture?.(e.pointerId); padPointer(e); });
+  $('pad').addEventListener('pointerdown', (e) => { $('pad').setPointerCapture?.(e.pointerId); padPointer(e); if (G.phase === 'idle') G.pwr = { t0: performance.now() }; });
   $('pad').addEventListener('pointermove', (e) => { if (e.buttons) padPointer(e); });
-  // lifting the finger off the pad throws right away
-  $('pad').addEventListener('pointerup', (e) => { if (G.phase !== 'idle') return; padPointer(e); throwPitch(); });
-  $('throw').addEventListener('click', throwPitch);
+  // lifting the finger off the pad throws right away, at whatever the power gauge reads
+  $('pad').addEventListener('pointerup', (e) => { const pw = G.pwr ? powerAt(performance.now()) : 0.5; G.pwr = null; renderPower(0); if (G.phase !== 'idle') return; padPointer(e); throwPitch(pw); });
+  $('pad').addEventListener('pointercancel', () => { G.pwr = null; renderPower(0); });
+  $('throw').addEventListener('click', () => throwPitch(0.5));
+  function renderPower(v) {
+    const f = $('pwrFill'), lab = $('pwrLab');
+    f.style.height = `${Math.round(v * 100)}%`;
+    f.classList.toggle('max', v >= 0.95);
+    lab.textContent = v >= 0.95 ? 'MAX' : v > 0 ? `${Math.round(v * 100)}` : '';
+  }
   document.querySelectorAll('.role').forEach((b) => b.addEventListener('click', () => { S.role = b.dataset.role; renderStart(); }));
-  for (const [id, key] of [['myThrowSeg', 'myThrow'], ['myBatSeg', 'myBat'], ['cpuThrowSeg', 'cpuThrow'], ['cpuBatSeg', 'cpuBat']]) {
-    $(id).addEventListener('click', (e) => { const v = e.target.closest('button')?.dataset.v; if (v) { S[key] = v; renderStart(); } });
+  for (const [id, key] of [['myThrowSeg', 'myThrow'], ['myBatSeg', 'myBat'], ['cpuThrowSeg', 'cpuThrow'], ['cpuBatSeg', 'cpuBat'], ['mpInnSeg', 'mpInn']]) {
+    $(id).addEventListener('click', (e) => { const v = e.target.closest('button')?.dataset.v; if (v) { S[key] = key === 'mpInn' ? Number(v) : v; persist(); renderStart(); } });
   }
   $('startBtn').addEventListener('click', () => { audio(); startGame(); });
   $('startStats').addEventListener('click', () => { statTab = S.role; $('statsOv').hidden = false; renderStats(); });
@@ -1488,6 +1521,7 @@
     G.now = now;
     if (W < 2) resize();
     if (G.started && !G.paused) update(now);
+    if (G.pwr) renderPower(powerAt(now));
     if (G.phase === 'field' || G.phase === 'fieldDone') { if (G.fa && G.paused) G.fa.t0 += dt; drawField(now); }
     else drawPitchView(now);
     requestAnimationFrame(frame);
