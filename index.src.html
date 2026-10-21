@@ -1,0 +1,295 @@
+<title>Night Duel Baseball</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700;800&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap">
+<style>
+/* Layout: one-screen app. Stadium scoreboard on top, the live view in the middle, the dugout control panel at the bottom. */
+:root {
+  --night: #0a111d;
+  --panel: #111b2b;
+  --panel-2: #192740;
+  --line: #26385a;
+  --chalk: #f1ecdc;
+  --muted: #8f9cb6;
+  --bulb-ball: #4fd88a;
+  --bulb-strike: #ffbb4a;
+  --bulb-out: #ff5d52;
+  --accent: #ffbb4a;
+  --grass: #2e6a3c;
+  --f-board: "Saira Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  color-scheme: dark;
+}
+html, body { height: 100%; }
+body {
+  background: var(--night); color: var(--chalk); font-family: var(--f-body);
+  overflow: hidden; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none;
+  touch-action: manipulation;
+}
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#app { height: 100%; display: flex; flex-direction: column; max-width: 560px; margin: 0 auto; position: relative; }
+
+/* Scoreboard */
+#hud {
+  display: grid; grid-template-columns: auto 1fr auto auto; align-items: center; gap: 10px;
+  padding-block: 4px; padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px));
+  background: linear-gradient(#0d1626, #0a1220); border-bottom: 1px solid var(--line);
+  font-family: var(--f-board); font-variant-numeric: tabular-nums;
+}
+.inning { display: flex; align-items: baseline; gap: 3px; line-height: 1; }
+.inning b { font-size: 20px; font-weight: 800; color: var(--accent); }
+.inning span { font-size: 11px; letter-spacing: .12em; color: var(--muted); }
+.count { display: flex; justify-content: start; gap: 4px 5px; align-items: center; flex-wrap: wrap; font-size: 12px; letter-spacing: .08em; }
+.count .lab { color: var(--muted); font-weight: 700; margin-left: 4px; }
+.bulbs { display: flex; gap: 3px; }
+.bulb { width: 9px; height: 9px; border-radius: 50%; background: #1f2b40; box-shadow: inset 0 0 0 1px #2c3c5a; }
+.bulb.on.b { background: var(--bulb-ball); box-shadow: 0 0 8px var(--bulb-ball); }
+.bulb.on.s { background: var(--bulb-strike); box-shadow: 0 0 8px var(--bulb-strike); }
+.bulb.on.o { background: var(--bulb-out); box-shadow: 0 0 8px var(--bulb-out); }
+.right { display: flex; align-items: center; gap: 10px; }
+.runs { text-align: center; line-height: 1; }
+.score { display: flex; align-items: baseline; gap: 5px; font-family: var(--f-board); }
+.score span { font-size: 10px; letter-spacing: .1em; color: var(--muted); }
+.score span.bat { color: var(--accent); }
+.score b { font-size: 20px; font-weight: 800; }
+.score i { font-style: normal; color: var(--muted); }
+.runs { display: flex; align-items: baseline; gap: 3px; }
+.runs b { font-size: 20px; font-weight: 800; }
+.runs span { font-size: 10px; letter-spacing: .1em; color: var(--muted); }
+#diamond { width: 26px; height: 26px; }
+.iconbtn { width: 30px; height: 30px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line); display: grid; place-items: center; }
+
+/* Stage */
+#stage { position: relative; flex: 1; min-height: 0; overflow: hidden; background: #070c16; }
+#cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+#matchup {
+  position: absolute; left: 10px; top: 8px; font-size: 11px; color: var(--chalk); opacity: .85;
+  background: rgba(8,14,26,.6); padding: 3px 8px; border-radius: 99px; pointer-events: none; letter-spacing: .02em;
+}
+#pinfo {
+  position: absolute; right: 10px; top: 8px; text-align: right; pointer-events: none;
+  font-family: var(--f-board); line-height: 1.05; text-shadow: 0 1px 3px #000;
+}
+#pinfo b { font-size: 26px; font-weight: 800; color: var(--chalk); }
+#pinfo span { display: block; font-size: 13px; color: var(--accent); letter-spacing: .06em; }
+#toast {
+  position: absolute; left: 50%; top: 38%; transform: translate(-50%, -50%) scale(.9); opacity: 0;
+  font-family: var(--f-board); font-weight: 800; font-size: 44px; letter-spacing: .04em; text-align: center;
+  text-shadow: 0 2px 0 #000, 0 0 24px rgba(0,0,0,.8); pointer-events: none; transition: opacity .18s, transform .18s; white-space: nowrap;
+}
+#toast small { display: block; font-family: var(--f-body); font-size: 14px; font-weight: 600; letter-spacing: 0; opacity: .9; margin-top: 4px; }
+#toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+#banner {
+  position: absolute; left: 0; right: 0; bottom: 10px; text-align: center; pointer-events: none;
+  font-size: 13px; color: var(--chalk);
+}
+#banner span { background: rgba(8,14,26,.72); padding: 5px 12px; border-radius: 99px; }
+
+/* Panel */
+#panel {
+  background: var(--panel); border-top: 1px solid var(--line);
+  padding-top: 10px; padding-bottom: max(10px, env(safe-area-inset-bottom, 0px));
+  padding-left: max(12px, env(safe-area-inset-left, 0px)); padding-right: max(12px, env(safe-area-inset-right, 0px));
+}
+.prow { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: stretch; }
+.pitches { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; min-width: 0; }
+.pbtn {
+  background: var(--panel-2); border: 1px solid var(--line); border-radius: 11px; padding: 0 10px; min-height: 44px; text-align: left;
+  display: flex; flex-direction: column; justify-content: center; align-items: flex-start; gap: 1px; min-width: 0;
+}
+.pbtn b { font-size: 14.5px; line-height: 1.15; font-weight: 700; white-space: nowrap; }
+.pbtn i { font-style: normal; font-family: var(--f-board); font-size: 12px; line-height: 1; color: var(--muted); }
+.pbtn[aria-pressed="true"] { background: var(--chalk); color: #10192a; border-color: var(--chalk); }
+.pbtn[aria-pressed="true"] i { color: #3c4a63; }
+.padwrap { display: flex; flex-direction: column; gap: 4px; align-items: center; }
+#pad {
+  position: relative; width: 168px; height: 196px; border-radius: 12px; background: #0d1524; border: 1px solid var(--line); touch-action: none;
+}
+#pad .zone { position: absolute; left: 24.06%; right: 24.06%; top: 25%; bottom: 25%; border: 2px solid rgba(241,236,220,.75); display: grid; grid-template: repeat(3, 1fr) / repeat(3, 1fr); }
+#pad .zone i { border: 1px dashed rgba(241,236,220,.18); }
+#pad .mk { position: absolute; width: 22px; height: 22px; margin: -11px 0 0 -11px; border-radius: 50%; border: 3px solid var(--accent); box-shadow: 0 0 10px var(--accent); pointer-events: none; }
+#pad .side { position: absolute; bottom: 4px; font-size: 11px; color: var(--muted); }
+.padlab { font-size: 11px; color: var(--muted); }
+#throw {
+  margin-top: 8px; width: 100%; height: 46px; border: 0; border-radius: 12px; background: var(--accent); color: #1a1205;
+  font-weight: 700; font-size: 16px; letter-spacing: .02em;
+}
+#throw:disabled { opacity: .45; }
+.brow { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+.hint { font-size: 13px; color: var(--muted); min-width: 0; flex: 1 1 180px; }
+.hint b { color: var(--chalk); }
+.seg { display: inline-flex; background: var(--panel-2); border: 1px solid var(--line); border-radius: 9px; padding: 2px; }
+.seg button { border: 0; background: transparent; padding: 5px 9px; border-radius: 7px; font-size: 12px; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--chalk); color: #10192a; font-weight: 700; }
+.chk { font-size: 12px; color: var(--muted); display: inline-flex; align-items: center; gap: 5px; }
+
+/* Overlays */
+.ov {
+  position: absolute; inset: 0; z-index: 20; background: rgba(6,10,18,.92); overflow-y: auto;
+  padding-block: 18px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  backdrop-filter: blur(4px);
+}
+.ov .inner { max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.logo { font-family: var(--f-board); font-weight: 800; font-size: 44px; line-height: .9; letter-spacing: .01em; text-wrap: balance; }
+.logo em { font-style: normal; color: var(--accent); }
+.sub { color: var(--muted); font-size: 13px; line-height: 1.5; }
+.grp { display: flex; flex-direction: column; gap: 8px; }
+.grp h3 { margin: 0; font-size: 12px; letter-spacing: .12em; color: var(--muted); font-weight: 600; }
+.roles { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.role {
+  background: var(--panel); border: 1.5px solid var(--line); border-radius: 14px; padding: 14px 12px; text-align: left;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.role b { font-size: 18px; }
+.role span { font-size: 12px; color: var(--muted); line-height: 1.4; }
+.role[aria-pressed="true"] { border-color: var(--accent); background: #22261f; box-shadow: 0 0 0 1px var(--accent) inset; }
+.hands { display: grid; grid-template-columns: 1fr 1fr; gap: 10px 10px; }
+.hands .seg { width: 100%; }
+.hands .seg button { flex: 1; padding: 8px 4px; font-size: 13px; }
+.cta { height: 52px; border: 0; border-radius: 14px; background: var(--accent); color: #1a1205; font-weight: 700; font-size: 17px; }
+.ghost { height: 44px; border-radius: 12px; background: transparent; border: 1px solid var(--line); color: var(--chalk); font-size: 14px; }
+.tabs { display: flex; gap: 6px; }
+.tabs button { flex: 1; height: 38px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--muted); font-weight: 600; }
+.tabs button[aria-pressed="true"] { background: var(--chalk); color: #10192a; border-color: var(--chalk); }
+.statgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px; min-width: 0; }
+.stat span { display: block; font-size: 11px; color: var(--muted); letter-spacing: .06em; }
+.stat b { font-family: var(--f-board); font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat.key b { color: var(--accent); }
+.line { font-family: var(--f-board); font-size: 15px; color: var(--chalk); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-variant-numeric: tabular-nums; letter-spacing: .02em; overflow-x: auto; white-space: nowrap; }
+.log { display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.log div { display: flex; justify-content: space-between; gap: 8px; padding: 6px 10px; border-radius: 8px; background: var(--panel); }
+.log div span:last-child { color: var(--muted); font-family: var(--f-board); }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.confirm { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--chalk); flex-wrap: wrap; }
+.confirm button { height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--bulb-out); background: transparent; color: var(--bulb-out); }
+.note { font-size: 11px; color: var(--muted); line-height: 1.5; }
+.mp { border-top: 1px solid var(--line); padding-top: 14px; }
+.joinrow { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.joinrow input { height: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--chalk); font-family: var(--f-board); font-size: 26px; letter-spacing: .3em; text-align: center; min-width: 0; }
+.joinrow .cta { height: 48px; padding: 0 22px; }
+.mpstatus { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; align-items: center; text-align: center; font-size: 13px; color: var(--muted); }
+.mpstatus .code { font-family: var(--f-board); font-weight: 800; font-size: 56px; line-height: 1; letter-spacing: .12em; color: var(--accent); }
+.mpstatus button { height: 34px; padding: 0 14px; border-radius: 9px; border: 1px solid var(--line); background: transparent; color: var(--chalk); font-size: 13px; }
+@media (max-height: 700px) {
+  #pad { height: 160px; width: 140px; }
+  .pbtn { min-height: 36px; }
+  #throw { height: 40px; margin-top: 6px; }
+}
+@media (prefers-reduced-motion: reduce) { #toast { transition: none; } }
+</style>
+
+<div id="app">
+  <header id="hud">
+    <div class="inning"><b id="hInning">1</b></div>
+    <div class="count">
+      <span class="lab">B</span><span class="bulbs" id="hB"><i class="bulb b"></i><i class="bulb b"></i><i class="bulb b"></i></span>
+      <span class="lab">S</span><span class="bulbs" id="hS"><i class="bulb s"></i><i class="bulb s"></i></span>
+      <span class="lab">O</span><span class="bulbs" id="hO"><i class="bulb o"></i><i class="bulb o"></i></span>
+    </div>
+    <div class="right">
+      <svg id="diamond" viewBox="0 0 40 40" aria-label="Runners on base">
+        <rect id="b2" x="15" y="3" width="10" height="10" transform="rotate(45 20 8)" />
+        <rect id="b3" x="4" y="14" width="10" height="10" transform="rotate(45 9 19)" />
+        <rect id="b1" x="26" y="14" width="10" height="10" transform="rotate(45 31 19)" />
+      </svg>
+      <div class="score"><span id="hMeLab">YOU</span><b id="hMe">0</b><i>:</i><b id="hOpp">0</b><span id="hOppLab">CPU</span></div>
+    </div>
+    <button class="iconbtn" id="menuBtn" aria-label="Stats and settings">
+      <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 5h12M3 9h12M3 13h12"/></svg>
+    </button>
+  </header>
+
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="matchup"></div>
+    <div id="pinfo"></div>
+    <div id="toast"></div>
+    <div id="banner"></div>
+  </div>
+
+  <section id="panel">
+    <div id="pitcherPanel" hidden>
+      <div class="prow">
+        <div class="pitches" id="pitchList"></div>
+        <div class="padwrap">
+          <div id="pad" aria-label="Pitch location">
+            <div class="zone"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="mk" id="padMk"></div>
+            <span class="side" id="padSide"></span>
+          </div>
+          <span class="padlab">Lift to throw</span>
+        </div>
+      </div>
+      <button id="throw">Throw same spot again</button>
+    </div>
+    <div id="batterPanel" hidden>
+      <div class="brow">
+        <div class="hint" id="bHint">Hold your finger to aim, then <b>let go the moment the ball reaches the plate</b> to swing.</div>
+        <div class="seg" id="speedSeg" aria-label="Pitch speed">
+          <button data-v="1">Real</button><button data-v="0.75">Normal</button><button data-v="0.55">Practice</button>
+        </div>
+      </div>
+      <div class="brow" style="margin-top:8px">
+        <label class="chk"><input type="checkbox" id="zoneChk" checked> Strike zone</label>
+        <label class="chk"><input type="checkbox" id="soundChk" checked> Sound</label>
+      </div>
+    </div>
+  </section>
+
+  <div class="ov" id="startOv">
+    <div class="inner">
+      <div class="logo">NIGHT DUEL<br><em>BASEBALL</em></div>
+      <div class="sub">Pitcher vs. batter, one on one, forever. Every three outs you switch sides: pitch a half inning, then bat a half inning. The CPU plays at a league-average MLB level.</div>
+      <div class="grp">
+        <h3>START AS</h3>
+        <div class="roles">
+          <button class="role" data-role="pitcher" id="rolePitcher"><b>Pitcher</b><span>Pick the pitch and location. View from behind the mound.</span></button>
+          <button class="role" data-role="batter" id="roleBatter"><b>Batter</b><span>Tap to hit the incoming pitch. Umpire view.</span></button>
+        </div>
+      </div>
+      <div class="hands">
+        <div class="grp"><h3>YOU THROW</h3>
+          <div class="seg" id="myThrowSeg"><button data-v="R">RHP</button><button data-v="L">LHP</button></div></div>
+        <div class="grp"><h3>YOU BAT</h3>
+          <div class="seg" id="myBatSeg"><button data-v="R">RHB</button><button data-v="L">LHB</button></div></div>
+        <div class="grp"><h3>CPU THROWS</h3>
+          <div class="seg" id="cpuThrowSeg"><button data-v="R">R</button><button data-v="L">L</button><button data-v="X">Mix</button></div></div>
+        <div class="grp"><h3>CPU BATS</h3>
+          <div class="seg" id="cpuBatSeg"><button data-v="R">R</button><button data-v="L">L</button><button data-v="X">Mix</button></div></div>
+      </div>
+      <button class="cta" id="startBtn">PLAY BALL</button>
+      <button class="ghost" id="startStats">My stats</button>
+      <div class="grp mp" id="mpGrp">
+        <h3>PLAY WITH A FRIEND</h3>
+        <div class="row2"><button class="ghost" id="mpCreate">Create room</button><button class="ghost" id="mpJoinShow">Join with code</button></div>
+        <div class="joinrow" id="mpJoinRow" hidden>
+          <input id="mpCode" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="4-digit code" autocomplete="off" aria-label="Room code">
+          <button class="cta" id="mpJoin">Join</button>
+        </div>
+        <div class="mpstatus" id="mpStatus" hidden></div>
+        <div class="note">The room creator starts in the role picked above, the friend starts in the other. You switch sides every three outs.</div>
+      </div>
+      <div class="note">Stats are saved in this browser only. No sign-up needed.</div>
+    </div>
+  </div>
+
+  <div class="ov" id="statsOv" hidden>
+    <div class="inner">
+      <div class="logo" style="font-size:34px">MY <em>STATS</em></div>
+      <div class="tabs" id="statTabs"><button data-t="pitcher">Pitching</button><button data-t="batter">Hitting</button><button data-t="friend">vs Friend</button></div>
+      <div id="statBody"></div>
+      <div class="row2"><button class="ghost" id="closeStats">Back to game</button><button class="ghost" id="changeRole">Change role / hand</button></div>
+      <div id="resetArea"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+/*ENGINE*/
+</script>
+<script>
+/*GAME*/
+</script>

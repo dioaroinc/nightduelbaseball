@@ -1,0 +1,15 @@
+{
+  "rules": {
+    "rooms": {
+      "$room": {
+        ".read": "$room.matches(/^nd-[0-9]{4}$/)",
+        "peers": {
+          "$peer": {
+            ".write": "$room.matches(/^nd-[0-9]{4}$/)",
+            ".validate": "!newData.exists() || (newData.child('p').isString() && newData.child('p').val().length < 4096)"
+          }
+        }
+      }
+    }
+  }
+}
