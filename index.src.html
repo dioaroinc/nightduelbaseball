@@ -114,6 +114,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 #pad .pwr { position: absolute; left: 5px; top: 8px; bottom: 8px; width: 12px; border-radius: 6px; background: #070c16; border: 1px solid var(--line); overflow: hidden; }
 #pad .pwr div { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: linear-gradient(to top, #4fd88a, #ffbb4a 70%, #ff5d52); transition: none; }
 #pad .pwr div.max { box-shadow: 0 0 10px #ff5d52; }
+#pad .pwr i { position: absolute; left: 0; right: 0; height: 2px; background: #fff; opacity: .85; }
 #pad .pwr span { position: absolute; left: 0; right: 0; top: 2px; text-align: center; font-size: 8px; font-family: var(--f-board); color: var(--chalk); }
 .padlab { font-size: 11px; color: var(--muted); }
 #throw {
@@ -234,7 +235,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
             <div class="zone"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
             <div class="mk" id="padMk"></div>
             <span class="side" id="padSide"></span>
-            <div class="pwr" aria-hidden="true"><div id="pwrFill"></div><span id="pwrLab"></span></div>
+            <div class="pwr" aria-hidden="true"><div id="pwrFill"></div><i id="pwrCap" hidden></i><span id="pwrLab"></span></div>
           </div>
           <span class="padlab">Hold, lift at the top for power</span>
         </div>
@@ -242,7 +243,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
       <button id="throw">Throw same spot again</button>
     </div>
     <div id="batterPanel" hidden>
-      <div class="hint" id="bHint">Hold your finger to aim, then <b>let go the moment the ball reaches the plate</b> to swing.</div>
+      <div class="hint" id="bHint">Hold to aim, <b>let go as the ball reaches the plate</b>. Hit it inside the small ring for a sweet-spot shot.</div>
     </div>
   </section>
 

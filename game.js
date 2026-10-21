@@ -45,11 +45,13 @@
     pitchType: 'FF', target: { x: 0.45, y: 2.1 },
     pitch: null, cpuDec: null, swing: null, swingAnim: null, outcome: null,
     trail: [], hit: null, fa: null, hudFrozen: false, afterInfo: null, basesBefore: [0, 0, 0],
-    reticle: null, pendingInning: false, aim: null, pwr: null, tsLock: 0,
+    reticle: null, pendingInning: false, aim: null, pwr: null, tsLock: 0, freeze: null,
   };
   const TURN_SECS = 20, REMOTE_SECS = 30;
   const POWER_PERIOD = 1300;
-  const powerAt = (now) => { const u = ((now - G.pwr.t0) / POWER_PERIOD) % 1; return u < 0.5 ? u * 2 : 2 - u * 2; };
+  // the first two cycles can reach 100%; after that the peak drops 5% per cycle so stalling costs velocity
+  const powerCap = (now) => { const n = Math.floor((now - G.pwr.t0) / POWER_PERIOD); return n < 2 ? 1 : Math.max(0.5, 1 - (n - 1) * 0.05); };
+  const powerAt = (now) => { const u = ((now - G.pwr.t0) / POWER_PERIOD) % 1; return (u < 0.5 ? u * 2 : 2 - u * 2) * powerCap(now); };
 
   // ---------------- Audio ----------------
   let AC = null;
@@ -783,7 +785,14 @@
     G.hit = O.hitV ? { ...O.hitV, t0: G.now } : null;
     if (!O.dec.swing || O.dec.result === 'miss') sfx.mitt();
     else if (O.dec.result === 'foul') sfx.foul();
-    else { sfx.bat(O.dec.quality); buzz(25); }
+    else {
+      sfx.bat(O.dec.quality); buzz(25);
+      if (O.dec.result === 'play' && O.dec.quality >= 0.74 && G.pitch) { // sweet-spot contact: freeze the frame for a beat
+        const c = P(cam, G.pitch.px, G.pitch.py, 0);
+        G.freeze = { t0: G.now, dur: 220, x: c ? c.x : W / 2, y: c ? c.y : H / 2, q: O.dec.quality };
+        buzz([30, 30, 60]);
+      }
+    }
     const bb = O.bb ? { ...O.bb, pts: E.flight(O.bb.ev, O.bb.la).pts } : null;
     G.outcome = { dec: O.dec, label: O.label, kind: O.kind, ev: O.ev, bb, subl: O.subl };
     if (S.role === 'batter') showPitchInfo();
@@ -1012,6 +1021,9 @@
           ctx.save();
           ctx.fillStyle = 'rgba(255,187,74,.16)'; ctx.strokeStyle = COL.wallTop; ctx.lineWidth = 2.5;
           ctx.beginPath(); ctx.ellipse(c.x, c.y, c.k * E.SWEET.x, c.k * E.SWEET.y, 0, 0, 7); ctx.fill(); ctx.stroke();
+          ctx.fillStyle = 'rgba(255,187,74,.28)'; ctx.lineWidth = 1.5;
+          ctx.beginPath(); ctx.ellipse(c.x, c.y, c.k * E.SWEET.x * 0.5, c.k * E.SWEET.y * 0.5, 0, 0, 7); ctx.fill(); ctx.stroke();
+          ctx.lineWidth = 2.5;
           ctx.beginPath(); ctx.moveTo(c.x - 7, c.y); ctx.lineTo(c.x + 7, c.y); ctx.moveTo(c.x, c.y - 7); ctx.lineTo(c.x, c.y + 7); ctx.stroke();
           ctx.restore();
         }
@@ -1024,6 +1036,7 @@
           ctx.save(); ctx.globalAlpha = Math.max(0, 1 - age / 1.4);
           ctx.strokeStyle = COL.wallTop; ctx.lineWidth = 2;
           ctx.beginPath(); ctx.ellipse(c.x, c.y, c.k * E.SWEET.x, c.k * E.SWEET.y, 0, 0, 7); ctx.stroke();
+          ctx.beginPath(); ctx.ellipse(c.x, c.y, c.k * E.SWEET.x * 0.5, c.k * E.SWEET.y * 0.5, 0, 0, 7); ctx.stroke();
           ctx.beginPath(); ctx.moveTo(c.x - 5, c.y); ctx.lineTo(c.x + 5, c.y); ctx.moveTo(c.x, c.y - 5); ctx.lineTo(c.x, c.y + 5); ctx.stroke();
           ctx.restore();
         }
@@ -1043,6 +1056,23 @@
     if (!pv && G.phase === 'after' && G.outcome && G.outcome.dec.swing && G.outcome.dec.dt !== undefined) drawTimingBar(G.outcome.dec.dt);
   }
 
+  // flash and rings at the contact point during and just after the hit stop
+  function drawImpact(now) {
+    const f = G.freeze, age = (now - f.t0) / 1000, total = f.dur / 1000 + 0.45;
+    if (age > total) { G.freeze = null; return; }
+    const u = age / total;
+    ctx.save();
+    if (age < f.dur / 1000) { ctx.fillStyle = `rgba(255,255,255,${0.55 * (1 - age / (f.dur / 1000))})`; ctx.fillRect(0, 0, W, H); }
+    const r0 = 10 + u * 140;
+    ctx.strokeStyle = `rgba(255,220,120,${1 - u})`; ctx.lineWidth = 4 * (1 - u) + 1;
+    ctx.beginPath(); ctx.arc(f.x, f.y, r0, 0, 7); ctx.stroke();
+    ctx.beginPath(); ctx.arc(f.x, f.y, r0 * 0.6, 0, 7); ctx.stroke();
+    ctx.fillStyle = `rgba(255,255,255,${0.9 * (1 - u)})`;
+    for (let i = 0; i < 8; i++) { const a = i * Math.PI / 4 + 0.3, d = 14 + u * 90; ctx.beginPath(); ctx.arc(f.x + Math.cos(a) * d, f.y + Math.sin(a) * d, 3 * (1 - u) + 0.5, 0, 7); ctx.fill(); }
+    ctx.font = `800 ${28 + u * 10}px "Saira Condensed", sans-serif`; ctx.textAlign = 'center'; ctx.fillStyle = `rgba(255,187,74,${1 - u})`;
+    ctx.fillText(f.q >= 0.9 ? 'PERFECT!' : 'SWEET SPOT!', f.x, f.y - 40 - u * 30);
+    ctx.restore();
+  }
   function drawTrail(ball) {
     const pr = P(cam, ball.x, ball.y, ball.z); if (!pr) return;
     G.trail.push([pr.x, pr.y]); if (G.trail.length > 7) G.trail.shift();
@@ -1514,7 +1544,9 @@
   $('pad').addEventListener('pointercancel', () => { G.pwr = null; renderPower(0); });
   $('throw').addEventListener('click', () => throwPitch(0.5));
   function renderPower(v) {
-    const f = $('pwrFill'), lab = $('pwrLab');
+    const f = $('pwrFill'), lab = $('pwrLab'), cap = $('pwrCap');
+    const c = G.pwr ? powerCap(performance.now()) : 1;
+    cap.style.bottom = `${Math.round(c * 100)}%`; cap.hidden = c >= 1;
     f.style.height = `${Math.round(v * 100)}%`;
     f.classList.toggle('max', v >= 0.95);
     lab.textContent = v >= 0.95 ? 'MAX' : v > 0 ? `${Math.round(v * 100)}` : '';
@@ -1583,13 +1615,18 @@
   let last = performance.now();
   function frame(now) {
     const dt = now - last; last = now;
-    if (G.paused) G.t0 += dt;
+    const frozen = !!(G.freeze && now - G.freeze.t0 < G.freeze.dur);
+    if (G.paused || frozen) { G.t0 += dt; if (G.hit) G.hit.t0 += dt; if (G.swingAnim) G.swingAnim.t0 += dt; }
     G.now = now;
     if (W < 2) resize();
-    if (G.started && !G.paused) update(now);
+    if (G.started && !G.paused && !frozen) update(now);
     if (G.pwr) renderPower(powerAt(now));
     if (G.phase === 'field' || G.phase === 'fieldDone') { if (G.fa && G.paused) G.fa.t0 += dt; drawField(now); }
-    else drawPitchView(now);
+    else {
+      if (frozen) { const j = 3; ctx.save(); ctx.translate((Math.random() - 0.5) * j * 2, (Math.random() - 0.5) * j * 2); drawPitchView(now); ctx.restore(); }
+      else drawPitchView(now);
+      if (G.freeze) drawImpact(now);
+    }
     requestAnimationFrame(frame);
   }
   window.__nd = G; window.__ndS = S; window.__ndStartPA = startPA;
