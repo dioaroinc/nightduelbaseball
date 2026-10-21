@@ -83,7 +83,7 @@
   let cam = null;
   function viewCam() {
     if (S.role === 'batter') return makeCam([0, 4.4, -8.8], [0, 1.9, 30], Math.min(H * 1.45, W * 2.1), 0.5);
-    return makeCam([0, 22, 180], [0, 2.6, 0], Math.min(H * 9.5, W * 11), 0.42);
+    return makeCam([0, 22, 180], [0, 3.6, 0], Math.min(H * 9.5, W * 11), 0.42);
   }
   function toCam(c, p) {
     const dx = p[0] - c.eye[0], dy = p[1] - c.eye[1], dz = p[2] - c.eye[2];
@@ -246,7 +246,6 @@
       if (m && m.k > 0.5) { ctx.font = `700 ${Math.max(6, m.k * 5.5)}px "Saira Condensed", sans-serif`; ctx.fillText(distNum(r), m.x, m.y); }
     }
     ctx.textBaseline = 'alphabetic';
-    drawScoreboard(c);
     drawTowers(c);
     fillPoly(c, GEO.backWall, '#1c4a44');
     for (let x = -200; x <= 200; x += 8) fillPoly(c, [g(x - 0.15, -59.95, 0), g(x + 0.15, -59.95, 0), g(x + 0.15, -59.95, 4.5), g(x - 0.15, -59.95, 4.5)], '#143730');

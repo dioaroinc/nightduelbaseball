@@ -1,5 +1,5 @@
 const fs=require('fs');
-let h=fs.readFileSync('index.src.html','utf8');
+let h=fs.readFileSync('index.src.html','utf8').replace('<span id="buildTag"></span>','<span id="buildTag">Build '+new Date().toISOString().slice(0,16).replace('T',' ')+' UTC</span>');
 h=h.replace('/*ENGINE*/',()=>fs.readFileSync('engine.js','utf8')).replace('/*GAME*/',()=>fs.readFileSync('game.js','utf8'));
 fs.mkdirSync('dist',{recursive:true});
 fs.writeFileSync('dist/index.html',h);
