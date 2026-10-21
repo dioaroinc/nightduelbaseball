@@ -319,7 +319,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         <div class="mpstatus" id="mpStatus" hidden></div>
         <div class="note">The room creator picks the length and starts in the role picked above; the friend starts in the other. You switch sides every three outs. If the game is tied after the last inning it goes to extras. A pitcher who does not throw for 20 seconds forfeits.</div>
       </div>
-      <div class="note">Stats are saved in this browser only. No sign-up needed. <span id="buildTag">Build 2026-10-21 13:20 UTC</span></div>
+      <div class="note">Stats are saved in this browser only. No sign-up needed. <span id="buildTag">Build 2026-10-21 14:02 UTC</span></div>
     </div>
   </div>
 
@@ -2018,7 +2018,8 @@ if (typeof module !== 'undefined') module.exports = Engine;
           ball = { x: p.px + v * Math.cos(la) * Math.sin(ph) * ht, y: Math.max(0, p.py + v * Math.sin(la) * ht - 16 * ht * ht), z: v * Math.cos(la) * Math.cos(ph) * ht };
         }
         if (ht > 0.9) ball = null;
-      } else if (s <= 1.06) ball = E.pitchPos(p, Math.min(s, 1.06));
+      } else if (!pv && G.phase === 'after') ball = null; // batter view: once the location marker is up, the ball is gone
+      else if (s <= 1.06) ball = E.pitchPos(p, Math.min(s, 1.06));
       else if (G.phase === 'after' && el < 0.5) ball = E.pitchPos(p, 1.06);
     }
 

@@ -1177,7 +1177,8 @@
           ball = { x: p.px + v * Math.cos(la) * Math.sin(ph) * ht, y: Math.max(0, p.py + v * Math.sin(la) * ht - 16 * ht * ht), z: v * Math.cos(la) * Math.cos(ph) * ht };
         }
         if (ht > 0.9) ball = null;
-      } else if (s <= 1.06) ball = E.pitchPos(p, Math.min(s, 1.06));
+      } else if (!pv && G.phase === 'after') ball = null; // batter view: once the location marker is up, the ball is gone
+      else if (s <= 1.06) ball = E.pitchPos(p, Math.min(s, 1.06));
       else if (G.phase === 'after' && el < 0.5) ball = E.pitchPos(p, 1.06);
     }
 
