@@ -24,6 +24,7 @@
   const S = save.settings;
   if (!save.mpStats) save.mpStats = E.newStats();
   if (!save.mpLogs) save.mpLogs = [];
+  if (!S.batMixV2) { S.cpuBat = 'X'; S.batMixV2 = true; } // each CPU batter steps in as a random lefty or righty by default
   if (!S.myThrow) { S.myThrow = S.myHand || 'R'; S.myBat = S.myHand || 'R'; S.cpuThrow = S.cpuHand || 'R'; S.cpuBat = S.cpuHand || 'R'; }
   const newDuel = () => Object.assign(E.newState(), { half: 0, score: { me: 0, opp: 0 } });
   if (!save.games.duel) save.games.duel = newDuel();
