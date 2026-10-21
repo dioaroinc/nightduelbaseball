@@ -505,18 +505,18 @@ const Engine = (() => {
 
   // ---------- User batter ----------
   // tap: point on plate plane (x, y ft). dt: tap time - arrival time (s, real time).
-  const TIMING_WIN = 0.12;
-  const SWEET = { x: 0.6, y: 0.45 };
+  const TIMING_WIN = 0.16;
+  const SWEET = { x: 0.78, y: 0.58 };
   function userSwing(p, tapX, tapY, dt, bHand) {
     const ex = (tapX - p.px) / SWEET.x, ey = (tapY - p.py) / SWEET.y, et = dt / TIMING_WIN;
     const sp = Math.hypot(ex, ey);
     if (Math.abs(et) > 1 || sp > 1) {
       // near misses on timing/location can still tick a foul
-      if (Math.abs(et) < 1.35 && sp < 1.25 && rnd() < 0.55) return { swing: true, result: 'foul', quality: 0 };
+      if (Math.abs(et) < 1.4 && sp < 1.3 && rnd() < 0.6) return { swing: true, result: 'foul', quality: 0 };
       return { swing: true, result: 'miss', quality: 0, why: Math.abs(et) > 1 ? (et < 0 ? 'early' : 'late') : 'location' };
     }
-    const q = (1 - sp * sp * 0.75) * (1 - et * et * 0.6);
-    if (q < 0.3 && rnd() < 0.6) return { swing: true, result: 'foul', quality: q };
+    const q = (1 - sp * sp * 0.6) * (1 - et * et * 0.5);
+    if (q < 0.25 && rnd() < 0.5) return { swing: true, result: 'foul', quality: q };
     const ev = clamp(58 + q * 50 + gauss() * 4, 35, 117);
     // tapping below the ball (bat under it) lifts it; above it beats it into the ground
     const la = clamp(13 + (p.py - tapY) * 70 + gauss() * 7, -60, 80);
@@ -926,7 +926,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
       const [x, z] = E.fieldXY(a, E.fenceDist(a) + 6 + u * 140);
       crowd.push({ p: [x, 11 + u * 72, z], c: ['#2c3850', '#3b4a66', '#5a4b52', '#28406a', '#6b6f7e'][i % 5] });
     }
-    for (let i = 0; i < 500; i++) { const u = Math.random(); crowd.push({ p: [-180 + Math.random() * 360, 13 + u * 70, -62 - u * 130], c: ['#2c3850', '#3b4a66', '#5a4b52', '#28406a', '#6b6f7e'][i % 5] }); }
+    for (let i = 0; i < 1400; i++) { const u = Math.random(); crowd.push({ p: [-180 + Math.random() * 360, 5.5 + u * 78, -62 - u * 130], c: ['#2c3850', '#3b4a66', '#5a4b52', '#28406a', '#6b6f7e'][i % 5] }); }
     // seat rows between the wall top and the back of the stands
     const standRows = [];
     for (let k = 0; k < 10; k++) {
@@ -938,8 +938,12 @@ if (typeof module !== 'undefined') module.exports = Engine;
     const wallPanels = [];
     for (let i = 0; i < wallB.length - 1; i++) wallPanels.push({ poly: [wallB[i], wallB[i + 1], wallT[i + 1], wallT[i]], ad: i % 6 === 2 });
     const stars = []; for (let i = 0; i < 90; i++) stars.push([Math.random(), Math.random() * 0.55, 0.6 + Math.random() * 1.1]);
+    // packed front rows behind the plate, seen up close from the mound
+    const homeCrowd = [];
+    const cols = ['#2c3850', '#3b4a66', '#5a4b52', '#28406a', '#6b6f7e', '#7a4a3a', '#8a8a95', '#3d5a6e'];
+    for (let k = 0; k < 8; k++) for (let x = -70; x <= 70; x += 2.3) { if (Math.random() < 0.12) continue; homeCrowd.push({ p: [x + (Math.random() - 0.5) * 0.8, 6.2 + k * 2.6, -63 - k * 4.5], c: cols[Math.floor(Math.random() * cols.length)] }); }
     return {
-      standRows, wallPanels, stars,
+      standRows, wallPanels, stars, homeCrowd,
       board: [g(-56, 500, 30), g(56, 500, 30), g(56, 500, 66), g(-56, 500, 66)],
       boardPost: [g(-3, 499, 10), g(3, 499, 10), g(3, 499, 30), g(-3, 499, 30)],
       vStripes: (() => { const s = []; for (let x = -480; x < 480; x += 30) s.push([g(x, 0), g(x + 15, 0), g(x + 15, 460), g(x, 460)]); return s; })(),
@@ -956,9 +960,11 @@ if (typeof module !== 'undefined') module.exports = Engine;
       wall: [...wallB, ...wallT.slice().reverse()],
       wallTop: [...wallT, ...wallT.map((p) => [p[0], p[1] + 0.8, p[2]]).reverse()],
       stands: [...wallT, ...standT.slice().reverse()],
-      backWall: [g(-200, -60, 0), g(200, -60, 0), g(200, -60, 12), g(-200, -60, 12)],
-      backRail: [g(-200, -59.9, 11.2), g(200, -59.9, 11.2), g(200, -59.9, 12), g(-200, -59.9, 12)],
-      backStand: [g(-200, -61, 12), g(200, -61, 12), g(220, -200, 85), g(-220, -200, 85)],
+      backWall: [g(-200, -60, 0), g(200, -60, 0), g(200, -60, 4.5), g(-200, -60, 4.5)],
+      backRail: [g(-200, -59.9, 4.0), g(200, -59.9, 4.0), g(200, -59.9, 4.5), g(-200, -59.9, 4.5)],
+      backStand: [g(-200, -61, 4.5), g(200, -61, 4.5), g(220, -200, 85), g(-220, -200, 85)],
+      backRows: (() => { const r = []; for (let k = 0; k < 30; k++) { const u0 = k / 30, u1 = (k + 0.5) / 30, L = (u) => [4.5 + 80.5 * u, -61 - 139 * u]; const [y0, z0] = L(u0), [y1, z1] = L(u1); r.push([g(-200 - 20 * u0, z0, y0), g(200 + 20 * u0, z0, y0), g(200 + 20 * u1, z1, y1), g(-200 - 20 * u1, z1, y1)]); } return r; })(),
+      net: { x: 42, top: 34 },
       poles: [[233.3, 233.3], [-233.3, 233.3]],
       lights: [[-215, 125, 430], [215, 125, 430], [-95, 140, 520], [95, 140, 520], [-230, 120, -150], [230, 120, -150]],
       crowd,
@@ -983,7 +989,16 @@ if (typeof module !== 'undefined') module.exports = Engine;
     fillPoly(c, GEO.stands, COL.stand);
     for (const r of GEO.standRows) fillPoly(c, r, COL.stand2);
     fillPoly(c, GEO.backStand, COL.stand);
-    for (const q of GEO.crowd) { const p = P(c, q.p[0], q.p[1], q.p[2]); if (!p) continue; const s = Math.max(1, p.k * 1.4); ctx.fillStyle = q.c; ctx.fillRect(p.x, p.y, s, s); }
+    for (const r of GEO.backRows) fillPoly(c, r, COL.stand2);
+    for (const q of (c.eye[2] > 0 ? GEO.crowd.concat(GEO.homeCrowd) : GEO.crowd)) {
+      const p = P(c, q.p[0], q.p[1], q.p[2]); if (!p) continue; const s = Math.max(1, p.k * 1.4);
+      ctx.fillStyle = q.c;
+      if (s < 7) ctx.fillRect(p.x, p.y, s, s);
+      else { // close enough to read as a person: shoulders plus a head
+        ctx.beginPath(); ctx.ellipse(p.x, p.y + s * 0.25, s * 0.55, s * 0.4, 0, 0, 7); ctx.fill();
+        ctx.fillStyle = '#c99272'; ctx.beginPath(); ctx.arc(p.x, p.y - s * 0.3, s * 0.22, 0, 7); ctx.fill();
+      }
+    }
     fillPoly(c, GEO.foul, COL.foul);
     fillPoly(c, GEO.track, COL.track);
     if (polyPath(c, GEO.grass)) {
@@ -1016,13 +1031,28 @@ if (typeof module !== 'undefined') module.exports = Engine;
     drawScoreboard(c);
     drawTowers(c);
     fillPoly(c, GEO.backWall, '#1c4a44');
+    for (let x = -200; x <= 200; x += 8) fillPoly(c, [g(x - 0.15, -59.95, 0), g(x + 0.15, -59.95, 0), g(x + 0.15, -59.95, 4.5), g(x - 0.15, -59.95, 4.5)], '#143730');
     fillPoly(c, GEO.backRail, COL.wallTop);
+    drawNet(c);
     for (const [x, z] of GEO.poles) {
       const a = P(c, x, 0, z), b = P(c, x, 60, z);
       if (a && b) { ctx.strokeStyle = COL.wallTop; ctx.lineWidth = Math.max(1, a.k * 0.8); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
     }
   }
 
+  // protective netting behind the plate, only visible from the mound
+  function drawNet(c) {
+    if (c.eye[2] < 0) return;
+    const N = GEO.net, a = P(c, -N.x, 4.5, -60), b = P(c, N.x, N.top, -60); if (!a || !b) return;
+    ctx.save(); ctx.strokeStyle = 'rgba(10,16,28,.5)'; ctx.lineWidth = 1; ctx.beginPath();
+    for (let x = -N.x; x <= N.x; x += 2.5) { const p = P(c, x, 4.5, -60), q = P(c, x, N.top, -60); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); }
+    for (let y = 4.5; y <= N.top; y += 2.5) { const p = P(c, -N.x, y, -60), q = P(c, N.x, y, -60); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); }
+    ctx.stroke();
+    // net poles
+    ctx.strokeStyle = '#3a4559'; ctx.lineWidth = Math.max(1.5, a.k * 0.6); ctx.beginPath();
+    for (const x of [-N.x, N.x]) { const p = P(c, x, 0, -60), q = P(c, x, N.top, -60); ctx.moveTo(p.x, p.y); ctx.lineTo(q.x, q.y); }
+    ctx.stroke(); ctx.restore();
+  }
   // center field scoreboard, showing the live score
   function drawScoreboard(c) {
     fillPoly(c, GEO.boardPost, '#2a3447');

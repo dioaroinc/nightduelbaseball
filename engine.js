@@ -183,18 +183,18 @@ const Engine = (() => {
 
   // ---------- User batter ----------
   // tap: point on plate plane (x, y ft). dt: tap time - arrival time (s, real time).
-  const TIMING_WIN = 0.12;
-  const SWEET = { x: 0.6, y: 0.45 };
+  const TIMING_WIN = 0.16;
+  const SWEET = { x: 0.78, y: 0.58 };
   function userSwing(p, tapX, tapY, dt, bHand) {
     const ex = (tapX - p.px) / SWEET.x, ey = (tapY - p.py) / SWEET.y, et = dt / TIMING_WIN;
     const sp = Math.hypot(ex, ey);
     if (Math.abs(et) > 1 || sp > 1) {
       // near misses on timing/location can still tick a foul
-      if (Math.abs(et) < 1.35 && sp < 1.25 && rnd() < 0.55) return { swing: true, result: 'foul', quality: 0 };
+      if (Math.abs(et) < 1.4 && sp < 1.3 && rnd() < 0.6) return { swing: true, result: 'foul', quality: 0 };
       return { swing: true, result: 'miss', quality: 0, why: Math.abs(et) > 1 ? (et < 0 ? 'early' : 'late') : 'location' };
     }
-    const q = (1 - sp * sp * 0.75) * (1 - et * et * 0.6);
-    if (q < 0.3 && rnd() < 0.6) return { swing: true, result: 'foul', quality: q };
+    const q = (1 - sp * sp * 0.6) * (1 - et * et * 0.5);
+    if (q < 0.25 && rnd() < 0.5) return { swing: true, result: 'foul', quality: q };
     const ev = clamp(58 + q * 50 + gauss() * 4, 35, 117);
     // tapping below the ball (bat under it) lifts it; above it beats it into the ground
     const la = clamp(13 + (p.py - tapY) * 70 + gauss() * 7, -60, 80);
