@@ -8,6 +8,32 @@ window.FIREBASE_CONFIG = {
   messagingSenderId: "513268917792",
   appId: "1:513268917792:web:19657f2e51c0f13ab83e45",
 };
+</script><script>// Anonymous usage counters for the admin page (admin/).
+// Adds 1 to counters at stats/total/<key> and stats/days/<YYYY-MM-DD KST>/<key>
+// through the Realtime Database REST API, so visitors do not hold a live connection.
+// Keys: visits (page loads, once per tab), visitors (new browsers), dayVisitors
+// (browsers seen today), single (CPU games started), multi (friend games started).
+(function () {
+  var cfg = window.FIREBASE_CONFIG;
+  var h = location.hostname;
+  if (!cfg || !cfg.databaseURL || location.protocol === 'file:' || h === 'localhost' || h === '127.0.0.1') { window.ndTrack = function () {}; return; }
+  function day() { return new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10); }
+  function ls(k, v) { try { if (v === undefined) return localStorage.getItem(k); localStorage.setItem(k, v); } catch (e) { return null; } }
+  function ss(k, v) { try { if (v === undefined) return sessionStorage.getItem(k); sessionStorage.setItem(k, v); } catch (e) { return null; } }
+  function add(keys) {
+    var d = day(), body = {}, inc = { '.sv': { increment: 1 } };
+    keys.forEach(function (k) { body['total/' + k] = inc; body['days/' + d + '/' + k] = inc; });
+    try { fetch(cfg.databaseURL + '/stats.json', { method: 'PATCH', body: JSON.stringify(body), keepalive: true }).catch(function () {}); } catch (e) { /* ignore */ }
+  }
+  window.ndTrack = function (k) { if (k === 'single' || k === 'multi') add([k]); };
+  if (!ss('nd-visit')) {
+    ss('nd-visit', '1');
+    var keys = ['visits'];
+    if (!ls('nd-seen')) { ls('nd-seen', '1'); keys.push('visitors'); }
+    if (ls('nd-seen-day') !== day()) { ls('nd-seen-day', day()); keys.push('dayVisitors'); }
+    add(keys);
+  }
+})();
 </script></head><body><title>Night Duel Baseball</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -293,7 +319,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         <div class="mpstatus" id="mpStatus" hidden></div>
         <div class="note">The room creator picks the length and starts in the role picked above; the friend starts in the other. You switch sides every three outs. If the game is tied after the last inning it goes to extras. A pitcher who does not throw for 20 seconds forfeits.</div>
       </div>
-      <div class="note">Stats are saved in this browser only. No sign-up needed. <span id="buildTag">Build 2026-10-21 09:10 UTC</span></div>
+      <div class="note">Stats are saved in this browser only. No sign-up needed. <span id="buildTag">Build 2026-10-21 09:13 UTC</span></div>
     </div>
   </div>
 
@@ -2114,6 +2140,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
     // resume the current at-bat count only between pitches
     s.balls = 0; s.strikes = 0;
     if (!G.mp) { if (duelInProgress() && s.role) S.role = s.role; s.role = S.role; setRolePanels(); }
+    if (window.ndTrack) ndTrack('single');
     startPA();
   }
 
@@ -2280,6 +2307,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
 
   function mpStart() {
     const m = G.mp; m.started = true;
+    if (m.host && window.ndTrack) ndTrack('multi');
     closeAllOv(); $('startOv').hidden = true; mpStatus(null);
     G.started = true; G.paused = false;
     setRolePanels();

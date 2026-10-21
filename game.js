@@ -1302,6 +1302,7 @@
     // resume the current at-bat count only between pitches
     s.balls = 0; s.strikes = 0;
     if (!G.mp) { if (duelInProgress() && s.role) S.role = s.role; s.role = S.role; setRolePanels(); }
+    if (window.ndTrack) ndTrack('single');
     startPA();
   }
 
@@ -1468,6 +1469,7 @@
 
   function mpStart() {
     const m = G.mp; m.started = true;
+    if (m.host && window.ndTrack) ndTrack('multi');
     closeAllOv(); $('startOv').hidden = true; mpStatus(null);
     G.started = true; G.paused = false;
     setRolePanels();

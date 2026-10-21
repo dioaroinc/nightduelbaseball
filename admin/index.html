@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#0a111d">
+<title>Night Duel 관리자</title>
+<link rel="icon" type="image/svg+xml" href="../icons/icon.svg">
+<style>
+  :root { --bg:#0a111d; --card:#131d2e; --line:#24324a; --text:#e8eef8; --dim:#8da0bd; --a:#4fa3ff; --b:#f2b84b; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:var(--bg); color:var(--text); font:15px/1.5 system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif; }
+  main { max-width:860px; margin:0 auto; padding:20px 16px 48px; }
+  header { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:20px; }
+  h1 { font-size:20px; margin:0; }
+  h2 { font-size:15px; color:var(--dim); font-weight:600; margin:28px 0 10px; }
+  button { font:inherit; border:1px solid var(--line); background:var(--card); color:var(--text); border-radius:10px; padding:8px 14px; cursor:pointer; }
+  button.primary { background:var(--a); border-color:var(--a); color:#04101f; font-weight:700; padding:12px 20px; }
+  .grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(150px,1fr)); gap:10px; }
+  .card { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; }
+  .card .k { color:var(--dim); font-size:13px; }
+  .card .v { font-size:28px; font-weight:800; font-variant-numeric:tabular-nums; }
+  .card .s { color:var(--dim); font-size:12px; }
+  .msg { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:18px; }
+  .chart { background:var(--card); border:1px solid var(--line); border-radius:14px; padding:14px; }
+  .legend { display:flex; gap:14px; font-size:13px; color:var(--dim); margin-bottom:8px; flex-wrap:wrap; }
+  .legend i { display:inline-block; width:10px; height:10px; border-radius:3px; margin-right:5px; vertical-align:-1px; }
+  svg { display:block; width:100%; height:auto; }
+  .tw { overflow-x:auto; }
+  table { width:100%; border-collapse:collapse; font-variant-numeric:tabular-nums; font-size:14px; }
+  th, td { padding:7px 8px; border-bottom:1px solid var(--line); text-align:right; white-space:nowrap; }
+  th:first-child, td:first-child { text-align:left; }
+  th { color:var(--dim); font-weight:600; }
+  input { font:inherit; background:#060b14; color:var(--text); border:1px solid var(--line); border-radius:10px; padding:10px 12px; }
+  pre { background:#060b14; border:1px solid var(--line); border-radius:10px; padding:12px; overflow:auto; font-size:12px; }
+  code { color:var(--b); }
+  .dim { color:var(--dim); }
+  [hidden] { display:none !important; }
+</style>
+<script src="../firebase-config.js"></script>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Night Duel 관리자</h1>
+    <button id="logout" hidden>로그아웃</button>
+  </header>
+
+  <section id="login" class="msg" hidden>
+    <form id="loginForm" style="display:grid;gap:10px;max-width:280px">
+      <input id="id" placeholder="아이디" autocomplete="username" autocapitalize="off">
+      <input id="pw" type="password" placeholder="비밀번호" autocomplete="current-password">
+      <button class="primary" type="submit">로그인</button>
+      <span id="loginErr" class="dim"></span>
+    </form>
+  </section>
+
+  <section id="stats" hidden>
+    <div class="grid">
+      <div class="card"><div class="k">총 방문자</div><div class="v" id="tVisitors">-</div><div class="s">처음 온 기기 수</div></div>
+      <div class="card"><div class="k">총 접속</div><div class="v" id="tVisits">-</div><div class="s">사이트를 연 횟수</div></div>
+      <div class="card"><div class="k">총 게임</div><div class="v" id="tGames">-</div><div class="s" id="tSplit">-</div></div>
+      <div class="card"><div class="k">오늘 방문자</div><div class="v" id="dVisitors">-</div><div class="s" id="dGames">-</div></div>
+    </div>
+
+    <h2>최근 30일</h2>
+    <div class="chart">
+      <div class="legend"><span><i style="background:var(--a)"></i>방문자</span><span><i style="background:var(--b)"></i>게임 수</span></div>
+      <svg id="chart" viewBox="0 0 800 220" role="img" aria-label="최근 30일 방문자와 게임 수"></svg>
+    </div>
+
+    <h2>날짜별</h2>
+    <div class="card tw">
+      <table>
+        <thead><tr><th>날짜 (KST)</th><th>방문자</th><th>신규</th><th>접속</th><th>1인 (CPU)</th><th>친구 대전</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <p class="dim" style="font-size:12px;margin-top:14px">방문자는 브라우저 기준이라 같은 사람이 다른 기기나 시크릿 창으로 오면 따로 셉니다. 친구 대전은 방을 만든 쪽에서 한 판으로 셉니다. <button id="reload">새로고침</button></p>
+  </section>
+</main>
+<script>
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var show = function (id) { ['login', 'stats'].forEach(function (x) { $(x).hidden = x !== id; }); };
+  var n = function (v) { return (v || 0).toLocaleString('ko-KR'); };
+  var kstDay = function (ms) { return new Date(ms + 9 * 3600e3).toISOString().slice(0, 10); };
+
+  // Simple gate chosen by the owner; the counters are publicly readable in the database rules.
+  var HASH = 'f8e68e8d44bfb5314974a97f787d017ff6ac9d0046083f28665fcf96f0cef80c';
+  var KEY = 'nd-admin';
+  function sha(t) { return crypto.subtle.digest('SHA-256', new TextEncoder().encode(t)).then(function (b) { return Array.from(new Uint8Array(b)).map(function (x) { return x.toString(16).padStart(2, '0'); }).join(''); }); }
+  function ok() { try { return localStorage.getItem(KEY) === HASH; } catch (e) { return false; } }
+
+  $('loginForm').onsubmit = function (e) {
+    e.preventDefault();
+    sha($('id').value.trim() + ':' + $('pw').value).then(function (h) {
+      if (h !== HASH) { $('loginErr').textContent = '아이디 또는 비밀번호가 틀렸습니다.'; return; }
+      try { localStorage.setItem(KEY, h); } catch (e2) { /* ignore */ }
+      start();
+    });
+  };
+  $('logout').onclick = function () { try { localStorage.removeItem(KEY); } catch (e) { /* ignore */ } $('logout').hidden = true; $('pw').value = ''; show('login'); };
+  $('reload').onclick = function () { load(); };
+
+  function start() { $('logout').hidden = false; $('loginErr').textContent = ''; load(); }
+  if (ok()) start(); else show('login');
+
+  function load() {
+    fetch(window.FIREBASE_CONFIG.databaseURL + '/stats.json', { cache: 'no-store' })
+      .then(function (r) { if (!r.ok) throw new Error(r.status); return r.json(); })
+      .then(function (s) { render(s || {}); show('stats'); })
+      .catch(function () { show('stats'); $('rows').innerHTML = '<tr><td colspan="6" class="dim">통계를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.</td></tr>'; });
+  }
+
+  function render(s) {
+    var t = s.total || {}, days = s.days || {};
+    var today = days[kstDay(Date.now())] || {};
+    $('tVisitors').textContent = n(t.visitors);
+    $('tVisits').textContent = n(t.visits);
+    $('tGames').textContent = n((t.single || 0) + (t.multi || 0));
+    $('tSplit').textContent = '1인 ' + n(t.single) + ' · 친구 ' + n(t.multi);
+    $('dVisitors').textContent = n(today.dayVisitors);
+    $('dGames').textContent = '오늘 게임 ' + n((today.single || 0) + (today.multi || 0)) + '판';
+
+    var list = [];
+    for (var i = 29; i >= 0; i--) { var d = kstDay(Date.now() - i * 864e5); list.push([d, days[d] || {}]); }
+    drawChart(list);
+
+    var keys = Object.keys(days).sort().reverse(), html = '';
+    keys.forEach(function (d) {
+      var x = days[d];
+      html += '<tr><td>' + d + '</td><td>' + n(x.dayVisitors) + '</td><td>' + n(x.visitors) + '</td><td>' + n(x.visits) + '</td><td>' + n(x.single) + '</td><td>' + n(x.multi) + '</td></tr>';
+    });
+    $('rows').innerHTML = html || '<tr><td colspan="6" class="dim">아직 기록이 없습니다.</td></tr>';
+  }
+
+  function drawChart(list) {
+    var W = 800, H = 220, L = 34, B = 24, T = 8, R = 6;
+    var max = 1;
+    list.forEach(function (e) { max = Math.max(max, e[1].dayVisitors || 0, (e[1].single || 0) + (e[1].multi || 0)); });
+    var step = Math.pow(10, Math.floor(Math.log10(max))); var top = Math.ceil(max / step) * step;
+    var cw = (W - L - R) / list.length, bw = Math.max(2, (cw - 4) / 2);
+    var y = function (v) { return T + (H - T - B) * (1 - v / top); };
+    var g = '';
+    [0, top / 2, top].forEach(function (v) {
+      g += '<line x1="' + L + '" x2="' + (W - R) + '" y1="' + y(v) + '" y2="' + y(v) + '" stroke="#24324a"/>';
+      g += '<text x="' + (L - 6) + '" y="' + (y(v) + 4) + '" fill="#8da0bd" font-size="11" text-anchor="end">' + Math.round(v) + '</text>';
+    });
+    list.forEach(function (e, i) {
+      var x0 = L + i * cw + 2, a = e[1].dayVisitors || 0, b = (e[1].single || 0) + (e[1].multi || 0);
+      g += '<rect x="' + x0 + '" y="' + y(a) + '" width="' + bw + '" height="' + (y(0) - y(a)) + '" rx="2" fill="#4fa3ff"><title>' + e[0] + ' 방문자 ' + a + '</title></rect>';
+      g += '<rect x="' + (x0 + bw) + '" y="' + y(b) + '" width="' + bw + '" height="' + (y(0) - y(b)) + '" rx="2" fill="#f2b84b"><title>' + e[0] + ' 게임 ' + b + '</title></rect>';
+      if (i % 5 === 4 || i === list.length - 1) g += '<text x="' + (x0 + bw) + '" y="' + (H - 6) + '" fill="#8da0bd" font-size="11" text-anchor="middle">' + e[0].slice(5) + '</text>';
+    });
+    $('chart').innerHTML = g;
+  }
+})();
+</script>
+</body>
+</html>
