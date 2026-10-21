@@ -329,6 +329,9 @@
     me: { jersey: '#ede8db', jerseyD: '#c9c3b3', trim: '#1d3a78', pants: '#e6e0d1', sock: '#1d3a78', helmet: '#1d3a78', cap: '#1d3a78', glove: '#7a4a24', skin: '#c99272', name: 'KIM', num: '21' },
     cpu: { jersey: '#9aa1b0', jerseyD: '#7b8292', trim: '#a51e2e', pants: '#aeb4c1', sock: '#a51e2e', helmet: '#a51e2e', cap: '#a51e2e', glove: '#5b3a1e', skin: '#b98263', name: 'CPU', num: '45' },
   };
+  // the user's two batters: a lefty and a righty
+  const MY_PLAYERS = { L: { name: 'SUN', num: '36' }, R: { name: 'TEO', num: '24' } }; // the user's lefty and righty, batting or pitching
+  const myPlayer = hand => ({ ...TEAM.me, ...MY_PLAYERS[hand === 'L' ? 'L' : 'R'] });
   const ease = (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
   const lerp = (a, b, t) => a + (b - a) * t;
   function keyf(frames, t) {
@@ -411,7 +414,7 @@
     [0.75, -0.42, 1.48, 0.95, 1.60, 1.30, 0.75, 4.75, 0.25, 4.45, 0.75, 5.05, -115, 0.05, 0.12, 2.98],
     [1.00, -0.40, 1.52, 0.95, 1.62, 1.30, 0.05, 5.35, -0.35, 5.05, 0.45, 5.25, -205, -0.05, 0.05, 3.02],
   ];
-  function batterArt(T, t, face, idle) {
+  function batterArt(T, t, face, idle, flip) {
     let [bkx, bky, fkx, fky, ffx, hx, hy, bex, bey, fex, fey, bat, chx, hdx, hipY] = keyf(SWING, t);
     if (idle != null && t === 0) { // waiting for the pitch: bat waggle and a little knee bounce
       const w = Math.sin(idle / 420), k2 = (Math.sin(idle / 950) + 1) / 2;
@@ -427,6 +430,15 @@
     blob([[-0.5, hipY - 0.05], [-0.62, 4.0], [chx - 0.58, 5.05], [chx + 0.05, 5.32], [chx + 0.52, 5.0], [0.55, 4.0], [0.48, hipY - 0.05]], T.jersey);
     poly([[-0.5, hipY - 0.05], [0.5, hipY - 0.05], [0.5, hipY + 0.17], [-0.5, hipY + 0.17]], '#202228');
     X.strokeStyle = T.trim; X.lineWidth = 0.06; X.beginPath(); X.moveTo(chx - 0.45, 5.05); X.quadraticCurveTo(chx + 0.05, 5.35, chx + 0.42, 5.02); X.stroke();
+    if (!face && T.name) { // name and number on the back, squeezed by the three-quarter angle
+      const f = flip || 1;
+      X.save(); X.scale(f, -1); X.fillStyle = T.trim; X.textAlign = 'center';
+      X.save(); X.translate((chx - 0.08) * f, 0); X.scale(0.62, 1);
+      X.font = '800 0.8px "Saira Condensed", sans-serif'; X.fillText(T.num, 0, -(hipY + 0.55)); X.restore();
+      X.translate(-0.3 * f, 0); X.scale(0.6, 1); // name sits just above the number, clear of the front elbow
+      X.font = '700 0.32px "Saira Condensed", sans-serif'; X.fillText(T.name, 0, -4.3);
+      X.restore();
+    }
     const hd = [hdx, 5.66];
     if (face) {
       // seen from the mound: the head is turned toward the pitcher, eyes locked on the ball
@@ -465,7 +477,8 @@
     if (team === 'me') { foot.x = Math.max(W * 0.07, Math.min(W * 0.93, foot.x)); foot.k *= 0.5; } // keep the user's batter in frame, out of the zone
     const dir = plate.x > foot.x ? 1 : -1;
     const t = swingT == null ? 0 : Math.min(1, swingT);
-    renderFigure(foot.x, foot.y, foot.k, dir, alpha, 7.5, 8.6, () => batterArt(TEAM[team], t, team === 'cpu', now));
+    const T = team === 'me' ? myPlayer(hand) : TEAM[team];
+    renderFigure(foot.x, foot.y, foot.k, dir, alpha, 7.5, 8.6, () => batterArt(T, t, team === 'cpu', now, dir));
   }
 
   // ---- Pitcher (front or back view). Throwing arm drawn on +x, mirrored for the other hand ----
@@ -518,7 +531,7 @@
     if (!foot) return;
     const rel = P(c, hand === 'R' ? -1.9 : 1.9, 5.9, 60.5);
     const arm = rel && rel.x > foot.x ? 1 : -1;
-    renderFigure(foot.x, foot.y, foot.k, arm, alpha, 5.6, 8, () => pitcherArt(TEAM[team], w == null ? 0 : w, fromBehind, arm));
+    renderFigure(foot.x, foot.y, foot.k, arm, alpha, 5.6, 8, () => pitcherArt(team === 'me' ? myPlayer(hand) : TEAM[team], w == null ? 0 : w, fromBehind, arm));
   }
 
   // ---- Fielder (ready stance, facing the plate) ----
@@ -1307,7 +1320,8 @@
   }
   const handName = (h, role) => (role === 'pitcher' ? (h === 'R' ? 'RHP' : 'LHP') : (h === 'R' ? 'RHB' : 'LHB'));
   function renderMatchup() {
-    const me = S.role === 'pitcher' ? `You ${handName(G.pHand, 'pitcher')}` : `You ${handName(G.bHand, 'batter')}`;
+    const mine = S.role === 'pitcher' ? myPlayer(G.pHand) : myPlayer(G.bHand);
+    const me = `${mine.name} #${mine.num} ${S.role === 'pitcher' ? handName(G.pHand, 'pitcher') : handName(G.bHand, 'batter')}`;
     const cpu = S.role === 'pitcher' ? `CPU ${handName(G.bHand, 'batter')}` : `CPU ${handName(G.pHand, 'pitcher')}`;
     const opp = G.mp ? cpu.replace('CPU', 'Friend') + `  ·  ${G.mp.innings} inn` : cpu;
     $('matchup').textContent = `${me}  vs  ${opp}`;
