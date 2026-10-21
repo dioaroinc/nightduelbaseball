@@ -185,6 +185,9 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .confirm { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--chalk); flex-wrap: wrap; }
 .confirm button { height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--bulb-out); background: transparent; color: var(--bulb-out); }
 .note { font-size: 11px; color: var(--muted); line-height: 1.5; }
+.topbar { display: flex; align-items: center; gap: 12px; }
+.backbtn { height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--chalk); font-size: 14px; font-weight: 600; flex: none; }
+.resume { background: var(--panel); border: 1px solid var(--accent); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; color: var(--chalk); line-height: 1.5; }
 .mp { border-top: 1px solid var(--line); padding-top: 14px; }
 .joinrow { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 .joinrow input { height: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--chalk); font-family: var(--f-board); font-size: 26px; letter-spacing: .3em; text-align: center; min-width: 0; }
@@ -275,6 +278,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
           <div class="seg" id="cpuBatSeg"><button data-v="R">R</button><button data-v="L">L</button><button data-v="X">Mix</button></div></div>
       </div>
       <button class="cta" id="startBtn">PLAY BALL</button>
+      <div class="resume" id="resumeBox" hidden></div>
       <div class="row2"><button class="ghost" id="startStats">My stats</button><button class="ghost" id="startSet">Settings</button></div>
       <div class="grp mp" id="mpGrp">
         <h3>PLAY WITH A FRIEND</h3>
@@ -288,7 +292,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         <div class="mpstatus" id="mpStatus" hidden></div>
         <div class="note">The room creator picks the length and starts in the role picked above; the friend starts in the other. You switch sides every three outs. If the game is tied after the last inning it goes to extras. A pitcher who does not throw for 20 seconds forfeits.</div>
       </div>
-      <div class="note">Stats are saved in this browser only. No sign-up needed. <span id="buildTag">Build 2026-10-21 08:54 UTC</span></div>
+      <div class="note">Stats are saved in this browser only. No sign-up needed. <span id="buildTag">Build 2026-10-21 09:00 UTC</span></div>
     </div>
   </div>
 
@@ -304,7 +308,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 
   <div class="ov" id="setOv" hidden>
     <div class="inner">
-      <div class="logo" style="font-size:34px">SET<em>TINGS</em></div>
+      <div class="topbar"><button class="backbtn" aria-label="Back">‹ Back</button><div class="logo" style="font-size:34px">SET<em>TINGS</em></div></div>
       <div class="grp"><h3>UNITS</h3>
         <div class="seg wide" id="unitSeg"><button data-v="mph">mph · feet</button><button data-v="kmh">km/h · meters</button></div></div>
       <div class="grp"><h3>CPU PITCHER (WHEN YOU BAT)</h3>
@@ -326,10 +330,11 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 
   <div class="ov" id="statsOv" hidden>
     <div class="inner">
-      <div class="logo" style="font-size:34px">MY <em>STATS</em></div>
+      <div class="topbar"><button class="backbtn" aria-label="Back">‹ Back</button><div class="logo" style="font-size:34px">MY <em>STATS</em></div></div>
+      <div id="quitArea"></div>
       <div class="tabs" id="statTabs"><button data-t="pitcher">Pitching</button><button data-t="batter">Hitting</button><button data-t="friend">vs Friend</button></div>
       <div id="statBody"></div>
-      <div class="row2"><button class="ghost" id="closeStats">Back to game</button><button class="ghost" id="changeRole">Change role / hand</button></div>
+      <div class="row2"><button class="ghost" id="closeStats">Back</button><button class="ghost" id="changeRole">Main menu</button></div>
       <button class="ghost" id="statsSet">Settings</button>
       <div id="resetArea"></div>
     </div>
@@ -830,8 +835,8 @@ if (typeof module !== 'undefined') module.exports = Engine;
   const S = save.settings;
   if (!save.mpStats) save.mpStats = E.newStats();
   if (!save.mpLogs) save.mpLogs = [];
-  if (!S.batMixV2) { S.cpuBat = 'X'; S.batMixV2 = true; } // each CPU batter steps in as a random lefty or righty by default
   if (!S.myThrow) { S.myThrow = S.myHand || 'R'; S.myBat = S.myHand || 'R'; S.cpuThrow = S.cpuHand || 'R'; S.cpuBat = S.cpuHand || 'R'; }
+  if (!S.batMixV3) { S.cpuBat = 'X'; S.batMixV3 = true; } // each CPU batter steps in as a random lefty or righty by default
   const newDuel = () => Object.assign(E.newState(), { half: 0, score: { me: 0, opp: 0 } });
   if (!save.games.duel) save.games.duel = newDuel();
   const st = () => (G.mp ? G.mp.state : save.games.duel);
@@ -1214,8 +1219,12 @@ if (typeof module !== 'undefined') module.exports = Engine;
     [0.75, -0.42, 1.48, 0.95, 1.60, 1.30, 0.75, 4.75, 0.25, 4.45, 0.75, 5.05, -115, 0.05, 0.12, 2.98],
     [1.00, -0.40, 1.52, 0.95, 1.62, 1.30, 0.05, 5.35, -0.35, 5.05, 0.45, 5.25, -205, -0.05, 0.05, 3.02],
   ];
-  function batterArt(T, t) {
-    const [bkx, bky, fkx, fky, ffx, hx, hy, bex, bey, fex, fey, bat, chx, hdx, hipY] = keyf(SWING, t);
+  function batterArt(T, t, face, idle) {
+    let [bkx, bky, fkx, fky, ffx, hx, hy, bex, bey, fex, fey, bat, chx, hdx, hipY] = keyf(SWING, t);
+    if (idle != null && t === 0) { // waiting for the pitch: bat waggle and a little knee bounce
+      const w = Math.sin(idle / 420), k2 = (Math.sin(idle / 950) + 1) / 2;
+      bat += w * 7; hy += w * 0.06; hx += w * 0.03; hipY -= k2 * 0.06; bky -= k2 * 0.04; fky -= k2 * 0.04;
+    }
     const hipB = [-0.18, hipY], hipF = [0.18, hipY];
     const neck = [chx, 5.15], shB = [chx - 0.22, 4.95], shF = [chx + 0.18, 4.95];
     // back leg & back arm sit behind the body
@@ -1226,13 +1235,26 @@ if (typeof module !== 'undefined') module.exports = Engine;
     blob([[-0.5, hipY - 0.05], [-0.62, 4.0], [chx - 0.58, 5.05], [chx + 0.05, 5.32], [chx + 0.52, 5.0], [0.55, 4.0], [0.48, hipY - 0.05]], T.jersey);
     poly([[-0.5, hipY - 0.05], [0.5, hipY - 0.05], [0.5, hipY + 0.17], [-0.5, hipY + 0.17]], '#202228');
     X.strokeStyle = T.trim; X.lineWidth = 0.06; X.beginPath(); X.moveTo(chx - 0.45, 5.05); X.quadraticCurveTo(chx + 0.05, 5.35, chx + 0.42, 5.02); X.stroke();
-    // head & helmet (ear flap faces the catcher)
     const hd = [hdx, 5.66];
-    ell(hd[0] + 0.18, hd[1] - 0.12, 0.2, 0.26, 0, T.skin);
-    ell(hd[0], hd[1], 0.42, 0.4, 0, T.helmet);
-    ell(hd[0] - 0.2, hd[1] - 0.25, 0.22, 0.24, 0.3, T.helmet);
-    poly([[hd[0] + 0.25, hd[1] - 0.02], [hd[0] + 0.72, hd[1] - 0.1], [hd[0] + 0.7, hd[1] - 0.18], [hd[0] + 0.2, hd[1] - 0.14]], T.helmet);
-    ell(hd[0] - 0.12, hd[1] + 0.16, 0.16, 0.08, -0.4, 'rgba(255,255,255,.35)');
+    if (face) {
+      // seen from the mound: the head is turned toward the pitcher, eyes locked on the ball
+      ell(hd[0], hd[1] - 0.1, 0.34, 0.4, 0, T.skin);
+      ell(hd[0], hd[1] + 0.14, 0.44, 0.34, 0, T.helmet);
+      ell(hd[0], hd[1] + 0.06, 0.54, 0.1, 0, T.helmet);
+      ell(hd[0] - 0.33, hd[1] - 0.12, 0.13, 0.2, 0, T.helmet); // ear flap on the pitcher-facing side
+      ell(hd[0] + 0.13, hd[1] - 0.1, 0.07, 0.055, 0, '#1a1410'); ell(hd[0] - 0.11, hd[1] - 0.1, 0.07, 0.055, 0, '#1a1410');
+      ell(hd[0] + 0.13, hd[1] - 0.09, 0.025, 0.02, 0, '#fff'); ell(hd[0] - 0.11, hd[1] - 0.09, 0.025, 0.02, 0, '#fff');
+      ell(hd[0] + 0.01, hd[1] - 0.34, 0.09, 0.025, 0, 'rgba(60,30,20,.7)');
+      ell(hd[0] + 0.02, hd[1] - 0.22, 0.04, 0.05, 0, 'rgba(120,70,50,.5)');
+      ell(hd[0] + 0.1, hd[1] + 0.2, 0.16, 0.06, 0, 'rgba(255,255,255,.3)');
+    } else {
+      // seen from the umpire: ear flap faces the catcher
+      ell(hd[0] + 0.18, hd[1] - 0.12, 0.2, 0.26, 0, T.skin);
+      ell(hd[0], hd[1], 0.42, 0.4, 0, T.helmet);
+      ell(hd[0] - 0.2, hd[1] - 0.25, 0.22, 0.24, 0.3, T.helmet);
+      poly([[hd[0] + 0.25, hd[1] - 0.02], [hd[0] + 0.72, hd[1] - 0.1], [hd[0] + 0.7, hd[1] - 0.18], [hd[0] + 0.2, hd[1] - 0.14]], T.helmet);
+      ell(hd[0] - 0.12, hd[1] + 0.16, 0.16, 0.08, -0.4, 'rgba(255,255,255,.35)');
+    }
     // bat: knob, handle, barrel
     const a = bat * Math.PI / 180, ux = Math.cos(a), uy = Math.sin(a);
     const at = (d) => [hx + ux * d, hy + uy * d];
@@ -1244,14 +1266,14 @@ if (typeof module !== 'undefined') module.exports = Engine;
     seg(shF, [fex, fey], 0.2, 0.16, T.jersey); seg([fex, fey], [hx + 0.05, hy], 0.16, 0.12, T.jersey);
     dot([hx, hy], 0.15, '#f3f3f0'); dot([hx + ux * 0.18, hy + uy * 0.18], 0.14, '#1c1d22');
   }
-  function drawBatter(c, hand, swingT, team, alpha) {
+  function drawBatter(c, hand, swingT, team, alpha, now) {
     const bx = hand === 'R' ? -2.9 : 2.9;
     const foot = P(c, bx, 0, -0.4), plate = P(c, 0, 0, -0.4);
     if (!foot || !plate) return;
     if (team === 'me') { foot.x = Math.max(W * 0.07, Math.min(W * 0.93, foot.x)); foot.k *= 0.5; } // keep the user's batter in frame, out of the zone
     const dir = plate.x > foot.x ? 1 : -1;
     const t = swingT == null ? 0 : Math.min(1, swingT);
-    renderFigure(foot.x, foot.y, foot.k, dir, alpha, 7.5, 8.6, () => batterArt(TEAM[team], t));
+    renderFigure(foot.x, foot.y, foot.k, dir, alpha, 7.5, 8.6, () => batterArt(TEAM[team], t, team === 'cpu', now));
   }
 
   // ---- Pitcher (front or back view). Throwing arm drawn on +x, mirrored for the other hand ----
@@ -1379,14 +1401,14 @@ if (typeof module !== 'undefined') module.exports = Engine;
   function setPhase(ph) { G.phase = ph; G.t0 = G.now; }
   const statsBucket = () => (G.mp ? save.mpStats : save.stats);
   const logBucket = () => (G.mp ? save.mpLogs : save.logs[S.role]);
-  const PITCH_HINT = 'Pick a pitch, hold the zone pad, lift at the top of the gauge for max power';
+  const PITCH_HINT = 'Hold the zone pad, lift at the top of the gauge for power';
 
   function startPA() {
     const s = st();
     s.balls = 0; s.strikes = 0; s.history = [];
     if (G.mp) {
       if (S.role === 'pitcher') { G.pHand = S.myThrow; G.bHand = G.mp.oppBat || 'R'; } else { G.bHand = S.myBat; G.pHand = G.mp.oppThrow || 'R'; }
-    } else if (S.role === 'pitcher') { G.pHand = S.myThrow; G.bHand = S.cpuBat === 'X' ? (Math.random() < 0.6 ? 'R' : 'L') : S.cpuBat; }
+    } else if (S.role === 'pitcher') { G.pHand = S.myThrow; G.bHand = S.cpuBat === 'X' ? (Math.random() < 0.5 ? 'R' : 'L') : S.cpuBat; }
     else {
       G.bHand = S.myBat;
       // the CPU keeps one pitcher for the whole half inning
@@ -1621,7 +1643,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
         if (s.half) { s.half = 0; s.inning++; } else s.half = 1;
         if (G.mp && !s.half && s.inning > G.mp.innings && s.score.me !== s.score.opp) { mpEnd(s.score.me > s.score.opp, `Final after ${s.inning - 1} innings.`); return; }
         S.role = S.role === 'pitcher' ? 'batter' : 'pitcher';
-        if (G.mp) { G.mp.myRole = S.role; mpPresence(); }
+        if (G.mp) { G.mp.myRole = S.role; mpPresence(); } else s.role = S.role;
         setRolePanels(); persist();
         bannerFlash(`3 outs! Switch sides: you're ${S.role === 'pitcher' ? 'pitching' : 'batting'} now`);
       }
@@ -1778,7 +1800,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
       // far: catcher, umpire, batter; near: pitcher from behind
       drawCatcherUmp(cam, G.phase === 'idle' ? G.target : (p ? { x: lerp(p.tx, p.px, Math.min(1, Math.max(0, s - 0.6) * 2.5)), y: lerp(p.ty, p.py, Math.min(1, Math.max(0, s - 0.6) * 2.5)) } : G.target));
       drawZone(cam, 0.45);
-      drawBatter(cam, G.bHand, swingT, 'cpu', 1);
+      drawBatter(cam, G.bHand, swingT, 'cpu', 1, now);
       if (G.phase === 'idle') {
         const m = P(cam, G.target.x, G.target.y, 0);
         if (m) { ctx.strokeStyle = 'rgba(255,187,74,.9)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(m.x, m.y, Math.max(6, m.k * 0.35), 0, 7); ctx.stroke(); }
@@ -1986,6 +2008,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
       logs.slice(0, 12).forEach((l) => { const r = document.createElement('div'); const a = document.createElement('span'); a.textContent = `Inn ${l.inn}  ${l.txt}${l.sub ? ' · ' + l.sub : ''}`; const c = document.createElement('span'); c.textContent = `${l.cnt}`; r.append(a, c); lg.append(r); });
       body.append(h, lg);
     }
+    renderQuit(false);
     renderReset();
   }
   function renderReset(confirming) {
@@ -2009,6 +2032,27 @@ if (typeof module !== 'undefined') module.exports = Engine;
     }
   }
 
+  // ---------------- Overlay navigation ----------------
+  // Sub-screens stack on top of each other; Back (or the phone's back gesture) returns one level.
+  const ovStack = [];
+  function openOv(id) {
+    const cur = ovStack[ovStack.length - 1]; if (cur) $(cur).hidden = true;
+    if (!ovStack.length) $('startOv').hidden = true;
+    ovStack.push(id); $(id).hidden = false;
+    try { history.pushState({ ov: ovStack.length }, ''); } catch (e) { /* ignore */ }
+  }
+  function closeOv() {
+    const id = ovStack.pop(); if (!id) return;
+    $(id).hidden = true;
+    const prev = ovStack[ovStack.length - 1];
+    if (prev) $(prev).hidden = false;
+    else { if (!G.started) $('startOv').hidden = false; G.paused = false; }
+  }
+  function closeAllOv() { while (ovStack.length) closeOv(); }
+  function back() { if (history.state && history.state.ov && ovStack.length) history.back(); else closeOv(); }
+  window.addEventListener('popstate', (e) => { const depth = (e.state && e.state.ov) || 0; while (ovStack.length > depth) closeOv(); });
+  document.querySelectorAll('.backbtn').forEach((b) => b.addEventListener('click', back));
+
   // ---------------- Start overlay ----------------
   function renderStart() {
     $('rolePitcher').setAttribute('aria-pressed', S.role === 'pitcher' ? 'true' : 'false');
@@ -2031,6 +2075,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
     const s = st();
     // resume the current at-bat count only between pitches
     s.balls = 0; s.strikes = 0;
+    if (!G.mp) { if (duelInProgress() && s.role) S.role = s.role; s.role = S.role; setRolePanels(); }
     startPA();
   }
 
@@ -2164,7 +2209,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
     const m = G.mp; if (!m || !m.started) return;
     if (msg.t === 'pitch' && m.myRole === 'batter') { const p = cleanPitch(msg.p); if (p) takePitch({ seq: msg.seq | 0, p }); }
     else if (msg.t === 'result' && m.myRole === 'pitcher' && msg.o && msg.o.dec) takeResult(cleanResult(msg));
-    else if (msg.t === 'forfeit') mpEnd(true, 'Your friend ran out of time.');
+    else if (msg.t === 'forfeit') mpEnd(true, msg.why === 'quit' ? 'Your friend quit the game.' : 'Your friend ran out of time.');
   }
   const num = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
   function cleanPitch(p) {
@@ -2197,7 +2242,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
 
   function mpStart() {
     const m = G.mp; m.started = true;
-    $('startOv').hidden = true; $('statsOv').hidden = true; mpStatus(null);
+    closeAllOv(); $('startOv').hidden = true; mpStatus(null);
     G.started = true; G.paused = false;
     setRolePanels();
     persist();
@@ -2220,14 +2265,14 @@ if (typeof module !== 'undefined') module.exports = Engine;
     $('endTitle').append(win ? 'YOU ' : 'YOU ', em); em.textContent = win ? 'WIN' : 'LOSE';
     $('endSub').textContent = reason;
     $('endScore').textContent = `YOU ${s.score.me}   :   ${s.score.opp} FRIEND   ·   ${Math.min(s.inning, m.innings)} inn`;
-    $('endOv').hidden = false; $('statsOv').hidden = true; $('setOv').hidden = true;
+    closeAllOv(); openOv('endOv');
   }
   function mpForfeit() {
     const m = G.mp; if (!m) return;
     m.seq++; mpSend({ t: 'forfeit', seq: m.seq });
     mpEnd(false, `You did not pitch within ${TURN_SECS} seconds.`, 1500);
   }
-  $('endBack').addEventListener('click', () => { $('endOv').hidden = true; $('startOv').hidden = false; renderStart(); });
+  $('endBack').addEventListener('click', () => { closeAllOv(); $('startOv').hidden = false; renderStart(); });
   function mpLeave() {
     const m = G.mp; if (!m) return;
     G.mp = null;
@@ -2289,11 +2334,38 @@ if (typeof module !== 'undefined') module.exports = Engine;
   for (const [id, key] of [['myThrowSeg', 'myThrow'], ['myBatSeg', 'myBat'], ['cpuThrowSeg', 'cpuThrow'], ['cpuBatSeg', 'cpuBat'], ['mpInnSeg', 'mpInn']]) {
     $(id).addEventListener('click', (e) => { const v = e.target.closest('button')?.dataset.v; if (v) { S[key] = key === 'mpInn' ? Number(v) : v; persist(); renderStart(); } });
   }
-  $('startBtn').addEventListener('click', () => { audio(); startGame(); });
-  $('startStats').addEventListener('click', () => { statTab = S.role; $('statsOv').hidden = false; renderStats(); });
-  $('menuBtn').addEventListener('click', () => { statTab = G.mp ? 'friend' : S.role; G.paused = !G.mp; $('statsOv').hidden = false; renderStats(); });
-  $('closeStats').addEventListener('click', () => { $('statsOv').hidden = true; G.paused = false; if (!G.started) $('startOv').hidden = false; });
-  $('changeRole').addEventListener('click', () => { mpLeave(); $('statsOv').hidden = true; G.started = false; G.phase = 'menu'; hideToast(); banner(''); $('startOv').hidden = false; renderStart(); });
+  const duelInProgress = () => { const d = save.games.duel; return d.inning > 1 || d.half > 0 || d.outs > 0 || d.score.me > 0 || d.score.opp > 0 || d.bases.some(Boolean); };
+  $('startBtn').addEventListener('click', () => {
+    audio();
+    if (!duelInProgress()) { startGame(); return; }
+    const d = save.games.duel, box = $('resumeBox'); box.textContent = ''; box.hidden = false;
+    box.append(elt('div', '', `You have a game in progress: ${d.half ? 'bottom' : 'top'} of the ${d.inning}${['st', 'nd', 'rd'][d.inning - 1] || 'th'}, YOU ${d.score.me} : ${d.score.opp} CPU, ${d.outs} out.`));
+    const c = elt('button', 'cta', 'Continue that game'); c.addEventListener('click', () => { box.hidden = true; startGame(); });
+    const n = elt('button', 'ghost', 'Start a new game'); n.addEventListener('click', () => { box.hidden = true; save.games.duel = newDuel(); S.role = S.role; startGame(); });
+    box.append(c, n);
+    box.scrollIntoView({ block: 'nearest' });
+  });
+  $('startStats').addEventListener('click', () => { statTab = S.role; openOv('statsOv'); renderStats(); });
+  $('menuBtn').addEventListener('click', () => { statTab = G.mp ? 'friend' : S.role; G.paused = !G.mp; openOv('statsOv'); renderStats(); });
+  $('closeStats').addEventListener('click', back);
+  function toMenu() { closeAllOv(); G.started = false; G.phase = 'menu'; G.pwr = null; renderPower(0); hideToast(); banner(''); $('startOv').hidden = false; renderStart(); }
+  $('changeRole').addEventListener('click', () => { if (G.mp) { renderQuit(true); return; } toMenu(); });
+  // quit: single player keeps the saved game; friend mode forfeits
+  function renderQuit(confirming) {
+    const qa = $('quitArea'); qa.textContent = '';
+    if (!G.started) return;
+    if (!confirming) {
+      const b = elt('button', 'ghost', G.mp ? 'Quit game' : 'Quit (game is saved)'); b.style.width = '100%';
+      b.addEventListener('click', () => renderQuit(true)); qa.append(b); return;
+    }
+    const w = elt('div', 'confirm');
+    const t = elt('span', '', G.mp ? 'Quitting now counts as a forfeit. Your friend wins.' : 'Your game is saved. You can continue it next time from the start screen.');
+    const y = elt('button', '', G.mp ? 'Forfeit & quit' : 'Quit');
+    const n = elt('button', '', 'Cancel'); n.style.borderColor = '#26385a'; n.style.color = '#f1ecdc';
+    y.addEventListener('click', () => { if (G.mp) { const m = G.mp; m.seq++; mpSend({ t: 'forfeit', seq: m.seq, why: 'quit' }); mpEnd(false, 'You quit the game.', 1500); } else { persist(); toMenu(); } });
+    n.addEventListener('click', () => renderQuit(false));
+    w.append(t, y, n); qa.append(w);
+  }
   $('statTabs').addEventListener('click', (e) => { const t = e.target.closest('button')?.dataset.t; if (t) { statTab = t; renderStats(); } });
   // ---------------- Settings overlay ----------------
   const SET_SEGS = { unitSeg: ['units', String], speedSeg: ['speed', Number], cpuPitchSeg: ['cpuPitchLv', Number], cpuBatSeg: ['cpuBatLv', Number] };
@@ -2310,12 +2382,11 @@ if (typeof module !== 'undefined') module.exports = Engine;
   }
   $('zoneChk').addEventListener('change', (e) => { S.zone = e.target.checked; persist(); });
   $('soundChk').addEventListener('change', (e) => { S.sound = e.target.checked; persist(); });
-  let setFrom = null;
-  const openSettings = (from) => { setFrom = from; if (from) from.hidden = true; renderSettings(); $('setOv').hidden = false; };
-  $('setDone').addEventListener('click', () => { $('setOv').hidden = true; if (setFrom) setFrom.hidden = false; else G.paused = false; });
-  $('startSet').addEventListener('click', () => openSettings($('startOv')));
-  $('statsSet').addEventListener('click', () => openSettings($('statsOv')));
-  $('setBtn').addEventListener('click', () => { G.paused = !G.mp; openSettings(null); });
+  const openSettings = () => { renderSettings(); openOv('setOv'); };
+  $('setDone').addEventListener('click', back);
+  $('startSet').addEventListener('click', openSettings);
+  $('statsSet').addEventListener('click', openSettings);
+  $('setBtn').addEventListener('click', () => { G.paused = !G.mp; openSettings(); });
   window.addEventListener('keydown', (e) => { if (e.code === 'Space' && S.role === 'pitcher' && G.started && !e.repeat) { e.preventDefault(); throwPitch(); } });
 
   buildPitchList(); renderSettings(); renderStart(); renderHUD();
@@ -2332,7 +2403,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
     else drawPitchView(now);
     requestAnimationFrame(frame);
   }
-  window.__nd = G;
+  window.__nd = G; window.__ndS = S; window.__ndStartPA = startPA;
   window.__ndProj = () => { const p = G.pitch; if (!p || !cam) return null; const q = P(cam, p.px + (Math.random() - 0.5) * 0.4, p.py + (Math.random() - 0.5) * 0.3, 0); return q ? [q.x, q.y] : null; };
   // idle preview behind the start screen
   G.pHand = S.myThrow; G.bHand = 'R';

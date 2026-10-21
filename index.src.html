@@ -175,6 +175,9 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .confirm { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--chalk); flex-wrap: wrap; }
 .confirm button { height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--bulb-out); background: transparent; color: var(--bulb-out); }
 .note { font-size: 11px; color: var(--muted); line-height: 1.5; }
+.topbar { display: flex; align-items: center; gap: 12px; }
+.backbtn { height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--chalk); font-size: 14px; font-weight: 600; flex: none; }
+.resume { background: var(--panel); border: 1px solid var(--accent); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; color: var(--chalk); line-height: 1.5; }
 .mp { border-top: 1px solid var(--line); padding-top: 14px; }
 .joinrow { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
 .joinrow input { height: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--chalk); font-family: var(--f-board); font-size: 26px; letter-spacing: .3em; text-align: center; min-width: 0; }
@@ -265,6 +268,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
           <div class="seg" id="cpuBatSeg"><button data-v="R">R</button><button data-v="L">L</button><button data-v="X">Mix</button></div></div>
       </div>
       <button class="cta" id="startBtn">PLAY BALL</button>
+      <div class="resume" id="resumeBox" hidden></div>
       <div class="row2"><button class="ghost" id="startStats">My stats</button><button class="ghost" id="startSet">Settings</button></div>
       <div class="grp mp" id="mpGrp">
         <h3>PLAY WITH A FRIEND</h3>
@@ -294,7 +298,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 
   <div class="ov" id="setOv" hidden>
     <div class="inner">
-      <div class="logo" style="font-size:34px">SET<em>TINGS</em></div>
+      <div class="topbar"><button class="backbtn" aria-label="Back">‹ Back</button><div class="logo" style="font-size:34px">SET<em>TINGS</em></div></div>
       <div class="grp"><h3>UNITS</h3>
         <div class="seg wide" id="unitSeg"><button data-v="mph">mph · feet</button><button data-v="kmh">km/h · meters</button></div></div>
       <div class="grp"><h3>CPU PITCHER (WHEN YOU BAT)</h3>
@@ -316,10 +320,11 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 
   <div class="ov" id="statsOv" hidden>
     <div class="inner">
-      <div class="logo" style="font-size:34px">MY <em>STATS</em></div>
+      <div class="topbar"><button class="backbtn" aria-label="Back">‹ Back</button><div class="logo" style="font-size:34px">MY <em>STATS</em></div></div>
+      <div id="quitArea"></div>
       <div class="tabs" id="statTabs"><button data-t="pitcher">Pitching</button><button data-t="batter">Hitting</button><button data-t="friend">vs Friend</button></div>
       <div id="statBody"></div>
-      <div class="row2"><button class="ghost" id="closeStats">Back to game</button><button class="ghost" id="changeRole">Change role / hand</button></div>
+      <div class="row2"><button class="ghost" id="closeStats">Back</button><button class="ghost" id="changeRole">Main menu</button></div>
       <button class="ghost" id="statsSet">Settings</button>
       <div id="resetArea"></div>
     </div>
