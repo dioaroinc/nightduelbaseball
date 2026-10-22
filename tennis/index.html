@@ -150,7 +150,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
         <div class="seg" id="lvSeg"><button data-v="0">Rookie</button><button data-v="1">Tour pro</button><button data-v="2">Champion</button></div></div>
       <div class="grp"><h3>MOVING</h3>
         <div class="seg" id="asSeg"><button data-v="auto">Auto</button><button data-v="assist">Assist</button><button data-v="off">Manual</button></div>
-        <div class="note">The dashed yellow circle is where to stand for the next ball. Auto takes you there; Assist drifts you there when you are not using the stick and helps while you are; Manual is all you.</div></div>
+        <div class="note">The dashed yellow circle is where to stand for the next ball. Auto takes you there; Assist drifts you there until you touch the stick, then that ball is yours to reach; Manual is all you.</div></div>
       <div class="grp"><h3>BALL SPEED</h3>
         <div class="seg" id="spdSeg"><button data-v="1">Real</button><button data-v="0.75">Normal</button><button data-v="0.55">Practice</button></div>
         <div class="note">Slows the ball so the timing is easier. Real is true match pace.</div></div>
@@ -557,16 +557,20 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       let stick = false;
       if (j && canMove) { const m = Math.hypot(j.mx, j.my); if (m > 0.08) { stick = true; const sp = ME_RUN * Math.pow((Math.min(1, m) - 0.08) / 0.92, 1.3); tvx = j.mx / m * sp; tvz = -j.my / m * sp; } }
       // move assist: drift toward the spot where the incoming ball can be hit
+      // once you steer for a ball, Assist hands that ball over to you: letting go leaves the circle where you put it
+      if (stick && G.shot) G.shot.steered = true;
       const tg = hitSpot();
-      if (tg && S.assist !== 'off') {
+      if (tg && (S.assist === 'auto' || (S.assist === 'assist' && !G.shot.steered))) {
         const dx = tg.x - G.me.x, dz = tg.z - G.me.z, d = Math.hypot(dx, dz);
         if (d > 0.05) {
           const full = Math.min(ME_RUN, d * 6); // slows down as it arrives
-          if (!stick || S.assist === 'auto') { const k = S.assist === 'auto' ? 1 : 0.8; tvx = (stick ? tvx * 0.5 : 0) + dx / d * full * k; tvz = (stick ? tvz * 0.5 : 0) + dz / d * full * k; }
-          else { tvx += dx / d * full * 0.35; tvz += dz / d * full * 0.35; }
+          if (!stick) { const k = S.assist === 'auto' ? 1 : 0.8; tvx = dx / d * full * k; tvz = dz / d * full * k; }
+          else { tvx = tvx * 0.5 + dx / d * full * 0.5; tvz = tvz * 0.5 + dz / d * full * 0.5; } // Auto: the stick only nudges
         }
       }
-      const a = Math.min(1, dt * 16), me = G.me;
+      // let go and nothing pulling you: stop right where you are (no glide)
+      const idle = !stick && tvx === 0 && tvz === 0;
+      const a = Math.min(1, dt * (idle ? 40 : 16)), me = G.me;
       me.vx = (me.vx || 0) + (tvx - (me.vx || 0)) * a; me.vz = (me.vz || 0) + (tvz - (me.vz || 0)) * a;
       if (!canMove) me.vx = me.vz = 0;
       me.x = clamp(me.x + me.vx * dt, -DHW - 2.5, DHW + 2.5);
