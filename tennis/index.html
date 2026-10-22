@@ -499,19 +499,19 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     }
     return null;
   }
-  const CIRCLE_R = 1.6, SWEET_R = 0.6; // your hitting circle on the court, in meters
+  const CIRCLE_R = 2.1, SWEET_R = 0.8; // your hitting circle on the court, in meters
   // your swing: p = gauge power at release, aim = slide -1..1, dt = release time minus the moment the ball reaches your circle (game seconds)
   function meSwing(p, aim, dt) {
     const sh = G.shot; G.swung = true; G.me.swingT = G.T;
     const adt = Math.abs(dt), ct = G.T - dt;
     const b = ballPos(Math.max(G.T, ct)), lat = b.x - G.me.x, alat = Math.abs(lat);
     G.me.side = alat < 0.25 ? (S.hand === 'R' ? 1 : -1) : Math.sign(lat);
-    if (adt > 0.27) { showTiming(dt < 0 ? 'TOO EARLY' : 'TOO LATE', '#ff5d52'); return; }
+    if (adt > 0.3) { showTiming(dt < 0 ? 'TOO EARLY' : 'TOO LATE', '#ff5d52'); return; }
     if (alat > CIRCLE_R || b.y > 2.7) { showTiming('NOT IN THE CIRCLE', '#ff5d52'); return; }
     let q, lab, col;
     if (adt <= 0.055) { q = 1; lab = 'PERFECT'; col = '#4fd88a'; }
     else if (adt <= 0.12) { q = 0.75; lab = 'GOOD'; col = '#f1ecdc'; }
-    else if (adt <= 0.2) { q = 0.4; lab = dt < 0 ? 'EARLY' : 'LATE'; col = '#ffbb4a'; }
+    else if (adt <= 0.22) { q = 0.4; lab = dt < 0 ? 'EARLY' : 'LATE'; col = '#ffbb4a'; }
     else { q = 0.1; lab = 'FRAME'; col = '#ff5d52'; }
     if (alat > SWEET_R && q > 0.4) { q = q === 1 ? 0.75 : 0.4; lab = q === 0.75 ? 'GOOD' : 'OFF CENTER'; col = q === 0.75 ? '#f1ecdc' : '#ffbb4a'; }
     showTiming(lab, col);
