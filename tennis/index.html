@@ -138,10 +138,10 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       <div class="logo">BREAK POINT<br><em>TENNIS</em></div>
       <div class="sub">One set against the CPU with real tennis scoring: 15, 30, 40, deuce, first to six games by two, tiebreak at 6-6.</div>
       <div class="how"><ol>
-        <li><b>Press and hold</b> anywhere. The power gauge rises once and falls back over one second.</li>
-        <li><b>Let go as the ball reaches you</b> (when the ring closes on the ball). Release at the top of the gauge for full power.</li>
-        <li><b>Slide your finger</b> left or right before you let go to aim. Early swings pull cross-court, late ones push wide.</li>
-        <li>To serve: hold to toss, let go at the top. Swipe to aim wide or down the T.</li>
+        <li>You are the <b>yellow circle</b>. Move it with your <b>left thumb</b> (touch anywhere on the left half and slide). The yellow mark shows where the ball will bounce.</li>
+        <li>With your <b>right thumb, hold</b> anywhere on the right half: the power gauge rises once and falls back over one second.</li>
+        <li><b>Let go to swing</b> as the ball reaches your circle (the ring closes on the ball). Middle of the circle and the top of the gauge hit hardest. Slide right or left before letting go to aim; early swings pull cross-court, late ones push wide.</li>
+        <li>To serve: hold the right side to toss, let go at the top.</li>
       </ol></div>
       <div class="grp"><h3>COURT</h3>
         <div class="surfs" id="surfSeg">
@@ -238,7 +238,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     { pace: [18, 27], base: 0.09, err: 0.6, react: 0.24, run: 7.3, serve: [168, 195], f1: 0.34, f2: 0.05 },
   ];
   const SERVE_G = 20; // serves dip like a real kick/slice serve, so a flat-ish serve still clears the net
-  const ME_RUN = 7.6, REACH = 1.2, FIG = 1.4; // figures are drawn 1.4x life size so they read on a phone
+  const ME_RUN = 7.6;
 
   // ---------------- Match state ----------------
   const newMatch = () => ({ games: [0, 0], pts: [0, 0], tb: false, tbFirst: 0, server: Math.random() < 0.5 ? 0 : 1, serveNo: 1, done: false, surface: S.surface, hand: S.hand, lv: S.lv, ms: newStats() });
@@ -273,7 +273,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   }
   const landTime = (p, v, g) => (v.y + Math.sqrt(v.y * v.y + 2 * g * p.y)) / g;
   function bounceSeg(t0, p, v, sf, n) { // returns the segments after landing at (t0,p) with incoming v
-    const out = []; let vy = v.y; let vel = { x: v.x * sf.kv, y: Math.abs(vy) * sf.e, z: v.z * sf.kv };
+    // bounce: the court takes pace off; the rebound height is capped so kick serves do not fly over your head
+    const out = []; let vy = v.y; let vel = { x: v.x * sf.kv, y: Math.min(Math.abs(vy) * sf.e, 4.6 + sf.e * 1.5), z: v.z * sf.kv };
     let t = t0, pos = { x: p.x, y: 0, z: p.z };
     for (let i = 0; i < n; i++) {
       const s = { t0: t, p: pos, v: vel, g: GRAV }; out.push(s);
@@ -404,7 +405,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     } else {
       cpu.x = cpu.tx = deuce ? -0.8 : 0.8; cpu.z = cpu.tz = LEN + 0.3;
       me.x = me.tx = deuce ? 2.3 : -2.3; me.z = me.tz = -1.0;
-      G.phase = 'cpuServe'; G.cpuServeAt = performance.now() + 1100; banner(M.serveNo === 2 ? 'Second serve' : 'CPU to serve. Get ready to return');
+      G.phase = 'cpuServe'; G.cpuServeAt = performance.now() + 1300; banner((M.serveNo === 2 ? 'Second serve. ' : 'CPU to serve. ') + 'Left: move. Right: hold, let go as the ball reaches your circle');
     }
     me.side = S.hand === 'R' ? 1 : -1; cpu.side = 1;
     $('speed').textContent = '';
@@ -461,19 +462,18 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     $('speed').textContent = sh.kmh + ' km/h';
     // the hitter drifts back to the middle; the receiver runs to where the ball will be met
     const hitterPl = sh.hitter === 'me' ? G.me : G.cpu, rec = sh.hitter === 'me' ? G.cpu : G.me;
-    hitterPl.tx = clamp(hitterPl.x * 0.3, -1.5, 1.5); hitterPl.tz = sh.hitter === 'me' ? -0.9 : LEN + 0.9;
+    if (sh.hitter === 'cpu') { G.cpu.tx = clamp(G.cpu.x * 0.3, -1.5, 1.5); G.cpu.tz = LEN + 0.9; }
+    if (rec === G.me) return; // you move yourself with the controller
     if (sh.net || !sh.inside) { rec.tx = rec.x; rec.tz = rec.z; sh.reach = false; return; }
     const side = racketSideFor(rec, sh.contact.x);
     rec.side = side;
-    rec.tx = sh.contact.x - side * REACH; rec.tz = sh.contact.z + (rec === G.me ? -0.15 : 0.15);
+    rec.tx = sh.contact.x; rec.tz = sh.contact.z + (rec === G.me ? -0.15 : 0.15);
     const run = rec === G.me ? ME_RUN : LV[M.lv].run, react = rec === G.me ? 0.08 : sh.isServe ? 0.1 : LV[M.lv].react;
     const d = Math.hypot(rec.tx - rec.x, rec.tz - rec.z);
     sh.reach = d <= run * (sh.contactT - G.T - react) + 0.3;
     sh.stretch = clamp(d / Math.max(0.1, run * (sh.contactT - G.T - react)), 0, 1.5);
     // a ball the CPU only just gets to is sometimes a clean winner
     if (rec === G.cpu && sh.reach && sh.stretch > 0.75 && Math.random() < (sh.stretch - 0.75) * 1.6) sh.reach = false;
-    if (rec === G.me && !sh.isServe) banner('');
-    if (rec === G.me) banner(sh.isServe ? 'Hold, then <b>let go as the ring closes</b>' : '');
   }
   function cpuHit() {
     const sh = G.shot, L = LV[M.lv];
@@ -495,20 +495,35 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     const nsh = strike('cpu', { x: c.x, y: Math.max(0.5, c.y), z: c.z }, { x: tx, y: 0, z: tz }, hs, 12.5, vyErr, false);
     afterStrike(nsh);
   }
-  // your swing: p = gauge power, aim = swipe -1..1, dt = release time minus the ideal contact time (game seconds)
+  // When the ball reaches your depth (z), measured along its flight. The gauge peaks at that moment.
+  function crossTime() {
+    const b = G.ball, z = G.me.z; if (!b) return null;
+    for (let i = 0; i < b.segs.length; i++) {
+      const sg = b.segs[i], end = i + 1 < b.segs.length ? b.segs[i + 1].t0 : sg.t0 + 5;
+      if (sg.v.z >= 0) continue;
+      const t = sg.t0 + (z - sg.p.z) / sg.v.z;
+      if (t >= sg.t0 - 1e-6 && t <= end) return t;
+    }
+    return null;
+  }
+  const CIRCLE_R = 1.1, SWEET_R = 0.45; // your hitting circle on the court, in meters
+  // your swing: p = gauge power at release, aim = slide -1..1, dt = release time minus the moment the ball reaches your circle (game seconds)
   function meSwing(p, aim, dt) {
     const sh = G.shot; G.swung = true; G.me.swingT = G.T;
-    const adt = Math.abs(dt);
-    if (!sh.reach) { showTiming('TOO FAR', '#ff5d52'); return; }
+    const adt = Math.abs(dt), ct = G.T - dt;
+    const b = ballPos(Math.max(G.T, ct)), lat = b.x - G.me.x, alat = Math.abs(lat);
+    G.me.side = alat < 0.25 ? (S.hand === 'R' ? 1 : -1) : Math.sign(lat);
     if (adt > 0.24) { showTiming(dt < 0 ? 'TOO EARLY' : 'TOO LATE', '#ff5d52'); return; }
+    if (alat > CIRCLE_R || b.y > 2.7) { showTiming('NOT IN THE CIRCLE', '#ff5d52'); return; }
     let q, lab, col;
     if (adt <= 0.045) { q = 1; lab = 'PERFECT'; col = '#4fd88a'; }
     else if (adt <= 0.1) { q = 0.75; lab = 'GOOD'; col = '#f1ecdc'; }
     else if (adt <= 0.17) { q = 0.4; lab = dt < 0 ? 'EARLY' : 'LATE'; col = '#ffbb4a'; }
     else { q = 0.1; lab = 'FRAME'; col = '#ff5d52'; }
+    if (alat > SWEET_R && q > 0.4) { q = q === 1 ? 0.75 : 0.4; lab = q === 0.75 ? 'GOOD' : 'OFF CENTER'; col = q === 0.75 ? '#f1ecdc' : '#ffbb4a'; }
     showTiming(lab, col);
     const params = { p, aim, dt, q };
-    if (dt < 0) G.pendingHit = { at: sh.contactT, params }; else doMeHit(params);
+    if (dt < 0) G.pendingHit = { at: ct, params }; else doMeHit(params);
   }
   function doMeHit({ p, aim, dt, q }) {
     const c = ballPos(G.T), sh = G.shot;
@@ -522,22 +537,27 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     const nsh = strike('me', { x: c.x, y: Math.max(0.5, c.y), z: c.z }, { x: tx, y: 0, z: tz }, hs, 13, randn() * (1 - q) * 1.5, false);
     afterStrike(nsh);
   }
-  function showTiming(lab, col) { toast(lab, '', col, 650); }
+  function showTiming(lab, col) { (G.log = G.log || []).push('swing ' + lab); toast(lab, '', col, 650); }
 
   function update(dtReal) {
     const now = performance.now();
     if (G.phase === 'menu' || G.paused) return;
     const dt = dtReal * S.speed; G.T += dt;
-    // players move
-    for (const pl of [G.me, G.cpu]) {
-      const run = pl === G.me ? ME_RUN : LV[M.lv].run;
+    // you move with the left-hand controller; the CPU runs to its targets
+    if (G.joy && (G.phase === 'rally' || G.phase === 'cpuServe')) {
+      G.me.x = clamp(G.me.x + G.joy.vx * ME_RUN * dt, -DHW - 2.5, DHW + 2.5);
+      G.me.z = clamp(G.me.z + G.joy.vz * ME_RUN * dt, -4.5, NET - 1.2);
+    }
+    G.me.tx = G.me.x; G.me.tz = G.me.z;
+    for (const pl of [G.cpu]) {
+      const run = LV[M.lv].run;
       const dx = pl.tx - pl.x, dz = pl.tz - pl.z, d = Math.hypot(dx, dz), step = run * dt;
       if (d <= step) { pl.x = pl.tx; pl.z = pl.tz; } else { pl.x += dx / d * step; pl.z += dz / d * step; }
     }
-    if (G.press && now - G.press.t0 > 1000) { // gauge ran out: no swing
+    if (G.press && now - G.press.t0 > 1000) { // the gauge went up and back down without a release: no swing
       G.press = null; renderGauge(0);
       if (G.phase === 'toss') { G.phase = 'serveReady'; G.toss = null; G.ball = null; banner('Let go before the gauge drops. <b>Hold to toss again</b>'); }
-      else if (G.phase === 'rally') banner('Gauge ran out. Press again');
+      else if (G.phase === 'rally') banner('Gauge ran out. Tap and hold again');
     }
     if (G.phase === 'over') {
       if (now >= G.nextAt) { if (M.done) return; G.faultPending = false; setupPoint(); }
@@ -559,9 +579,12 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       }
     } else {
       if (G.pendingHit && G.T >= G.pendingHit.at) { const ph = G.pendingHit; G.pendingHit = null; doMeHit(ph.params); return; }
-      if (G.T >= sh.contactT + 0.5 && !G.pendingHit) {
-        const why = !sh.reach ? (sh.isServe ? 'ACE' : 'WINNER') : G.swung ? 'MISSED' : 'NO SWING';
-        endRally(1, why, !sh.reach ? 'Out of reach' : G.swung ? 'Watch the ring, let go as it closes' : 'Hold and let go as the ball arrives');
+      if (G.pendingHit) return;
+      const ct = crossTime(), second = G.ball.segs[2] && G.ball.segs[2].t0;
+      const passed = ct != null ? G.T > ct + 0.45 : G.T > sh.contactT + 1;
+      if (passed || (second && G.T >= second)) {
+        const why = sh.isServe && !G.swung ? 'ACE' : G.swung ? 'MISSED' : passed ? 'NO SWING' : 'TWO BOUNCES';
+        endRally(1, why, G.swung ? 'Let go as the ball reaches your circle' : passed ? 'Hold the right side, let go as the ball reaches your circle' : 'Get to the ball before it bounces twice');
       }
     }
   }
@@ -574,35 +597,62 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   // ---------------- Input: hold, slide, let go ----------------
   const stage = $('stage');
   const gaugeAt = (now) => { const u = (now - G.press.t0) / 1000; return clamp(u < 0.5 ? u * 2 : 2 - u * 2, 0, 1); };
-  function canPress() {
-    if (G.paused) return false;
-    if (G.phase === 'serveReady') return true;
-    if (G.phase === 'rally' && G.shot && G.shot.hitter === 'cpu' && !G.swung && !G.shot.net && G.T < G.shot.contactT + 0.3) return true;
-    return false;
+  // the court point under a screen point (stage coordinates)
+  function ground(sx, sy) {
+    const X = (sx - CAM.cx) / CAM.f, Y = (sy - CAM.cy) / CAM.f, ry = -CAM.y;
+    const den = -up.z - Y * fwd.z; if (Math.abs(den) < 1e-6) return null;
+    const rz = ry * (up.y + Y * fwd.y) / den, d = ry * fwd.y + rz * fwd.z;
+    if (d <= 0) return null;
+    return { x: X * d, z: rz + CAM.z };
   }
+  function stageXY(e) { const r = stage.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
+  // Left half of the screen: a movement stick that appears where you touch. Right half: hold for the gauge, let go to swing.
+  const JOY_R = 48;
   stage.addEventListener('pointerdown', (e) => {
     audio();
-    if (!canPress()) return;
-    stage.setPointerCapture?.(e.pointerId);
-    G.press = { t0: performance.now(), x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, id: e.pointerId };
-    if (G.phase === 'serveReady') { // toss: up and down in one second, highest at the gauge peak
+    if (G.paused || G.phase === 'menu') return;
+    const q = stageXY(e);
+    if (q.x < W / 2) {
+      if (G.joy) return;
+      stage.setPointerCapture?.(e.pointerId);
+      G.joy = { id: e.pointerId, x0: q.x, y0: q.y, x: q.x, y: q.y, vx: 0, vz: 0 };
+      return;
+    }
+    if (G.press) return;
+    if (G.phase === 'serveReady') {
+      stage.setPointerCapture?.(e.pointerId);
+      G.press = { t0: performance.now(), x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, id: e.pointerId }; // toss: up and down in one second, highest at the gauge peak
       G.phase = 'toss';
       const hx = G.me.x + (S.hand === 'R' ? 0.3 : -0.3);
       G.ball = { segs: [{ t0: G.T, p: { x: hx, y: 1.6, z: G.me.z + 0.25 }, v: { x: 0, y: 4.9 / S.speed, z: 0 }, g: GRAV / (S.speed * S.speed) }] };
       banner('');
+      return;
+    }
+    if (G.phase === 'rally' && G.shot && G.shot.hitter === 'cpu' && !G.swung && !G.shot.net) {
+      stage.setPointerCapture?.(e.pointerId);
+      G.press = { t0: performance.now(), x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, id: e.pointerId };
+      banner('');
     }
   });
-  stage.addEventListener('pointermove', (e) => { if (G.press && e.pointerId === G.press.id) { G.press.x = e.clientX; G.press.y = e.clientY; } });
+  stage.addEventListener('pointermove', (e) => {
+    if (G.press && e.pointerId === G.press.id) { G.press.x = e.clientX; G.press.y = e.clientY; }
+    const j = G.joy; if (!j || e.pointerId !== j.id) return;
+    const q = stageXY(e); let dx = q.x - j.x0, dy = q.y - j.y0; const d = Math.hypot(dx, dy);
+    if (d > JOY_R) { dx *= JOY_R / d; dy *= JOY_R / d; }
+    j.x = j.x0 + dx; j.y = j.y0 + dy;
+    const k = d < 6 ? 0 : 1 / JOY_R; j.vx = dx * k; j.vz = -dy * k; // screen up = toward the net
+  });
   function release(e) {
+    if (G.joy && (!e || e.pointerId === G.joy.id)) { G.joy = null; return; }
     if (!G.press || (e && e.pointerId !== G.press.id)) return;
     const now = performance.now(), p = gaugeAt(now);
-    const aim = clamp((G.press.x - G.press.x0) / Math.max(80, stage.clientWidth * 0.3), -1, 1);
+    const aim = clamp((G.press.x - G.press.x0) / Math.max(60, stage.clientWidth * 0.2), -1, 1);
     G.press = null; renderGauge(0);
     if (G.phase === 'toss') { meServe(p, aim); return; }
-    if (G.phase === 'rally' && G.shot && G.shot.hitter === 'cpu' && !G.swung) meSwing(p, aim, G.T - G.shot.contactT);
+    if (G.phase === 'rally' && G.shot && G.shot.hitter === 'cpu' && !G.swung) { const ct = crossTime(); meSwing(p, aim, ct == null ? 9 : G.T - ct); }
   }
   stage.addEventListener('pointerup', release);
-  stage.addEventListener('pointercancel', () => { G.press = null; renderGauge(0); });
+  stage.addEventListener('pointercancel', (e) => { if (G.joy && e.pointerId === G.joy.id) G.joy = null; else { G.press = null; renderGauge(0); } });
 
   function renderGauge(v) {
     $('gFill').style.height = Math.round(v * 100) + '%';
@@ -683,41 +733,37 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     ctx.strokeStyle = '#3a4152'; ctx.lineWidth = Math.max(2, 0.1 * m.s);
     for (const pp of [[a, d], [b, c]]) { ctx.beginPath(); ctx.moveTo(pp[0].x, pp[0].y); ctx.lineTo(pp[1].x, pp[1].y); ctx.stroke(); }
   }
+  // you and the CPU are circles on the court: the spot where the racket meets the ball
   function drawPlayer(pl, isMe) {
-    const facing = isMe ? 1 : -1;
-    const f = P(pl.x, 0, pl.z), s = f.s * FIG;
-    // shadow
-    ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(f.x, f.y, 0.45 * s, 0.14 * s, 0, 0, Math.PI * 2); ctx.fill();
-    const shirt = isMe ? '#f1ecdc' : '#e0483e', shorts = isMe ? '#24324d' : '#f1ecdc', skin = '#d9a77c';
-    const bw = 0.42 * s, hipY = f.y - 0.9 * s, shY = f.y - 1.45 * s;
-    // legs
-    ctx.strokeStyle = skin; ctx.lineWidth = Math.max(2, 0.13 * s); ctx.lineCap = 'round';
-    const run = Math.hypot(pl.tx - pl.x, pl.tz - pl.z) > 0.05 ? Math.sin(G.T * 18) * 0.18 * s : 0;
-    ctx.beginPath(); ctx.moveTo(f.x - 0.1 * s, hipY); ctx.lineTo(f.x - 0.14 * s + run, f.y); ctx.moveTo(f.x + 0.1 * s, hipY); ctx.lineTo(f.x + 0.14 * s - run, f.y); ctx.stroke();
-    ctx.fillStyle = shorts; ctx.fillRect(f.x - bw / 2, hipY - 0.06 * s, bw, 0.28 * s);
-    // racket arm, behind the body for the far player
-    const sw = clamp((G.T - pl.swingT) / 0.28, 0, 1);
-    const a = sw > 0 && sw < 1 ? -1.3 + sw * 2.8 : -1.2; // from back to front
-    const sx = pl.x + pl.side * 0.2 * FIG, sy = 1.35 * FIG;
-    const hx = pl.x + pl.side * (0.2 + 0.68 * Math.cos(a)) * FIG, hz = pl.z + facing * 0.68 * FIG * Math.sin(a), hy = sw > 0 && sw < 1 ? 0.95 : 1.15 * FIG;
-    const shp = P(sx, sy, pl.z), rh = P(hx, hy, hz);
-    const drawArm = () => {
-      ctx.strokeStyle = skin; ctx.lineWidth = Math.max(2, 0.1 * s); ctx.beginPath(); ctx.moveTo(shp.x, shp.y); const mid = P((sx + hx) / 2, (sy + hy) / 2, (pl.z + hz) / 2); ctx.lineTo(mid.x, mid.y); ctx.stroke();
-      ctx.strokeStyle = '#222'; ctx.lineWidth = Math.max(1.5, 0.04 * s); ctx.beginPath(); ctx.moveTo(mid.x, mid.y); ctx.lineTo(rh.x, rh.y); ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,.12)'; ctx.strokeStyle = isMe ? '#ffbb4a' : '#4fd88a'; ctx.lineWidth = Math.max(1.5, 0.04 * s);
-      ctx.beginPath(); ctx.ellipse(rh.x, rh.y, 0.14 * FIG * rh.s, 0.17 * FIG * rh.s, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-    };
-    const armBehind = (!isMe) !== (hz * facing < pl.z * facing); // rough depth order
-    if (armBehind) drawArm();
-    ctx.fillStyle = shirt; ctx.beginPath(); ctx.roundRect ? ctx.roundRect(f.x - bw / 2, shY, bw, hipY - shY + 0.02 * s, 0.08 * s) : ctx.rect(f.x - bw / 2, shY, bw, hipY - shY); ctx.fill();
-    if (isMe && s > 18) { // name and number on the back
-      ctx.fillStyle = '#1b2a45'; ctx.textAlign = 'center';
-      ctx.font = `700 ${Math.round(0.11 * s)}px "Saira Condensed", sans-serif`; ctx.fillText(S.player.name, f.x, shY + 0.15 * s);
-      ctx.font = `800 ${Math.round(0.24 * s)}px "Saira Condensed", sans-serif`; ctx.fillText(S.player.num, f.x, shY + 0.4 * s);
+    const f = P(pl.x, 0, pl.z), r = (isMe ? CIRCLE_R : 0.75) * f.s, ry = r * 0.42;
+    const sw = (G.T - pl.swingT) / S.speed, flash = sw >= 0 && sw < 0.25 ? 1 - sw / 0.25 : 0;
+    const col = isMe ? '255,187,74' : '255,93,82';
+    ctx.fillStyle = `rgba(${col},${0.16 + flash * 0.45})`; ctx.strokeStyle = `rgba(${col},.95)`; ctx.lineWidth = 2.5;
+    ctx.beginPath(); ctx.ellipse(f.x, f.y, r, ry, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    if (isMe) {
+      ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.ellipse(f.x, f.y, SWEET_R * f.s, SWEET_R * f.s * 0.42, 0, 0, Math.PI * 2); ctx.stroke();
     }
-    ctx.fillStyle = skin; ctx.beginPath(); ctx.arc(f.x, shY - 0.17 * s, 0.13 * s, 0, Math.PI * 2); ctx.fill();
-    ctx.fillStyle = isMe ? '#2a1d14' : '#1a1a1a'; ctx.beginPath(); ctx.arc(f.x, shY - 0.2 * s, 0.13 * s, Math.PI, 0); ctx.fill();
-    if (!armBehind) drawArm();
+    ctx.fillStyle = isMe ? '#f1ecdc' : '#ffb3ad'; ctx.textAlign = 'center';
+    ctx.font = `700 ${isMe ? 14 : 11}px "Saira Condensed", sans-serif`;
+    ctx.fillText(isMe ? `${S.player.name} ${S.player.num}` : 'CPU', f.x, f.y + ry + (isMe ? 15 : 12));
+  }
+  function drawControls() {
+    if (G.phase === 'menu') return;
+    const y = H - 92;
+    const j = G.joy;
+    if (j) {
+      ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(j.x0, j.y0, JOY_R, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,187,74,.85)'; ctx.beginPath(); ctx.arc(j.x, j.y, 20, 0, Math.PI * 2); ctx.fill();
+    } else {
+      ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(66, y, 40, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.font = '600 12px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('MOVE', 66, y + 4);
+    }
+    if (!G.press) {
+      ctx.strokeStyle = 'rgba(255,187,74,.3)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(W - 86, y, 40, 0, Math.PI * 2); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,187,74,.55)'; ctx.font = '600 12px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(G.phase === 'serveReady' ? 'SERVE' : 'HIT', W - 86, y + 4);
+    }
   }
   function drawBall(t) {
     const b = ballPos(t); if (!b) return;
@@ -726,10 +772,11 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     ctx.fillStyle = '#e4f24a'; ctx.shadowColor = '#e4f24a'; ctx.shadowBlur = 8; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
     // timing ring: closes on the ball at the moment to let go
     const s = G.shot;
-    if (G.phase === 'rally' && s && s.hitter === 'cpu' && !s.net && s.inside && !G.swung && G.ring) {
-      const left = s.contactT - t;
+    if (G.phase === 'rally' && s && s.hitter === 'cpu' && !s.net && !G.swung && G.ring) {
+      const ct = crossTime(); if (ct == null) return b;
+      const left = (ct - t) / S.speed;
       if (left > -0.1 && left < 0.9) {
-        const rr = r + Math.max(0, left) * 120;
+        const rr = r + Math.max(0, left) * 90;
         ctx.strokeStyle = left < 0.05 ? '#4fd88a' : 'rgba(255,255,255,.75)'; ctx.lineWidth = 2.5;
         ctx.beginPath(); ctx.arc(p.x, p.y, rr, 0, Math.PI * 2); ctx.stroke();
       }
@@ -742,19 +789,24 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     if (!M) return;
     const b = ballPos(G.T);
     // far player, then ball if on the far side, net, near side
+    const sh = G.shot;
+    if (G.phase === 'rally' && sh && sh.hitter === 'cpu' && !sh.net && !G.swung) {
+      // where the ball will bounce, and how far your racket reaches
+      if (!sh.bounced) { const l = P(sh.land.x, 0, sh.land.z); ctx.strokeStyle = 'rgba(228,242,74,.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(l.x, l.y, 0.35 * l.s, 0.14 * l.s, 0, 0, Math.PI * 2); ctx.stroke(); }
+    }
     drawPlayer(G.cpu, false);
+    drawPlayer(G.me, true);
     if (b && b.z >= NET) drawBall(G.T);
     drawNet();
-    if (b && b.z < NET && b.z < G.me.z) drawBall(G.T);
-    drawPlayer(G.me, true);
-    if (b && b.z < NET && b.z >= G.me.z) drawBall(G.T);
+    if (b && b.z < NET) drawBall(G.T);
     // aim arrow while holding
     if (G.press) {
       const dx = G.press.x - G.press.x0, r = stage.getBoundingClientRect();
       const x0 = G.press.x0 - r.left, y0 = G.press.y0 - r.top;
-      ctx.strokeStyle = 'rgba(255,187,74,.8)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x0, y0, 18, 0, Math.PI * 2); ctx.stroke();
+      ctx.strokeStyle = 'rgba(255,187,74,.8)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x0, y0, 22 + 18 * gaugeAt(performance.now()), 0, Math.PI * 2); ctx.stroke();
       if (Math.abs(dx) > 6) { const x1 = x0 + clamp(dx, -120, 120); ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y0); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x1, y0); ctx.lineTo(x1 - Math.sign(dx) * 9, y0 - 7); ctx.lineTo(x1 - Math.sign(dx) * 9, y0 + 7); ctx.closePath(); ctx.fillStyle = 'rgba(255,187,74,.9)'; ctx.fill(); }
     }
+    drawControls();
   }
 
   // ---------------- UI ----------------
@@ -860,7 +912,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
   renderStart(); resize(); requestAnimationFrame(frame);
   // test hook
-  window.__bpt = { G, get M() { return M; }, S, pointWon, P };
+  window.__bpt = { G, get M() { return M; }, S, pointWon, P, cross: () => crossTime() };
 })();
 </script>
 </body>
