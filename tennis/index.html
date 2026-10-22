@@ -59,13 +59,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
 #call { position: absolute; left: 50%; top: 14%; transform: translateX(-50%); font-family: var(--f-board); font-weight: 800; font-size: 22px; letter-spacing: .08em; color: var(--accent); text-shadow: 0 2px 0 #000; pointer-events: none; white-space: nowrap; }
 #speed { position: absolute; left: 10px; top: 8px; font-family: var(--f-board); font-size: 15px; color: var(--chalk); opacity: .85; pointer-events: none; text-shadow: 0 1px 3px #000; }
-#banner { position: absolute; left: 0; right: 0; bottom: max(12px, env(safe-area-inset-bottom, 0px)); text-align: center; pointer-events: none; font-size: 13px; padding: 0 60px; }
+#banner { position: absolute; left: 0; right: 0; top: 36px; text-align: center; pointer-events: none; font-size: 13px; padding: 0 60px; }
 #banner span { display: inline-block; background: rgba(8,14,26,.75); padding: 6px 12px; border-radius: 14px; line-height: 1.4; }
-#gauge { position: absolute; right: 12px; top: 22%; height: 46%; width: 22px; border-radius: 11px; background: rgba(7,12,22,.85); border: 1px solid var(--line); overflow: hidden; pointer-events: none; }
-#gauge div { position: absolute; left: 0; right: 0; bottom: 0; height: 0; background: linear-gradient(to top, #4fd88a, #ffbb4a 70%, #ff5d52); }
-#gauge div.max { box-shadow: 0 0 14px #ff5d52; }
-#gauge i { position: absolute; left: 0; right: 0; top: 5%; height: 2px; background: #fff; opacity: .55; }
-#gaugeLab { position: absolute; right: 6px; top: calc(22% - 22px); width: 34px; text-align: center; font-family: var(--f-board); font-size: 15px; font-weight: 700; pointer-events: none; color: var(--chalk); text-shadow: 0 1px 3px #000; }
 
 /* Overlays */
 .ov { position: absolute; inset: 0; z-index: 20; background: rgba(6,10,18,.94); overflow-y: auto; padding: 18px max(16px, env(safe-area-inset-right, 0px)) 28px max(16px, env(safe-area-inset-left, 0px)); backdrop-filter: blur(4px); }
@@ -127,8 +122,6 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     <div id="speed"></div>
     <div id="call"></div>
     <div id="toast"></div>
-    <div id="gaugeLab"></div>
-    <div id="gauge" aria-hidden="true"><div id="gFill"></div><i></i></div>
     <div id="banner"></div>
   </div>
 
@@ -138,9 +131,9 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       <div class="logo">BREAK POINT<br><em>TENNIS</em></div>
       <div class="sub">One set against the CPU with real tennis scoring: 15, 30, 40, deuce, first to six games by two, tiebreak at 6-6.</div>
       <div class="how"><ol>
-        <li>You are the <b>yellow circle</b>. Move it with your <b>left thumb</b> (touch anywhere on the left half and slide). The yellow mark shows where the ball will bounce.</li>
-        <li>With your <b>right thumb, hold</b> anywhere on the right half: the power gauge rises once and falls back over one second.</li>
-        <li><b>Let go to swing</b> as the ball reaches your circle (the ring closes on the ball). Middle of the circle and the top of the gauge hit hardest. Slide right or left before letting go to aim; early swings pull cross-court, late ones push wide.</li>
+        <li>You are the <b>yellow circle</b>. Move it with the <b>stick</b> at bottom left (or touch anywhere on the left half and slide). The yellow mark shows where the ball will bounce.</li>
+        <li>With your right thumb, <b>hold the HIT button</b> (or anywhere on the right half): it fills up and drains again over one second.</li>
+        <li><b>Let go to swing</b> as the ball reaches your circle (the ring closes on the ball). Middle of the circle and a full button hit hardest. Slide right or left before letting go to aim; early swings pull cross-court, late ones push wide.</li>
         <li>To serve: hold the right side to toss, let go at the top.</li>
       </ol></div>
       <div class="grp"><h3>COURT</h3>
@@ -422,7 +415,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     let tx = sx * rnd(0.4, 3.7), tz = NET - rnd(5.0, 6.1), vyErr = 0;
     if (fault) { const k = Math.random(); if (k < 0.4) tz = NET - SVC - rnd(0.15, 0.9); else if (k < 0.7) tx = sx * (HW + rnd(0.15, 0.7)); else vyErr = -rnd(1.6, 3); }
     const from = { x: G.cpu.x + 0.3, y: 2.9, z: G.cpu.z };
-    G.cpu.swingT = G.T;
+    G.cpu.swingT = G.T; banner('');
     sHit(0.8);
     const sh = strike('cpu', from, { x: tx, y: 0, z: tz }, kmh / 3.6, SERVE_G, vyErr, true);
     afterStrike(sh);
@@ -506,19 +499,19 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     }
     return null;
   }
-  const CIRCLE_R = 1.1, SWEET_R = 0.45; // your hitting circle on the court, in meters
+  const CIRCLE_R = 1.6, SWEET_R = 0.6; // your hitting circle on the court, in meters
   // your swing: p = gauge power at release, aim = slide -1..1, dt = release time minus the moment the ball reaches your circle (game seconds)
   function meSwing(p, aim, dt) {
     const sh = G.shot; G.swung = true; G.me.swingT = G.T;
     const adt = Math.abs(dt), ct = G.T - dt;
     const b = ballPos(Math.max(G.T, ct)), lat = b.x - G.me.x, alat = Math.abs(lat);
     G.me.side = alat < 0.25 ? (S.hand === 'R' ? 1 : -1) : Math.sign(lat);
-    if (adt > 0.24) { showTiming(dt < 0 ? 'TOO EARLY' : 'TOO LATE', '#ff5d52'); return; }
+    if (adt > 0.27) { showTiming(dt < 0 ? 'TOO EARLY' : 'TOO LATE', '#ff5d52'); return; }
     if (alat > CIRCLE_R || b.y > 2.7) { showTiming('NOT IN THE CIRCLE', '#ff5d52'); return; }
     let q, lab, col;
-    if (adt <= 0.045) { q = 1; lab = 'PERFECT'; col = '#4fd88a'; }
-    else if (adt <= 0.1) { q = 0.75; lab = 'GOOD'; col = '#f1ecdc'; }
-    else if (adt <= 0.17) { q = 0.4; lab = dt < 0 ? 'EARLY' : 'LATE'; col = '#ffbb4a'; }
+    if (adt <= 0.055) { q = 1; lab = 'PERFECT'; col = '#4fd88a'; }
+    else if (adt <= 0.12) { q = 0.75; lab = 'GOOD'; col = '#f1ecdc'; }
+    else if (adt <= 0.2) { q = 0.4; lab = dt < 0 ? 'EARLY' : 'LATE'; col = '#ffbb4a'; }
     else { q = 0.1; lab = 'FRAME'; col = '#ff5d52'; }
     if (alat > SWEET_R && q > 0.4) { q = q === 1 ? 0.75 : 0.4; lab = q === 0.75 ? 'GOOD' : 'OFF CENTER'; col = q === 0.75 ? '#f1ecdc' : '#ffbb4a'; }
     showTiming(lab, col);
@@ -544,9 +537,16 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     if (G.phase === 'menu' || G.paused) return;
     const dt = dtReal * S.speed; G.T += dt;
     // you move with the left-hand controller; the CPU runs to its targets
-    if (G.joy && (G.phase === 'rally' || G.phase === 'cpuServe')) {
-      G.me.x = clamp(G.me.x + G.joy.vx * ME_RUN * dt, -DHW - 2.5, DHW + 2.5);
-      G.me.z = clamp(G.me.z + G.joy.vz * ME_RUN * dt, -4.5, NET - 1.2);
+    {
+      // analog stick: small pushes creep, a full push runs; speed eases in so it never jumps
+      const j = G.joy, canMove = G.phase === 'rally' || G.phase === 'cpuServe';
+      let tvx = 0, tvz = 0;
+      if (j && canMove) { const m = Math.hypot(j.mx, j.my); if (m > 0.08) { const sp = ME_RUN * Math.pow((Math.min(1, m) - 0.08) / 0.92, 1.3); tvx = j.mx / m * sp; tvz = -j.my / m * sp; } }
+      const a = Math.min(1, dt * 16), me = G.me;
+      me.vx = (me.vx || 0) + (tvx - (me.vx || 0)) * a; me.vz = (me.vz || 0) + (tvz - (me.vz || 0)) * a;
+      if (!canMove) me.vx = me.vz = 0;
+      me.x = clamp(me.x + me.vx * dt, -DHW - 2.5, DHW + 2.5);
+      me.z = clamp(me.z + me.vz * dt, -4.5, NET - 1.2);
     }
     G.me.tx = G.me.x; G.me.tz = G.me.z;
     for (const pl of [G.cpu]) {
@@ -607,7 +607,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   }
   function stageXY(e) { const r = stage.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
   // Left half of the screen: a movement stick that appears where you touch. Right half: hold for the gauge, let go to swing.
-  const JOY_R = 48;
+  const JOY_R = 56, BTN_R = 52;
+  const joyC = () => ({ x: 26 + JOY_R, y: H - 34 - JOY_R }), btnC = () => ({ x: W - 30 - BTN_R, y: H - 34 - JOY_R });
   stage.addEventListener('pointerdown', (e) => {
     audio();
     if (G.paused || G.phase === 'menu') return;
@@ -615,7 +616,10 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     if (q.x < W / 2) {
       if (G.joy) return;
       stage.setPointerCapture?.(e.pointerId);
-      G.joy = { id: e.pointerId, x0: q.x, y0: q.y, x: q.x, y: q.y, vx: 0, vz: 0 };
+      // touching the stick grabs it at its center; touching elsewhere on the left works from that spot
+      const c = joyC(), onStick = Math.hypot(q.x - c.x, q.y - c.y) < JOY_R * 1.5;
+      G.joy = { id: e.pointerId, ax: onStick ? c.x : q.x, ay: onStick ? c.y : q.y, mx: 0, my: 0 };
+      joyMove(q);
       return;
     }
     if (G.press) return;
@@ -637,11 +641,13 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   stage.addEventListener('pointermove', (e) => {
     if (G.press && e.pointerId === G.press.id) { G.press.x = e.clientX; G.press.y = e.clientY; }
     const j = G.joy; if (!j || e.pointerId !== j.id) return;
-    const q = stageXY(e); let dx = q.x - j.x0, dy = q.y - j.y0; const d = Math.hypot(dx, dy);
-    if (d > JOY_R) { dx *= JOY_R / d; dy *= JOY_R / d; }
-    j.x = j.x0 + dx; j.y = j.y0 + dy;
-    const k = d < 6 ? 0 : 1 / JOY_R; j.vx = dx * k; j.vz = -dy * k; // screen up = toward the net
+    joyMove(stageXY(e));
   });
+  function joyMove(q) { // stick offset as -1..1 on each axis; screen up = toward the net
+    const j = G.joy; let dx = (q.x - j.ax) / JOY_R, dy = (q.y - j.ay) / JOY_R; const d = Math.hypot(dx, dy);
+    if (d > 1) { dx /= d; dy /= d; }
+    j.mx = dx; j.my = dy;
+  }
   function release(e) {
     if (G.joy && (!e || e.pointerId === G.joy.id)) { G.joy = null; return; }
     if (!G.press || (e && e.pointerId !== G.press.id)) return;
@@ -654,11 +660,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   stage.addEventListener('pointerup', release);
   stage.addEventListener('pointercancel', (e) => { if (G.joy && e.pointerId === G.joy.id) G.joy = null; else { G.press = null; renderGauge(0); } });
 
-  function renderGauge(v) {
-    $('gFill').style.height = Math.round(v * 100) + '%';
-    $('gFill').classList.toggle('max', v >= 0.95);
-    $('gaugeLab').textContent = v >= 0.95 ? 'MAX' : v > 0 ? Math.round(v * 100) : '';
-  }
+  function renderGauge(v) { G.gv = v; } // drawn inside the HIT button
 
   // ---------------- Drawing ----------------
   const cv = $('cv'), ctx = cv.getContext('2d');
@@ -677,10 +679,10 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   function fitCam() {
     setupCam();
     // fit the whole court (with players) on screen
-    const pts = [[-DHW - 0.5, 0, -1], [DHW + 0.5, 0, -1], [-DHW, 2.2, LEN + 2.5], [DHW, 2.2, LEN + 2.5], [0, 0, -2.6]];
+    const pts = [[-DHW - 0.5, 0, -1], [DHW + 0.5, 0, -1], [-DHW, 2.2, LEN + 2.5], [DHW, 2.2, LEN + 2.5], [0, 0, -3.6]];
     let minX = 1e9, maxX = -1e9, minY = 1e9, maxY = -1e9;
     for (const [x, y, z] of pts) { const r = rawProj(x, y, z); minX = Math.min(minX, r.x); maxX = Math.max(maxX, r.x); minY = Math.min(minY, r.y); maxY = Math.max(maxY, r.y); }
-    const topPad = 34, botPad = 40;
+    const topPad = 34, botPad = 120;
     CAM.f = Math.min((W - 16) / (maxX - minX), (H - topPad - botPad) / (maxY - minY));
     CAM.cx = W / 2; CAM.cy = topPad - minY * CAM.f + ((H - topPad - botPad) - (maxY - minY) * CAM.f) * 0.5;
   }
@@ -743,6 +745,11 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     if (isMe) {
       ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = 1.5;
       ctx.beginPath(); ctx.ellipse(f.x, f.y, SWEET_R * f.s, SWEET_R * f.s * 0.42, 0, 0, Math.PI * 2); ctx.stroke();
+      // a dot that leans the way you are moving, like a stick inside the circle
+      const sp = Math.hypot(pl.vx || 0, pl.vz || 0) / ME_RUN, dir = Math.atan2(-(pl.vz || 0), pl.vx || 0);
+      const dx = sp > 0.02 ? Math.cos(dir) * Math.min(1, sp) * (r - 8) : 0, dy = sp > 0.02 ? Math.sin(dir) * Math.min(1, sp) * (ry - 4) : 0;
+      if (sp > 0.02) { ctx.strokeStyle = 'rgba(255,187,74,.9)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(f.x, f.y); ctx.lineTo(f.x + dx, f.y + dy); ctx.stroke(); }
+      ctx.fillStyle = '#ffbb4a'; ctx.beginPath(); ctx.arc(f.x + dx, f.y + dy, 6, 0, Math.PI * 2); ctx.fill();
     }
     ctx.fillStyle = isMe ? '#f1ecdc' : '#ffb3ad'; ctx.textAlign = 'center';
     ctx.font = `700 ${isMe ? 14 : 11}px "Saira Condensed", sans-serif`;
@@ -750,20 +757,37 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   }
   function drawControls() {
     if (G.phase === 'menu') return;
-    const y = H - 92;
-    const j = G.joy;
-    if (j) {
-      ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 2;
-      ctx.beginPath(); ctx.arc(j.x0, j.y0, JOY_R, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
-      ctx.fillStyle = 'rgba(255,187,74,.85)'; ctx.beginPath(); ctx.arc(j.x, j.y, 20, 0, Math.PI * 2); ctx.fill();
-    } else {
-      ctx.strokeStyle = 'rgba(255,255,255,.18)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(66, y, 40, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = 'rgba(255,255,255,.35)'; ctx.font = '600 12px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillText('MOVE', 66, y + 4);
+    // movement stick: base with four arrows, knob follows the thumb
+    const c = joyC(), j = G.joy, kx = c.x + (j ? j.mx : 0) * JOY_R * 0.62, ky = c.y + (j ? j.my : 0) * JOY_R * 0.62;
+    const gb = ctx.createRadialGradient(c.x, c.y, JOY_R * 0.2, c.x, c.y, JOY_R);
+    gb.addColorStop(0, 'rgba(20,32,54,.55)'); gb.addColorStop(1, 'rgba(36,52,84,.75)');
+    ctx.fillStyle = gb; ctx.strokeStyle = j ? 'rgba(255,255,255,.55)' : 'rgba(255,255,255,.28)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(c.x, c.y, JOY_R, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,.4)';
+    for (let i = 0; i < 4; i++) {
+      const a = i * Math.PI / 2, ax = c.x + Math.cos(a) * JOY_R * 0.8, ay = c.y + Math.sin(a) * JOY_R * 0.8;
+      ctx.beginPath(); ctx.moveTo(ax + Math.cos(a) * 7, ay + Math.sin(a) * 7); ctx.lineTo(ax + Math.cos(a + 2.1) * 6, ay + Math.sin(a + 2.1) * 6); ctx.lineTo(ax + Math.cos(a - 2.1) * 6, ay + Math.sin(a - 2.1) * 6); ctx.closePath(); ctx.fill();
     }
-    if (!G.press) {
-      ctx.strokeStyle = 'rgba(255,187,74,.3)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(W - 86, y, 40, 0, Math.PI * 2); ctx.stroke();
-      ctx.fillStyle = 'rgba(255,187,74,.55)'; ctx.font = '600 12px system-ui, sans-serif'; ctx.textAlign = 'center'; ctx.fillText(G.phase === 'serveReady' ? 'SERVE' : 'HIT', W - 86, y + 4);
+    const gk = ctx.createRadialGradient(kx - 6, ky - 8, 2, kx, ky, 26);
+    gk.addColorStop(0, '#ffe0a0'); gk.addColorStop(1, '#d98c1c');
+    ctx.fillStyle = gk; ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 8; ctx.beginPath(); ctx.arc(kx, ky, 24, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+    if (j) { ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(j.ax, j.ay, 6, 0, Math.PI * 2); ctx.stroke(); }
+    // HIT button: fills from the bottom as the gauge rises
+    const b = btnC(), v = G.press ? (G.gv || 0) : 0, live = G.phase === 'serveReady' || G.phase === 'toss' || (G.phase === 'rally' && G.shot && G.shot.hitter === 'cpu' && !G.swung);
+    ctx.save(); ctx.beginPath(); ctx.arc(b.x, b.y, BTN_R, 0, Math.PI * 2); ctx.clip();
+    ctx.fillStyle = 'rgba(36,52,84,.75)'; ctx.fillRect(b.x - BTN_R, b.y - BTN_R, BTN_R * 2, BTN_R * 2);
+    if (v > 0) {
+      const top = b.y + BTN_R - v * BTN_R * 2, gf = ctx.createLinearGradient(0, b.y + BTN_R, 0, b.y - BTN_R);
+      gf.addColorStop(0, '#4fd88a'); gf.addColorStop(0.7, '#ffbb4a'); gf.addColorStop(1, '#ff5d52');
+      ctx.fillStyle = gf; ctx.fillRect(b.x - BTN_R, top, BTN_R * 2, b.y + BTN_R - top);
     }
+    ctx.restore();
+    ctx.strokeStyle = v >= 0.95 ? '#ff5d52' : live ? 'rgba(255,187,74,.9)' : 'rgba(255,187,74,.35)'; ctx.lineWidth = v >= 0.95 ? 4 : 2.5;
+    if (v >= 0.95) { ctx.shadowColor = '#ff5d52'; ctx.shadowBlur = 16; }
+    ctx.beginPath(); ctx.arc(b.x, b.y, BTN_R, 0, Math.PI * 2); ctx.stroke(); ctx.shadowBlur = 0;
+    ctx.fillStyle = v > 0.55 ? '#1a1205' : live ? '#ffbb4a' : 'rgba(255,187,74,.5)'; ctx.textAlign = 'center';
+    ctx.font = '800 20px "Saira Condensed", sans-serif';
+    ctx.fillText(v >= 0.95 ? 'MAX' : v > 0 ? String(Math.round(v * 100)) : (G.phase === 'serveReady' ? 'SERVE' : 'HIT'), b.x, b.y + 7);
   }
   function drawBall(t) {
     const b = ballPos(t); if (!b) return;
@@ -776,7 +800,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       const ct = crossTime(); if (ct == null) return b;
       const left = (ct - t) / S.speed;
       if (left > -0.1 && left < 0.9) {
-        const rr = r + Math.max(0, left) * 90;
+        const rr = r + Math.max(0, left) * 70;
         ctx.strokeStyle = left < 0.05 ? '#4fd88a' : 'rgba(255,255,255,.75)'; ctx.lineWidth = 2.5;
         ctx.beginPath(); ctx.arc(p.x, p.y, rr, 0, Math.PI * 2); ctx.stroke();
       }
@@ -799,12 +823,10 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     if (b && b.z >= NET) drawBall(G.T);
     drawNet();
     if (b && b.z < NET) drawBall(G.T);
-    // aim arrow while holding
+    // aim arrow while holding (slide right thumb before letting go)
     if (G.press) {
-      const dx = G.press.x - G.press.x0, r = stage.getBoundingClientRect();
-      const x0 = G.press.x0 - r.left, y0 = G.press.y0 - r.top;
-      ctx.strokeStyle = 'rgba(255,187,74,.8)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(x0, y0, 22 + 18 * gaugeAt(performance.now()), 0, Math.PI * 2); ctx.stroke();
-      if (Math.abs(dx) > 6) { const x1 = x0 + clamp(dx, -120, 120); ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y0); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x1, y0); ctx.lineTo(x1 - Math.sign(dx) * 9, y0 - 7); ctx.lineTo(x1 - Math.sign(dx) * 9, y0 + 7); ctx.closePath(); ctx.fillStyle = 'rgba(255,187,74,.9)'; ctx.fill(); }
+      const dx = G.press.x - G.press.x0, b = btnC();
+      if (Math.abs(dx) > 6) { const y0 = b.y - BTN_R - 16, x1 = b.x + clamp(dx, -70, 70); ctx.strokeStyle = 'rgba(255,187,74,.9)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(b.x, y0); ctx.lineTo(x1, y0); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x1 + Math.sign(dx) * 4, y0); ctx.lineTo(x1 - Math.sign(dx) * 6, y0 - 6); ctx.lineTo(x1 - Math.sign(dx) * 6, y0 + 6); ctx.closePath(); ctx.fillStyle = 'rgba(255,187,74,.9)'; ctx.fill(); }
     }
     drawControls();
   }
