@@ -131,7 +131,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       <div class="logo">BREAK POINT<br><em>TENNIS</em></div>
       <div class="sub">One set against the CPU with real tennis scoring: 15, 30, 40, deuce, first to six games by two, tiebreak at 6-6.</div>
       <div class="how"><ol>
-        <li>You are the <b>yellow circle</b>. Move it with the <b>stick</b> at bottom left (or touch anywhere on the left half and slide). The yellow mark shows where the ball will bounce.</li>
+        <li>You are the <b>yellow circle</b>. Move it with the <b>stick</b> at bottom left (or touch anywhere on the left half and slide). The small yellow mark shows where the ball will bounce, and the dashed circle where to stand (with Assist on, you drift there by yourself).</li>
         <li>With your right thumb, <b>hold the HIT button</b> (or anywhere on the right half): it fills up and drains again over one second.</li>
         <li><b>Let go to swing</b> as the ball reaches your circle (the ring closes on the ball). Middle of the circle and a full button hit hardest. Slide right or left before letting go to aim; early swings pull cross-court, late ones push wide.</li>
         <li>To serve: hold the right side to toss, let go at the top.</li>
@@ -148,6 +148,9 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
         <div class="prow"><input id="nameP" maxlength="10" placeholder="Name" autocomplete="off" autocapitalize="characters" aria-label="Player name"><input id="numP" class="num" inputmode="numeric" maxlength="2" placeholder="#" aria-label="Number"></div></div>
       <div class="grp"><h3>CPU LEVEL</h3>
         <div class="seg" id="lvSeg"><button data-v="0">Rookie</button><button data-v="1">Tour pro</button><button data-v="2">Champion</button></div></div>
+      <div class="grp"><h3>MOVING</h3>
+        <div class="seg" id="asSeg"><button data-v="auto">Auto</button><button data-v="assist">Assist</button><button data-v="off">Manual</button></div>
+        <div class="note">The dashed yellow circle is where to stand for the next ball. Auto takes you there; Assist drifts you there when you are not using the stick and helps while you are; Manual is all you.</div></div>
       <div class="grp"><h3>BALL SPEED</h3>
         <div class="seg" id="spdSeg"><button data-v="1">Real</button><button data-v="0.75">Normal</button><button data-v="0.55">Practice</button></div>
         <div class="note">Slows the ball so the timing is easier. Real is true match pace.</div></div>
@@ -214,6 +217,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   if (!['R', 'L'].includes(S.hand)) S.hand = 'R';
   if (![0, 1, 2].includes(S.lv)) S.lv = 1;
   if (![1, 0.75, 0.55].includes(S.speed)) S.speed = 0.75;
+  if (!['auto', 'assist', 'off'].includes(S.assist)) S.assist = 'assist';
   if (S.sound == null) S.sound = true;
 
   // ---------------- Court (meters). x: left/right, y: up, z: from your baseline (0) to the CPU's (23.77) ----------------
@@ -499,7 +503,16 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     }
     return null;
   }
-  const CIRCLE_R = 2.1, SWEET_R = 0.8; // your hitting circle on the court, in meters
+  const CIRCLE_R = 2.1, SWEET_R = 0.8;
+  // where to stand for the incoming CPU ball: its path at about waist height after the bounce
+  function hitSpot() {
+    const s = G.shot;
+    if (G.phase !== 'rally' || !s || s.hitter !== 'cpu' || s.net || G.swung) return null;
+    // take it at the top of the bounce: closer to the baseline than the waist-high point the CPU uses
+    const b = G.ball && G.ball.segs[1]; if (!b) return null;
+    const top = segPos(b, b.t0 + Math.max(0.15, b.v.y / GRAV));
+    return { x: clamp(top.x, -DHW - 2.5, DHW + 2.5), z: clamp(top.z, -2.6, NET - 1.2) };
+  } // your hitting circle on the court, in meters
   // your swing: p = gauge power at release, aim = slide -1..1, dt = release time minus the moment the ball reaches your circle (game seconds)
   function meSwing(p, aim, dt) {
     const sh = G.shot; G.swung = true; G.me.swingT = G.T;
@@ -541,7 +554,18 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       // analog stick: small pushes creep, a full push runs; speed eases in so it never jumps
       const j = G.joy, canMove = G.phase === 'rally' || G.phase === 'cpuServe';
       let tvx = 0, tvz = 0;
-      if (j && canMove) { const m = Math.hypot(j.mx, j.my); if (m > 0.08) { const sp = ME_RUN * Math.pow((Math.min(1, m) - 0.08) / 0.92, 1.3); tvx = j.mx / m * sp; tvz = -j.my / m * sp; } }
+      let stick = false;
+      if (j && canMove) { const m = Math.hypot(j.mx, j.my); if (m > 0.08) { stick = true; const sp = ME_RUN * Math.pow((Math.min(1, m) - 0.08) / 0.92, 1.3); tvx = j.mx / m * sp; tvz = -j.my / m * sp; } }
+      // move assist: drift toward the spot where the incoming ball can be hit
+      const tg = hitSpot();
+      if (tg && S.assist !== 'off') {
+        const dx = tg.x - G.me.x, dz = tg.z - G.me.z, d = Math.hypot(dx, dz);
+        if (d > 0.05) {
+          const full = Math.min(ME_RUN, d * 6); // slows down as it arrives
+          if (!stick || S.assist === 'auto') { const k = S.assist === 'auto' ? 1 : 0.8; tvx = (stick ? tvx * 0.5 : 0) + dx / d * full * k; tvz = (stick ? tvz * 0.5 : 0) + dz / d * full * k; }
+          else { tvx += dx / d * full * 0.35; tvz += dz / d * full * 0.35; }
+        }
+      }
       const a = Math.min(1, dt * 16), me = G.me;
       me.vx = (me.vx || 0) + (tvx - (me.vx || 0)) * a; me.vz = (me.vz || 0) + (tvz - (me.vz || 0)) * a;
       if (!canMove) me.vx = me.vz = 0;
@@ -944,6 +968,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       // where the ball will bounce, and how far your racket reaches
       if (!sh.bounced) { const l = P(sh.land.x, 0, sh.land.z); ctx.strokeStyle = 'rgba(228,242,74,.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(l.x, l.y, 0.35 * l.s, 0.14 * l.s, 0, 0, Math.PI * 2); ctx.stroke(); }
     }
+    { const tg = hitSpot(); if (tg) { const f = P(tg.x, 0, tg.z), r = CIRCLE_R * f.s * 0.55; ctx.strokeStyle = 'rgba(228,242,74,.85)'; ctx.setLineDash([7, 6]); ctx.lineWidth = 2.5; ctx.beginPath(); ctx.ellipse(f.x, f.y, r, r * 0.42, 0, 0, Math.PI * 2); ctx.stroke(); ctx.setLineDash([]); ctx.fillStyle = 'rgba(228,242,74,.9)'; ctx.beginPath(); ctx.arc(f.x, f.y, 3.5, 0, Math.PI * 2); ctx.fill(); } }
     drawPlayer(G.me, true);
     // back to front: far ball kids, the CPU, the ball on that side, umpire and net, then near ball kids
     kid(KIDS[2]); kid(KIDS[3]);
@@ -992,12 +1017,13 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
   function setSeg(id, val) { document.querySelectorAll(`#${id} [data-v]`).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === String(val)))); }
   function renderStart() {
-    setSeg('surfSeg', S.surface); setSeg('handSeg', S.hand); setSeg('lvSeg', S.lv); setSeg('spdSeg', S.speed);
+    setSeg('surfSeg', S.surface); setSeg('handSeg', S.hand); setSeg('lvSeg', S.lv); setSeg('spdSeg', S.speed); setSeg('asSeg', S.assist);
     $('soundBtn').textContent = 'Sound: ' + (S.sound ? 'on' : 'off');
   }
   $('surfSeg').addEventListener('click', (e) => { const v = e.target.closest('[data-v]')?.dataset.v; if (v) { S.surface = v; persist(); renderStart(); } });
   $('handSeg').addEventListener('click', (e) => { const v = e.target.closest('[data-v]')?.dataset.v; if (v) { S.hand = v; persist(); renderStart(); } });
   $('lvSeg').addEventListener('click', (e) => { const v = e.target.closest('[data-v]')?.dataset.v; if (v) { S.lv = Number(v); persist(); renderStart(); } });
+  $('asSeg').addEventListener('click', (e) => { const v = e.target.closest('[data-v]')?.dataset.v; if (v) { S.assist = v; persist(); renderStart(); } });
   $('spdSeg').addEventListener('click', (e) => { const v = e.target.closest('[data-v]')?.dataset.v; if (v) { S.speed = Number(v); persist(); renderStart(); } });
   $('soundBtn').addEventListener('click', () => { S.sound = !S.sound; persist(); renderStart(); });
   { const nm = $('nameP'), nu = $('numP'); nm.value = S.player.name; nu.value = S.player.num;
