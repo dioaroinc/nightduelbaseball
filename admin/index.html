@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <meta name="robots" content="noindex,nofollow">
 <meta name="theme-color" content="#0a111d">
-<title>Night Duel 관리자</title>
+<title>We Play Sports Games 관리자</title>
 <link rel="icon" type="image/svg+xml" href="../baseball/icons/icon.svg">
 <style>
   :root { --bg:#0a111d; --card:#131d2e; --line:#24324a; --text:#e8eef8; --dim:#8da0bd; --a:#4fa3ff; --b:#f2b84b; }
@@ -36,6 +36,8 @@
   pre { background:#060b14; border:1px solid var(--line); border-radius:10px; padding:12px; overflow:auto; font-size:12px; }
   code { color:var(--b); }
   .dim { color:var(--dim); }
+  .tabs { display:flex; gap:6px; flex-wrap:wrap; margin:0 0 16px; }
+  .tabs button[aria-pressed="true"] { background:var(--a); border-color:var(--a); color:#04101f; font-weight:700; }
   [hidden] { display:none !important; }
 </style>
 <script src="../firebase-config.js"></script>
@@ -43,7 +45,7 @@
 <body>
 <main>
   <header>
-    <h1>Night Duel 관리자</h1>
+    <h1>관리자</h1>
     <button id="logout" hidden>로그아웃</button>
   </header>
 
@@ -57,11 +59,22 @@
   </section>
 
   <section id="stats" hidden>
+    <div class="tabs" id="tabs"></div>
     <div class="grid">
-      <div class="card"><div class="k">총 방문자</div><div class="v" id="tVisitors">-</div><div class="s">처음 온 기기 수</div></div>
+      <div class="card"><div class="k">총 방문자</div><div class="v" id="tVisitors">-</div><div class="s" id="tVisitorsS">처음 온 기기 수</div></div>
       <div class="card"><div class="k">총 접속</div><div class="v" id="tVisits">-</div><div class="s">사이트를 연 횟수</div></div>
       <div class="card"><div class="k">총 게임</div><div class="v" id="tGames">-</div><div class="s" id="tSplit">-</div></div>
       <div class="card"><div class="k">오늘 방문자</div><div class="v" id="dVisitors">-</div><div class="s" id="dGames">-</div></div>
+    </div>
+
+    <div id="bySecWrap">
+      <h2>종목별</h2>
+      <div class="card tw">
+        <table>
+          <thead><tr><th>페이지</th><th>방문자</th><th>접속</th><th>게임</th><th>오늘 방문자</th><th>오늘 게임</th></tr></thead>
+          <tbody id="bySec"></tbody>
+        </table>
+      </div>
     </div>
 
     <h2>최근 30일</h2>
@@ -77,7 +90,7 @@
         <tbody id="rows"></tbody>
       </table>
     </div>
-    <p class="dim" style="font-size:12px;margin-top:14px">방문자는 브라우저 기준이라 같은 사람이 다른 기기나 시크릿 창으로 오면 따로 셉니다. 친구 대전은 방을 만든 쪽에서 한 판으로 셉니다. <button id="reload">새로고침</button></p>
+    <p class="dim" style="font-size:12px;margin-top:14px">방문자는 브라우저 기준이라 같은 사람이 다른 기기나 시크릿 창으로 오면 따로 셉니다. 전체 방문자는 사이트 어디든 한 번 온 사람이고, 종목별 방문자는 그 게임 페이지에 온 사람입니다. 종목별로 나눠 세기 전 기록은 야구로 넣었습니다. 친구 대전은 방을 만든 쪽에서 한 판으로 셉니다. <button id="reload">새로고침</button></p>
   </section>
 </main>
 <script>
@@ -114,15 +127,71 @@
       .catch(function () { show('stats'); $('rows').innerHTML = '<tr><td colspan="6" class="dim">통계를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.</td></tr>'; });
   }
 
+  var NAMES = { all: '전체', hub: '게임 고르기 화면', baseball: '야구', tennis: '테니스', soccer: '축구', basketball: '농구', golf: '골프' };
+  var name = function (k) { return NAMES[k] || k; };
+  var KEYS = ['visits', 'visitors', 'dayVisitors', 'single', 'multi'];
+  var games = function (x) { return (x.single || 0) + (x.multi || 0); };
+  var tab = 'all', views = {}, order = [];
+
+  // Turn raw stats into one { total, days } view per tab.
+  function build(s) {
+    var site = { total: s.total || {}, days: s.days || {} }, g = s.g || {};
+    var sec = {};
+    Object.keys(g).forEach(function (k) { sec[k] = { total: Object.assign({}, g[k].total || {}), days: JSON.parse(JSON.stringify(g[k].days || {})) }; });
+    // Before the per-section split every visit and game was baseball, kept at the site level.
+    var splitDays = {};
+    Object.keys(g).forEach(function (k) { Object.keys(g[k].days || {}).forEach(function (d) { splitDays[d] = 1; }); });
+    var bb = sec.baseball || (sec.baseball = { total: {}, days: {} });
+    Object.keys(site.days).forEach(function (d) {
+      var x = site.days[d], row = bb.days[d] || (bb.days[d] = {});
+      if (!splitDays[d]) ['visits', 'visitors', 'dayVisitors'].forEach(function (k) { row[k] = (row[k] || 0) + (x[k] || 0); });
+      row.single = (row.single || 0) + (x.single || 0); row.multi = (row.multi || 0) + (x.multi || 0);
+    });
+    Object.keys(sec).forEach(function (k) {
+      var t = {}; KEYS.forEach(function (key) { t[key] = 0; });
+      Object.keys(sec[k].days).forEach(function (d) { KEYS.forEach(function (key) { t[key] += sec[k].days[d][key] || 0; }); });
+      sec[k].total = t;
+    });
+    // All: site-wide visitors, games summed over every section.
+    var all = { total: { visits: site.total.visits || 0, visitors: site.total.visitors || 0, single: 0, multi: 0 }, days: {} };
+    Object.keys(site.days).forEach(function (d) { var x = site.days[d]; all.days[d] = { visits: x.visits || 0, visitors: x.visitors || 0, dayVisitors: x.dayVisitors || 0, single: 0, multi: 0 }; });
+    Object.keys(sec).forEach(function (k) {
+      all.total.single += sec[k].total.single; all.total.multi += sec[k].total.multi;
+      Object.keys(sec[k].days).forEach(function (d) { var r = all.days[d] || (all.days[d] = {}); r.single = (r.single || 0) + (sec[k].days[d].single || 0); r.multi = (r.multi || 0) + (sec[k].days[d].multi || 0); });
+    });
+    views = { all: all }; Object.keys(sec).forEach(function (k) { views[k] = sec[k]; });
+    var rank = { hub: 1 };
+    order = ['all'].concat(Object.keys(sec).sort(function (a, b) { return (rank[a] || 0) - (rank[b] || 0) || (sec[b].total.visits - sec[a].total.visits); }));
+  }
+
   function render(s) {
-    var t = s.total || {}, days = s.days || {};
-    var today = days[kstDay(Date.now())] || {};
+    build(s);
+    if (!views[tab]) tab = 'all';
+    $('tabs').innerHTML = '';
+    order.forEach(function (k) {
+      var b = document.createElement('button'); b.textContent = name(k); b.setAttribute('aria-pressed', k === tab ? 'true' : 'false');
+      b.onclick = function () { tab = k; render(s); }; $('tabs').append(b);
+    });
+    var v = views[tab], t = v.total, days = v.days, today = days[kstDay(Date.now())] || {};
+    var isHub = tab === 'hub';
     $('tVisitors').textContent = n(t.visitors);
+    $('tVisitorsS').textContent = tab === 'all' ? '처음 온 기기 수' : '이 페이지에 처음 온 기기 수';
     $('tVisits').textContent = n(t.visits);
-    $('tGames').textContent = n((t.single || 0) + (t.multi || 0));
+    $('tGames').parentNode.hidden = isHub;
+    $('tGames').textContent = n(games(t));
     $('tSplit').textContent = '1인 ' + n(t.single) + ' · 친구 ' + n(t.multi);
     $('dVisitors').textContent = n(today.dayVisitors);
-    $('dGames').textContent = '오늘 게임 ' + n((today.single || 0) + (today.multi || 0)) + '판';
+    $('dGames').textContent = isHub ? '' : '오늘 게임 ' + n(games(today)) + '판';
+
+    $('bySecWrap').hidden = tab !== 'all';
+    if (tab === 'all') {
+      var d0 = kstDay(Date.now()), rows = '';
+      order.slice(1).forEach(function (k) {
+        var x = views[k].total, td = views[k].days[d0] || {}, hub = k === 'hub';
+        rows += '<tr><td>' + name(k) + '</td><td>' + n(x.visitors) + '</td><td>' + n(x.visits) + '</td><td>' + (hub ? '-' : n(games(x))) + '</td><td>' + n(td.dayVisitors) + '</td><td>' + (hub ? '-' : n(games(td))) + '</td></tr>';
+      });
+      $('bySec').innerHTML = rows || '<tr><td colspan="6" class="dim">아직 기록이 없습니다.</td></tr>';
+    }
 
     var list = [];
     for (var i = 29; i >= 0; i--) { var d = kstDay(Date.now() - i * 864e5); list.push([d, days[d] || {}]); }

@@ -26,6 +26,24 @@
             ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"
           }
         }
+      },
+      "g": {
+        "$s": {
+          "total": {
+            "$k": {
+              ".write": "newData.exists() && $s.matches(/^[a-z]{2,20}$/) && $k.matches(/^(visits|visitors|dayVisitors|single|multi)$/)",
+              ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"
+            }
+          },
+          "days": {
+            "$d": {
+              "$k": {
+                ".write": "newData.exists() && $s.matches(/^[a-z]{2,20}$/) && $d.matches(/^20[0-9][0-9]-[0-9][0-9]-[0-9][0-9]$/) && $k.matches(/^(visits|visitors|dayVisitors|single|multi)$/)",
+                ".validate": "newData.isNumber() && newData.val() === (data.exists() ? data.val() : 0) + 1"
+              }
+            }
+          }
+        }
       }
     }
   }
