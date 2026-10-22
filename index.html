@@ -6,29 +6,24 @@
 <meta name="theme-color" content="#0a111d">
 <title>We Play Sports Games</title>
 <meta name="description" content="Quick sports games for your phone. Play the CPU or a friend.">
-<link rel="icon" type="image/svg+xml" href="baseball/icons/icon.svg">
-<link rel="icon" type="image/png" sizes="32x32" href="baseball/icons/favicon-32.png">
-<link rel="apple-touch-icon" href="baseball/icons/apple-touch-icon.png">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="icons/favicon-32.png">
+<link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sports Games">
 <meta property="og:type" content="website">
 <meta property="og:title" content="We Play Sports Games">
 <meta property="og:description" content="Quick sports games for your phone. Play the CPU or a friend.">
 <meta property="og:url" content="https://weplaysportsgames.com/">
-<meta property="og:image" content="https://weplaysportsgames.com/baseball/icons/og-image.png">
+<meta property="og:image" content="https://weplaysportsgames.com/icons/og-image.png">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://weplaysportsgames.com/baseball/icons/og-image.png">
-<script>
-// The game used to live at the site root. An installed home-screen copy still opens here, so send it on to the game.
-(function () {
-  var standalone = (window.matchMedia && matchMedia('(display-mode: standalone), (display-mode: fullscreen)').matches) || navigator.standalone === true;
-  if (standalone) location.replace('/baseball/');
-  // retire the old root-scoped service worker so it never sits in front of the sport folders
-  if ('serviceWorker' in navigator) navigator.serviceWorker.getRegistrations().then(function (rs) {
-    rs.forEach(function (r) { if (new URL(r.scope).pathname === '/') r.unregister(); });
-  }).catch(function () {});
-})();
-</script>
+<meta name="twitter:image" content="https://weplaysportsgames.com/icons/og-image.png">
+<script>if("serviceWorker" in navigator)addEventListener("load",function(){navigator.serviceWorker.register("sw.js").catch(function(){})})</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700;800&display=swap">

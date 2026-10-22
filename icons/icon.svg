@@ -1,0 +1,60 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <radialGradient id="sky" cx="50%" cy="18%" r="85%">
+      <stop offset="0" stop-color="#22385e"/><stop offset=".55" stop-color="#0f1a2d"/><stop offset="1" stop-color="#0a111d"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#ffd890" stop-opacity=".5"/><stop offset="1" stop-color="#ffd890" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="bb" cx="38%" cy="32%" r="75%">
+      <stop offset="0" stop-color="#ffffff"/><stop offset=".6" stop-color="#f1ecdc"/><stop offset="1" stop-color="#c9c0a6"/>
+    </radialGradient>
+    <radialGradient id="tn" cx="38%" cy="32%" r="75%">
+      <stop offset="0" stop-color="#f3ff8a"/><stop offset=".6" stop-color="#d6ea3a"/><stop offset="1" stop-color="#8fa31c"/>
+    </radialGradient>
+    <radialGradient id="bk" cx="38%" cy="32%" r="75%">
+      <stop offset="0" stop-color="#ffa45c"/><stop offset=".6" stop-color="#e5742a"/><stop offset="1" stop-color="#8e3f12"/>
+    </radialGradient>
+    <linearGradient id="grass" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#2e6a3c"/><stop offset="1" stop-color="#1b4226"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#sky)"/>
+  <circle cx="118" cy="92" r="90" fill="url(#glow)"/><circle cx="394" cy="92" r="90" fill="url(#glow)"/>
+  <g fill="#fff6dc"><rect x="88" y="80" width="60" height="22" rx="4" opacity=".95"/><rect x="364" y="80" width="60" height="22" rx="4" opacity=".95"/></g>
+  <g stroke="#0a111d" stroke-width="3" opacity=".55">
+    <line x1="103" y1="80" x2="103" y2="102"/><line x1="118" y1="80" x2="118" y2="102"/><line x1="133" y1="80" x2="133" y2="102"/>
+    <line x1="379" y1="80" x2="379" y2="102"/><line x1="394" y1="80" x2="394" y2="102"/><line x1="409" y1="80" x2="409" y2="102"/>
+  </g>
+  <path d="M0 420 Q256 330 512 420 L512 512 L0 512 Z" fill="url(#grass)"/>
+  <path d="M0 420 Q256 330 512 420" fill="none" stroke="#ffbb4a" stroke-width="5" opacity=".8"/>
+  <!-- basketball, back left -->
+  <g transform="translate(160 300)">
+    <circle r="92" fill="#000" opacity=".28" transform="translate(5 10)"/>
+    <circle r="92" fill="url(#bk)"/>
+    <g fill="none" stroke="#4a2008" stroke-width="5" opacity=".85">
+      <path d="M-92 0 H92"/><path d="M0 -92 V92"/>
+      <path d="M-66 -64 C-20 -20 -20 20 -66 64"/><path d="M66 -64 C20 -20 20 20 66 64"/>
+    </g>
+  </g>
+  <!-- tennis ball, back right -->
+  <g transform="translate(366 318)">
+    <circle r="78" fill="#000" opacity=".28" transform="translate(5 10)"/>
+    <circle r="78" fill="url(#tn)"/>
+    <g fill="none" stroke="#ffffff" stroke-width="7" stroke-linecap="round" opacity=".95">
+      <path d="M-58 -52 C-10 -20 -10 20 -58 52"/><path d="M58 -52 C10 -20 10 20 58 52"/>
+    </g>
+  </g>
+  <!-- baseball, front -->
+  <g transform="translate(256 352) rotate(-18)">
+    <circle r="104" fill="#000" opacity=".3" transform="translate(6 12)"/>
+    <circle r="104" fill="url(#bb)"/>
+    <g fill="none" stroke="#d8352c" stroke-width="6" stroke-linecap="round">
+      <path d="M-72 -75 C-32 -40 -32 40 -72 75"/><path d="M72 -75 C32 -40 32 40 72 75"/>
+    </g>
+    <g stroke="#d8352c" stroke-width="4" stroke-linecap="round">
+      <path d="M-68 -57 l-13 6 M-57 -40 l-14 4 M-50 -20 l-14 2 M-47 0 l-14 0 M-50 20 l-14 -2 M-57 40 l-14 -4 M-68 57 l-13 -6"/>
+      <path d="M68 -57 l13 6 M57 -40 l14 4 M50 -20 l14 2 M47 0 l14 0 M50 20 l14 -2 M57 40 l14 -4 M68 57 l13 -6"/>
+    </g>
+  </g>
+</svg>
