@@ -1,5 +1,5 @@
 // Network first, so updates show up right away; cached copy only when offline.
-const CACHE = 'nd-v1';
+const CACHE = 'nd-v2';
 self.addEventListener('install', e => self.skipWaiting());
 self.addEventListener('activate', e => e.waitUntil(self.clients.claim()));
 self.addEventListener('fetch', e => {

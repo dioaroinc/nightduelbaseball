@@ -176,6 +176,10 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .confirm { display: flex; gap: 8px; align-items: center; font-size: 13px; color: var(--chalk); flex-wrap: wrap; }
 .confirm button { height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--bulb-out); background: transparent; color: var(--bulb-out); }
 .note { font-size: 11px; color: var(--muted); line-height: 1.5; }
+.prow { display: flex; align-items: center; gap: 8px; }
+.prow span { width: 52px; font-size: 12px; color: var(--muted); font-weight: 600; letter-spacing: .06em; }
+.prow input { flex: 1; min-width: 0; height: 42px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--chalk); font-family: var(--f-board); font-size: 20px; padding: 0 10px; text-transform: uppercase; }
+.prow input.num { flex: 0 0 64px; text-align: center; }
 .topbar { display: flex; align-items: center; gap: 12px; }
 .backbtn { height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--chalk); font-size: 14px; font-weight: 600; flex: none; }
 .resume { background: var(--panel); border: 1px solid var(--accent); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; color: var(--chalk); line-height: 1.5; }
@@ -300,6 +304,10 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   <div class="ov" id="setOv" hidden>
     <div class="inner">
       <div class="topbar"><button class="backbtn" aria-label="Back">‹ Back</button><div class="logo" style="font-size:34px">SET<em>TINGS</em></div></div>
+      <div class="grp"><h3>YOUR PLAYERS</h3>
+        <div class="prow"><span>Lefty</span><input id="nameL" maxlength="10" placeholder="Name" autocomplete="off" autocapitalize="characters" aria-label="Left-handed player name"><input id="numL" class="num" inputmode="numeric" maxlength="2" placeholder="#" aria-label="Left-handed player number"></div>
+        <div class="prow"><span>Righty</span><input id="nameR" maxlength="10" placeholder="Name" autocomplete="off" autocapitalize="characters" aria-label="Right-handed player name"><input id="numR" class="num" inputmode="numeric" maxlength="2" placeholder="#" aria-label="Right-handed player number"></div>
+        <div class="note">Shown on the jersey and in the matchup line. Your lefty plays when you throw or bat left-handed, your righty when right-handed.</div></div>
       <div class="grp"><h3>UNITS</h3>
         <div class="seg wide" id="unitSeg"><button data-v="mph">mph · feet</button><button data-v="kmh">km/h · meters</button></div></div>
       <div class="grp"><h3>GAME LENGTH (VS CPU)</h3>

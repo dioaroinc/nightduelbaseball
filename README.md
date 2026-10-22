@@ -19,4 +19,5 @@ node build.js
 - `firebase-config.js` Firebase web config used by the public build for multiplayer
 - `sim.js` simulates 60,000 CPU vs CPU plate appearances to check the MLB-average tuning (`node sim.js`)
 
-The build writes `dist/web/index.html`; the published site is `index.html` at the repository root.
+The build writes `dist/web/index.html`; the published game is `baseball/index.html` (served at weplaysportsgames.com/baseball/).
+The repository root `index.html` is the game picker for the site; each sport lives in its own folder (`baseball/`, later `tennis/` and so on) with its own manifest, service worker and icons. `admin/` is the usage stats page.

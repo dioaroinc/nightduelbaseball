@@ -34,6 +34,11 @@
   if (S.cpuBatLv == null) S.cpuBatLv = 1;
   if (![3, 6, 9].includes(S.mpInn)) S.mpInn = 3;
   if (![0, 3, 6, 9].includes(S.innings)) S.innings = 9; // vs CPU; 0 = endless
+  // the user's two players: a lefty and a righty, each with a name and a number for the jersey
+  const DEF_PLAYERS = { L: { name: 'SUN', num: '36' }, R: { name: 'TEO', num: '24' } };
+  const cleanName = (v, d) => { const t = String(v == null ? '' : v).toUpperCase().replace(/[^A-Z0-9 .'-]/g, '').trim().slice(0, 10); return t || d; };
+  const cleanNum = (v, d) => { const t = String(v == null ? '' : v).replace(/\D/g, '').slice(0, 2); return t === '' ? d : t; };
+  for (const h of ['L', 'R']) { const q = S.players && S.players[h] || {}; S.players = S.players || {}; S.players[h] = { name: cleanName(q.name, DEF_PLAYERS[h].name), num: cleanNum(q.num, DEF_PLAYERS[h].num) }; }
   const metric = () => S.units === 'kmh';
   const spd = (mph, d = 0) => (metric() ? `${(mph * KMH).toFixed(d)} km/h` : `${mph.toFixed(d)} mph`);
   const distNum = (ft) => String(Math.round(metric() ? ft * 0.3048 : ft));
@@ -330,8 +335,9 @@
     cpu: { jersey: '#9aa1b0', jerseyD: '#7b8292', trim: '#a51e2e', pants: '#aeb4c1', sock: '#a51e2e', helmet: '#a51e2e', cap: '#a51e2e', glove: '#5b3a1e', skin: '#b98263', name: 'CPU', num: '45' },
   };
   // the user's two batters: a lefty and a righty
-  const MY_PLAYERS = { L: { name: 'SUN', num: '36' }, R: { name: 'TEO', num: '24' } }; // the user's lefty and righty, batting or pitching
-  const myPlayer = hand => ({ ...TEAM.me, ...MY_PLAYERS[hand === 'L' ? 'L' : 'R'] });
+  const myPlayer = hand => ({ ...TEAM.me, ...S.players[hand === 'L' ? 'L' : 'R'] });
+  // the opponent: the CPU, or the friend's own player when they sent one
+  const oppPlayer = hand => (G.mp && G.mp.oppPlayers && G.mp.oppPlayers[hand === 'L' ? 'L' : 'R']) ? { ...TEAM.cpu, ...G.mp.oppPlayers[hand === 'L' ? 'L' : 'R'] } : TEAM.cpu;
   const ease = (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
   const lerp = (a, b, t) => a + (b - a) * t;
   function keyf(frames, t) {
@@ -436,7 +442,7 @@
       X.save(); X.translate((chx - 0.08) * f, 0); X.scale(0.62, 1);
       X.font = '800 0.8px "Saira Condensed", sans-serif'; X.fillText(T.num, 0, -(hipY + 0.55)); X.restore();
       X.translate(-0.3 * f, 0); X.scale(0.6, 1); // name sits just above the number, clear of the front elbow
-      X.font = '700 0.32px "Saira Condensed", sans-serif'; X.fillText(T.name, 0, -4.3);
+      X.font = '700 0.32px "Saira Condensed", sans-serif'; X.fillText(T.name, 0, -4.3, 0.62);
       X.restore();
     }
     const hd = [hdx, 5.66];
@@ -477,7 +483,7 @@
     if (team === 'me') { foot.x = Math.max(W * 0.07, Math.min(W * 0.93, foot.x)); foot.k *= 0.5; } // keep the user's batter in frame, out of the zone
     const dir = plate.x > foot.x ? 1 : -1;
     const t = swingT == null ? 0 : Math.min(1, swingT);
-    const T = team === 'me' ? myPlayer(hand) : TEAM[team];
+    const T = team === 'me' ? myPlayer(hand) : oppPlayer(hand);
     renderFigure(foot.x, foot.y, foot.k, dir, alpha, 7.5, 8.6, () => batterArt(T, t, team === 'cpu', now, dir));
   }
 
@@ -508,7 +514,7 @@
     poly([[-0.5, hipY - 0.12], [0.5, hipY - 0.12], [0.5, hipY + 0.1], [-0.5, hipY + 0.1]], '#202228');
     if (fromBehind) {
       X.save(); X.scale(flip, -1); X.fillStyle = T.trim; X.textAlign = 'center';
-      X.font = '700 0.36px "Saira Condensed", sans-serif'; X.fillText(T.name, 0, -(shY - 0.32));
+      X.font = '700 0.36px "Saira Condensed", sans-serif'; X.fillText(T.name, 0, -(shY - 0.32), 1.3);
       X.font = '800 1.05px "Saira Condensed", sans-serif'; X.fillText(T.num, 0, -(hipY + 0.75));
       X.restore();
     } else {
@@ -531,7 +537,7 @@
     if (!foot) return;
     const rel = P(c, hand === 'R' ? -1.9 : 1.9, 5.9, 60.5);
     const arm = rel && rel.x > foot.x ? 1 : -1;
-    renderFigure(foot.x, foot.y, foot.k, arm, alpha, 5.6, 8, () => pitcherArt(team === 'me' ? myPlayer(hand) : TEAM[team], w == null ? 0 : w, fromBehind, arm));
+    renderFigure(foot.x, foot.y, foot.k, arm, alpha, 5.6, 8, () => pitcherArt(team === 'me' ? myPlayer(hand) : oppPlayer(hand), w == null ? 0 : w, fromBehind, arm));
   }
 
   // ---- Fielder (ready stance, facing the plate) ----
@@ -1334,8 +1340,10 @@
   function renderMatchup() {
     const mine = S.role === 'pitcher' ? myPlayer(G.pHand) : myPlayer(G.bHand);
     const me = `${mine.name} #${mine.num} ${S.role === 'pitcher' ? handName(G.pHand, 'pitcher') : handName(G.bHand, 'batter')}`;
-    const cpu = S.role === 'pitcher' ? `CPU ${handName(G.bHand, 'batter')}` : `CPU ${handName(G.pHand, 'pitcher')}`;
-    const opp = G.mp ? cpu.replace('CPU', 'Friend') + `  ·  ${G.mp.innings} inn` : cpu;
+    const oh = S.role === 'pitcher' ? G.bHand : G.pHand, op = oppPlayer(oh);
+    const who = G.mp ? (G.mp.oppPlayers ? `${op.name} #${op.num}` : 'Friend') : 'CPU';
+    const cpu = `${who} ${S.role === 'pitcher' ? handName(G.bHand, 'batter') : handName(G.pHand, 'pitcher')}`;
+    const opp = G.mp ? cpu + `  ·  ${G.mp.innings} inn` : cpu;
     $('matchup').textContent = `${me}  vs  ${opp}`;
   }
 
@@ -1593,7 +1601,7 @@
   function mpPresence(msg) {
     const m = G.mp; if (!m) return;
     if (msg !== undefined) m.out = msg;
-    m.room.presence({ app: 'nd', v: 1, host: m.host, role: m.myRole, th: S.myThrow, bh: S.myBat, inn: m.innings, msg: m.out || null }).catch(() => {});
+    m.room.presence({ app: 'nd', v: 1, host: m.host, role: m.myRole, th: S.myThrow, bh: S.myBat, pl: S.players, inn: m.innings, msg: m.out || null }).catch(() => {});
   }
   const mpSend = (msg) => mpPresence(msg);
 
@@ -1611,6 +1619,8 @@
     if (!opp) { if (m.started && !m.leftTimer) m.leftTimer = setTimeout(() => mpGone('Your friend left the room.'), 4000); return; }
     clearTimeout(m.leftTimer); m.leftTimer = null;
     m.oppThrow = opp.presence.th === 'L' ? 'L' : 'R'; m.oppBat = opp.presence.bh === 'L' ? 'L' : 'R';
+    const pl = opp.presence.pl;
+    m.oppPlayers = pl && pl.L && pl.R ? { L: { name: cleanName(pl.L.name, 'FRIEND'), num: cleanNum(pl.L.num, '0') }, R: { name: cleanName(pl.R.name, 'FRIEND'), num: cleanNum(pl.R.num, '0') } } : null;
     if (!m.started) {
       if (m.host && opp.presence.role !== (S.role === 'pitcher' ? 'batter' : 'pitcher')) return;
       mpStart();
@@ -1783,6 +1793,13 @@
   }
   $('statTabs').addEventListener('click', (e) => { const t = e.target.closest('button')?.dataset.t; if (t) { statTab = t; renderStats(); } });
   // ---------------- Settings overlay ----------------
+  // player name and number fields
+  for (const h of ['L', 'R']) {
+    const nm = $('name' + h), nu = $('num' + h);
+    nm.value = S.players[h].name; nu.value = S.players[h].num;
+    nm.addEventListener('change', () => { S.players[h].name = cleanName(nm.value, DEF_PLAYERS[h].name); nm.value = S.players[h].name; persist(); if (G.started) renderMatchup(); });
+    nu.addEventListener('change', () => { S.players[h].num = cleanNum(nu.value, DEF_PLAYERS[h].num); nu.value = S.players[h].num; persist(); if (G.started) renderMatchup(); });
+  }
   const SET_SEGS = { unitSeg: ['units', String], innSeg: ['innings', Number], speedSeg: ['speed', Number], cpuPitchSeg: ['cpuPitchLv', Number], cpuBatSeg: ['cpuBatLv', Number] };
   function renderSettings() {
     for (const id in SET_SEGS) { const [key] = SET_SEGS[id]; [...$(id).children].forEach((b) => b.setAttribute('aria-pressed', String(S[key]) === b.dataset.v ? 'true' : 'false')); }
