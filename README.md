@@ -25,3 +25,7 @@ The repository root `index.html` is the game picker for the site; each sport liv
 ## Break Point Tennis
 
 `tennis/index.html` is a self-contained page (no build step) served at weplaysportsgames.com/tennis/. One set against the CPU with real scoring (tiebreak at 6-6), hard/clay/grass courts, right- or left-handed player. Hold to start a one-second power gauge, slide to aim, let go as the ball arrives. It loads the shared `firebase-config.js` and `track.js`, so visits and games show under tennis on the admin page.
+
+## Sky Shot Clay
+
+`clay/index.html` is a self-contained page (no build step) served at weplaysportsgames.com/clay/. Clay shooting against your own score: 6 rounds of 15 targets (trap straight, trap wide, skeet high house, skeet low house, driven birds, fast mixed), Easy/Normal/Pro. Aim with the left stick (the view turns with the gun), hold the right FIRE button to call PULL and mount the gun (the sight ring grows as it fills, then shrinks if held too long), let go to fire. Shot travels at a set speed, so crossing clays need lead. It loads the shared `firebase-config.js` and `track.js`, so visits and games show under 클레이 사격 on the admin page.
