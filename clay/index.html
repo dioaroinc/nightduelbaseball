@@ -20,6 +20,7 @@
 <meta property="og:image" content="https://weplaysportsgames.com/icons/og-image.png">
 <script defer src="../firebase-config.js"></script>
 <script defer src="../track.js"></script>
+<script>(function(){var U=["https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js","https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"],P;window.ndLoadFirebase=function(){if(window.firebase)return Promise.resolve();if(P)return P;P=U.reduce(function(c,u){return c.then(function(){return new Promise(function(ok,no){var s=document.createElement("script");s.src=u;s.onload=ok;s.onerror=function(){P=null;no(new Error("load "+u))};document.head.appendChild(s)})})},Promise.resolve());return P};addEventListener("load",function(){setTimeout(function(){U.forEach(function(u){var l=document.createElement("link");l.rel="prefetch";l.as="script";l.href=u;document.head.appendChild(l)})},1500)})})()</script>
 <script>if("serviceWorker" in navigator)addEventListener("load",function(){navigator.serviceWorker.register("../sw.js",{scope:"../"}).catch(function(){})})</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -106,6 +107,15 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .rounds div.todo { opacity: .5; }
 .confirm { display: flex; gap: 8px; align-items: center; font-size: 13px; flex-wrap: wrap; }
 .confirm button { height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--red); background: transparent; color: var(--red); }
+.mp { border-top: 1px solid var(--line); padding-top: 14px; }
+.joinrow { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.joinrow input { height: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--chalk); font-family: var(--f-board); font-size: 26px; letter-spacing: .3em; text-align: center; min-width: 0; }
+.joinrow .cta { height: 48px; padding: 0 22px; }
+.mpstatus { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; align-items: center; text-align: center; font-size: 13px; color: var(--muted); }
+.mpstatus .code { font-family: var(--f-board); font-weight: 800; font-size: 56px; line-height: 1; letter-spacing: .12em; color: var(--accent); }
+.mpstatus button { height: 34px; padding: 0 14px; border-radius: 9px; border: 1px solid var(--line); background: transparent; color: var(--chalk); font-size: 13px; }
+#dots i.opp { background: #5aa9ff; }
+.hrow .tot .vs { color: #5aa9ff; }
 @media (prefers-reduced-motion: reduce) { #toast { transition: none; } }
 </style>
 </head>
@@ -125,7 +135,7 @@ setTimeout(finish,10000);tick();})();</script>
   <header id="hud">
     <div class="hrow">
       <div class="nm" id="nmMe">SUN <small>#36</small></div>
-      <div class="rd">ROUND <b id="rdNum">1</b>/6</div>
+      <div class="rd" id="rd">ROUND <b id="rdNum">1</b><span id="rdOf">/6</span></div>
       <div class="tot" id="tot">0<small>/90</small></div>
       <button class="iconbtn" id="menuBtn" aria-label="Menu"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 5h12M3 9h12M3 13h12"/></svg></button>
     </div>
@@ -157,6 +167,18 @@ setTimeout(finish,10000);tick();})();</script>
       <button class="cta" id="startBtn">PLAY</button>
       <div class="resume" id="resumeBox" hidden></div>
       <div class="row2"><button class="ghost" id="startStats">My stats</button><button class="ghost" id="soundBtn">Sound: on</button></div>
+      <div class="grp mp" id="mpGrp">
+        <h3>PLAY WITH A FRIEND</h3>
+        <div class="grp"><h3>MATCH LENGTH</h3>
+          <div class="seg" id="mpLenSeg"><button data-v="15">15 clays</button><button data-v="45">45 clays</button><button data-v="90">90 clays</button></div></div>
+        <div class="row2"><button class="ghost" id="mpCreate">Create room</button><button class="ghost" id="mpJoinShow">Join with code</button></div>
+        <div class="joinrow" id="mpJoinRow" hidden>
+          <input id="mpCode" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="4-digit code" autocomplete="off" aria-label="Room code">
+          <button class="cta" id="mpJoin">Join</button>
+        </div>
+        <div class="mpstatus" id="mpStatus" hidden></div>
+        <div class="note">Both of you see the same clay at the same moment. Whoever breaks it first gets the point. The room creator picks the length and the level, and every kind of clay comes up in turn.</div>
+      </div>
       <div class="note">Stats are saved in this browser only. No sign-up needed.</div>
     </div>
   </div>
@@ -211,7 +233,7 @@ setTimeout(finish,10000);tick();})();</script>
 
   // ---------------- Save ----------------
   const KEY = 'skyclay_v1';
-  const newStats = () => ({ games: 0, targets: 0, hits: 0, smashes: 0, best: 0, bestRound: 0, straights: 0 });
+  const newStats = () => ({ games: 0, targets: 0, hits: 0, smashes: 0, best: 0, bestRound: 0, straights: 0, mpGames: 0, mpWins: 0 });
   let save = (() => { try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.settings && s.stats) return s; } catch (e) { /* ignore */ } return { settings: {}, stats: newStats(), game: null }; })();
   const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) { /* ignore */ } };
   const S = save.settings;
@@ -226,6 +248,7 @@ setTimeout(finish,10000);tick();})();</script>
   }
   if (![0, 1, 2].includes(S.lv)) S.lv = 1;
   if (S.sound == null) S.sound = true;
+  if (![15, 45, 90].includes(S.mpLen)) S.mpLen = 15;
 
   // ---------------- Range (meters). x: right, y: up, z: straight out from the shooter ----------------
   const EYE = { x: 0, y: 1.6, z: 0 }, GRAV = 9.81, DRAG = 0.011;
@@ -284,7 +307,8 @@ setTimeout(finish,10000);tick();})();</script>
 
   // gauge: fills while you mount the gun, stays full, then the gun gets heavy
   const gaugeAt = (now) => { const u = (now - G.press.t0) / 1000; return u < 0.55 ? u / 0.55 : u < 1.35 ? 1 : Math.max(0.35, 1 - (u - 1.35) / 1.3 * 0.65); };
-  const patR = (g) => LV[Gm ? Gm.lv : S.lv].pat * (0.32 + 0.68 * g);
+  const curLv = () => (G.mp && G.mp.started ? G.mp.lv : Gm ? Gm.lv : S.lv);
+  const patR = (g) => LV[curLv()].pat * (0.32 + 0.68 * g);
 
   function readyNext() {
     if (!Gm) return;
@@ -310,7 +334,7 @@ setTimeout(finish,10000);tick();})();</script>
     if (!c) G.wait = null; // fired before the clay came out: that one is gone
     if (c && c.alive) {
       // fly the clay forward until the shot gets to it
-      const f = cloneClay(c), sv = LV[Gm.lv].shot; let tt = 0;
+      const f = cloneClay(c), sv = LV[curLv()].shot; let tt = 0;
       for (let i = 0; i < 200; i++) { const dist = Math.hypot(f.p.x - EYE.x, f.p.y - EYE.y, f.p.z - EYE.z); if (sv * tt >= dist) break; stepClay(f, 0.004); tt += 0.004; }
       const to = norm({ x: f.p.x - EYE.x, y: f.p.y - EYE.y, z: f.p.z - EYE.z }), dist = Math.hypot(f.p.x - EYE.x, f.p.y - EYE.y, f.p.z - EYE.z);
       const ang = Math.acos(clamp(d.x * to.x + d.y * to.y + d.z * to.z, -1, 1)), clayAng = 0.15 / dist; // a little bigger than a real clay, like it is drawn
@@ -321,6 +345,7 @@ setTimeout(finish,10000);tick();})();</script>
     }
     G.shot = { ...res, t0: now, g };
     G.phase = 'shot';
+    if (G.mp && G.mp.started) mpShot({ hit: res.hit, sm: !!res.smash, ts: G.mp.now() + (res.tt || 0) * 1000 });
     setTimeout(() => resolve(res), Math.max(20, (res.tt || 0) * 1000));
   }
   // which way you missed, measured along the clay's flight across your view
@@ -337,7 +362,14 @@ setTimeout(finish,10000);tick();})();</script>
   }
   const WHY = { early: ['TOO EARLY', 'Wait for the clay before you let go'], far: ['OUT OF RANGE', 'Too far, the shot has spread out. Shoot sooner'], ahead: ['AHEAD', 'You led it too much'], behind: ['BEHIND', 'Swing through and lead it more'], over: ['OVER', 'Your shot went high'], under: ['UNDER', 'Your shot went low'], lost: ['LOST', 'The clay got away. Let go to fire'] };
   function resolve(res) {
-    if (!Gm || G.phase !== 'shot') return;
+    if (G.phase !== 'shot') return;
+    if (G.mp && G.mp.started) { // the host decides who was first; this is only what you saw
+      const c = G.clay;
+      if (res.hit && c && c.alive) { c.alive = false; breakFx(c.p, res.smash); crack(); toast(res.smash ? 'SMOKED!' : 'HIT', '', '#4fd88a', 700); }
+      else if (!res.hit) { const w = WHY[res.why] || WHY.behind; toast(w[0], w[1], '#ff5d52', 1000); }
+      G.phase = 'mpdone'; return;
+    }
+    if (!Gm) return;
     const c = G.clay;
     if (res.hit && c && c.alive) {
       c.alive = false; breakFx(c.p, res.smash); crack();
@@ -390,12 +422,13 @@ setTimeout(finish,10000);tick();})();</script>
     if (j) {
       const m = Math.hypot(j.mx, j.my), sp = 1.0 * Math.pow(m, 1.5);
       if (m > 0.04) { G.yaw += j.mx / m * sp * dt; G.pitch -= j.my / m * sp * dt; }
-    } else if (G.holdTo && (G.phase === 'ready' || G.phase === 'result')) { // drift back to the hold point between clays
+    } else if (G.holdTo && !G.press && (G.phase === 'ready' || G.phase === 'result' || G.phase === 'mpwait')) { // drift back to the hold point between clays
       G.yaw += (G.holdTo[0] - G.yaw) * Math.min(1, dt * 3); G.pitch += (G.holdTo[1] - G.pitch) * Math.min(1, dt * 3);
     }
     G.yaw = clamp(G.yaw, -1.35, 1.35); G.pitch = clamp(G.pitch, -0.12, 1.25);
     if (G.recoil > 0) G.recoil = Math.max(0, G.recoil - dt * 4);
-    if (G.phase === 'flight' || G.phase === 'shot' || G.phase === 'result') {
+    if (G.mp && G.mp.started) mpUpdate(dt);
+    else if (G.phase === 'flight' || G.phase === 'shot' || G.phase === 'result') {
       if (!G.clay && G.wait != null) { G.wait -= dt; if (G.wait <= 0) { G.wait = null; G.clay = launch(G.next, ROUNDS[Gm.round].fast); thrower(); } }
       const c = G.clay;
       if (c && c.alive) { stepClay(c, dt); if (lost(c)) { c.alive = false; if (G.phase === 'flight') { G.press = null; record(0); toast(WHY.lost[0], WHY.lost[1], '#ff5d52', 1200); G.phase = 'result'; G.nextAt = performance.now() + 1200; } } }
@@ -417,8 +450,8 @@ setTimeout(finish,10000);tick();})();</script>
     if (G.paused || G.phase === 'menu' || G.press) return;
     const q = stageXY(e);
     stage.setPointerCapture?.(e.pointerId);
-    G.press = { t0: performance.now(), id: e.pointerId, x0: q.x, y0: q.y, lx: q.x, ly: q.y, live: G.phase === 'ready' };
-    if (G.press.live) pull();
+    G.press = { t0: performance.now(), id: e.pointerId, x0: q.x, y0: q.y, lx: q.x, ly: q.y, live: canShoot() };
+    if (G.press.live && !G.mp) pull();
   });
   stage.addEventListener('pointermove', (e) => {
     const pr = G.press; if (!pr || e.pointerId !== pr.id) return;
@@ -429,7 +462,14 @@ setTimeout(finish,10000);tick();})();</script>
   function release(e) {
     if (!G.press || (e && e.pointerId !== G.press.id)) return;
     const g = gaugeAt(performance.now()), live = G.press.live; G.press = null; G.gv = 0;
-    if (live && G.phase === 'flight') fire(g);
+    if (!live) return;
+    if (G.phase === 'flight') fire(g);
+    else if (G.mp && G.mp.started && G.phase === 'mpwait') { boom(); G.recoil = 1; mpShot({ hit: false, sm: false, ts: G.mp.now() }); toast(WHY.early[0], WHY.early[1], '#ff5d52', 1000); G.phase = 'mpdone'; }
+  }
+  // solo: press when ready calls the clay. Friend game: the clay comes on its own, you get one shot at it
+  function canShoot() {
+    if (G.mp && G.mp.started) return (G.phase === 'mpwait' || G.phase === 'flight') && G.mp.shotN !== G.mp.n;
+    return G.phase === 'ready';
   }
   stage.addEventListener('pointerup', release);
   stage.addEventListener('pointercancel', release);
@@ -438,7 +478,7 @@ setTimeout(finish,10000);tick();})();</script>
   addEventListener('keydown', (e) => {
     if (G.phase === 'menu' || G.paused || e.target.tagName === 'INPUT') return;
     keys[e.key] = true;
-    if (e.key === ' ' && !e.repeat) { e.preventDefault(); audio(); if (!G.press && G.phase === 'ready') { G.press = { t0: performance.now(), id: 'key', live: true }; pull(); } }
+    if (e.key === ' ' && !e.repeat) { e.preventDefault(); audio(); if (!G.press && canShoot()) { G.press = { t0: performance.now(), id: 'key', live: true }; if (!G.mp) pull(); } }
     keyJoy();
   });
   addEventListener('keyup', (e) => { keys[e.key] = false; if (e.key === ' ' && G.press && G.press.id === 'key') release({ pointerId: 'key' }); keyJoy(); });
@@ -591,7 +631,7 @@ setTimeout(finish,10000);tick();})();</script>
     if (rc > 0) { const f = at(0, 0); ctx.fillStyle = `rgba(220,220,215,${0.25 * rc})`; ctx.beginPath(); ctx.arc(f.x - 6, f.y - 18 - (1 - rc) * 20, 10 + (1 - rc) * 22, 0, Math.PI * 2); ctx.fill(); } // smoke
   }
   function drawSight() {
-    const live = G.phase === 'flight', g = G.press ? G.gv : 0;
+    const live = G.phase === 'flight' || (G.phase === 'mpwait' && G.press && G.press.live), g = G.press ? G.gv : 0;
     const r = Math.tan(patR(live && G.press ? g : 1)) * F;
     ctx.strokeStyle = live ? (g >= 0.97 ? 'rgba(79,216,138,.95)' : 'rgba(255,255,255,.85)') : 'rgba(255,255,255,.45)';
     ctx.lineWidth = live && g >= 0.97 ? 2.5 : 1.8;
@@ -607,7 +647,7 @@ setTimeout(finish,10000);tick();})();</script>
       ctx.fillStyle = 'rgba(255,187,74,.55)'; ctx.beginPath(); ctx.arc(pr.lx, pr.ly, 16, 0, Math.PI * 2); ctx.fill();
     }
     // FIRE button fills from the bottom as you mount the gun
-    const b = btnC(), v = G.press && G.press.live ? G.gv : 0, live = G.phase === 'ready' || G.phase === 'flight';
+    const b = btnC(), v = G.press && G.press.live ? G.gv : 0, live = G.mp && G.mp.started ? canShoot() : G.phase === 'ready' || G.phase === 'flight';
     ctx.save(); ctx.beginPath(); ctx.arc(b.x, b.y, BTN_R, 0, Math.PI * 2); ctx.clip();
     ctx.fillStyle = 'rgba(36,52,84,.75)'; ctx.fillRect(b.x - BTN_R, b.y - BTN_R, BTN_R * 2, BTN_R * 2);
     if (v > 0) {
@@ -622,7 +662,7 @@ setTimeout(finish,10000);tick();})();</script>
     ctx.beginPath(); ctx.arc(b.x, b.y, BTN_R, 0, Math.PI * 2); ctx.stroke(); ctx.shadowBlur = 0;
     ctx.fillStyle = v > 0.55 ? '#1a1205' : live ? '#ffbb4a' : 'rgba(255,187,74,.5)'; ctx.textAlign = 'center';
     ctx.font = '800 20px "Saira Condensed", sans-serif';
-    ctx.fillText(full ? 'FULL' : v > 0 ? String(Math.round(v * 100)) : (G.phase === 'ready' ? 'PULL' : 'FIRE'), b.x, b.y + 7);
+    ctx.fillText(full ? 'FULL' : v > 0 ? String(Math.round(v * 100)) : (G.phase === 'ready' ? 'PULL' : G.phase === 'mpwait' && G.mp ? mpCount() : 'FIRE'), b.x, b.y + 7);
   }
   function draw() {
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
@@ -652,6 +692,8 @@ setTimeout(finish,10000);tick();})();</script>
   function banner(html) { $('banner').innerHTML = html ? `<span>${html}</span>` : ''; }
   function renderHud() {
     $('nmMe').innerHTML = ''; $('nmMe').append(S.player.name + ' '); const sm = document.createElement('small'); sm.textContent = '#' + S.player.num; $('nmMe').append(sm);
+    if (G.mp && G.mp.started) { mpHud(); return; }
+    $('rd').firstChild.textContent = 'ROUND '; $('rdOf').textContent = '/6';
     if (!Gm) return;
     $('rdNum').textContent = String(Math.min(ROUNDS_N, Gm.round + 1));
     $('tot').innerHTML = `${total()}<small>/${PER_ROUND * ROUNDS_N}</small>`;
@@ -677,7 +719,7 @@ setTimeout(finish,10000);tick();})();</script>
   }
 
   function setSeg(id, val) { document.querySelectorAll(`#${id} [data-v]`).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === String(val)))); }
-  function renderStart() { setSeg('lvSeg', S.lv); $('soundBtn').textContent = 'Sound: ' + (S.sound ? 'on' : 'off'); renderHud(); }
+  function renderStart() { setSeg('lvSeg', S.lv); setSeg('mpLenSeg', S.mpLen); $('soundBtn').textContent = 'Sound: ' + (S.sound ? 'on' : 'off'); renderHud(); }
   $('lvSeg').addEventListener('click', (e) => { const v = e.target.closest('[data-v]')?.dataset.v; if (v) { S.lv = Number(v); persist(); renderStart(); } });
   $('soundBtn').addEventListener('click', () => { S.sound = !S.sound; persist(); renderStart(); });
   { const nm = $('nameP'), nu = $('numP'); nm.value = S.player.name; nu.value = S.player.num;
@@ -747,12 +789,12 @@ setTimeout(finish,10000);tick();})();</script>
     for (const [k, v, key] of items) { const d = document.createElement('div'); d.className = 'stat' + (key ? ' key' : ''); const a = document.createElement('span'); a.textContent = k; const b = document.createElement('b'); b.textContent = v; d.append(a, b); el.append(d); }
   }
   $('endBack').addEventListener('click', () => { $('endOv').hidden = true; toMenu(); });
-  function toMenu() { G.phase = 'menu'; G.paused = false; G.press = null; G.clay = null; banner(''); ['menuOv', 'statsOv', 'roundOv'].forEach((i) => ($(i).hidden = true)); $('startOv').hidden = false; renderStart(); }
+  function toMenu() { G.mp = null; G.phase = 'menu'; G.paused = false; G.press = null; G.clay = null; banner(''); ['menuOv', 'statsOv', 'roundOv'].forEach((i) => ($(i).hidden = true)); $('startOv').hidden = false; renderStart(); }
 
   let statsFrom = 'startOv';
   function openStats(from) {
     statsFrom = from; const s = save.stats;
-    fillStats($('statBody'), [['Games', s.games], ['Best', s.best ? `${s.best}/90` : '-', 1], ['Hit %', s.targets ? Math.round(s.hits / s.targets * 100) + '%' : '-'], ['Clays hit', s.hits], ['Smoked', s.smashes], ['Best round', s.bestRound ? `${s.bestRound}/15` : '-'], ['Straight 15s', s.straights]]);
+    fillStats($('statBody'), [['Games', s.games], ['Best', s.best ? `${s.best}/90` : '-', 1], ['Hit %', s.targets ? Math.round(s.hits / s.targets * 100) + '%' : '-'], ['Clays hit', s.hits], ['Smoked', s.smashes], ['Best round', s.bestRound ? `${s.bestRound}/15` : '-'], ['Straight 15s', s.straights], ['Friend games', s.mpGames || 0], ['Friend wins', s.mpWins || 0]]);
     $('statsOv').hidden = false;
     const ra = $('resetArea'); ra.textContent = '';
     const r = document.createElement('button'); r.className = 'ghost'; r.textContent = 'Reset stats'; r.style.width = '100%';
@@ -766,16 +808,265 @@ setTimeout(finish,10000);tick();})();</script>
     if (ov.id === 'menuOv') { G.paused = false; last = performance.now(); }
   }));
   // a clay in the air when you pause is replayed, so leaving never costs a target
-  function pauseNow() { G.paused = true; G.press = null; G.joy = null; if (G.phase === 'flight') { G.clay = null; G.wait = null; G.phase = 'result'; G.nextAt = 0; } }
+  function pauseNow() { if (G.mp && G.mp.started) { G.press = null; return; } G.paused = true; G.press = null; G.joy = null; if (G.phase === 'flight') { G.clay = null; G.wait = null; G.phase = 'result'; G.nextAt = 0; } }
   $('menuBtn').addEventListener('click', () => { if (G.phase === 'menu') return; pauseNow(); $('menuOv').hidden = false; });
   $('menuResume').addEventListener('click', () => { $('menuOv').hidden = true; G.paused = false; last = performance.now(); });
-  $('menuClay').addEventListener('click', () => { persistGame(); toMenu(); });
-  $('menuSite').addEventListener('click', () => { persistGame(); location.href = '../'; });
-  document.addEventListener('visibilitychange', () => { if (document.hidden && G.phase !== 'menu' && !G.paused) { pauseNow(); $('menuOv').hidden = false; } });
+  const leaveFriend = () => { if (G.mp && G.mp.started) { mpSend({ t: 'quit' }); const m = G.mp; G.mp = null; setTimeout(() => { G.mp = m; mpLeave(); }, 600); } };
+  $('menuClay').addEventListener('click', () => { leaveFriend(); persistGame(); toMenu(); });
+  $('menuSite').addEventListener('click', () => { leaveFriend(); persistGame(); setTimeout(() => { location.href = '../'; }, G.mp ? 700 : 0); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && G.phase !== 'menu' && !G.paused && !G.mp) { pauseNow(); $('menuOv').hidden = false; } });
+
+  // ---------------- Friend game (room code) ----------------
+  // Same rooms as the baseball game. The room creator (host) throws every clay:
+  // its flight and a launch time on the server clock go out in the host's presence,
+  // so both phones fly the same clay at the same moment. Each phone judges its own
+  // shot and sends when its shot reached the clay; the host gives the point to the
+  // earlier hit and keeps the running log ('h' host, 'g' guest, '-' nobody).
+  let roomApi = null, roomApiTried = false;
+  async function getRoomApi() {
+    if (roomApi || roomApiTried) return roomApi;
+    roomApiTried = true;
+    try {
+      if (location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') roomApi = mockRoom();
+      else if (window.FIREBASE_CONFIG && (window.firebase || window.ndLoadFirebase)) {
+        if (!window.firebase) await window.ndLoadFirebase();
+        roomApi = firebaseRoom();
+      }
+    } catch (e) { roomApi = null; }
+    if (!roomApi) roomApiTried = false;
+    return roomApi;
+  }
+  function firebaseRoom() { // rooms/<name>/peers/<peerId>, see database.rules.json
+    if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+    const db = firebase.database();
+    const me = db.ref().push().key;
+    let off = 0; db.ref('.info/serverTimeOffset').on('value', (v) => { off = Number(v.val()) || 0; });
+    return {
+      now: () => Date.now() + off,
+      join: async (name) => {
+        const base = db.ref('rooms/' + name + '/peers'), mineRef = base.child(me);
+        let mine = {}, list = [], prev = new Map(), live = false;
+        const hs = [];
+        await mineRef.onDisconnect().remove();
+        await mineRef.set({ p: JSON.stringify(mine), t: firebase.database.ServerValue.TIMESTAMP });
+        const conRef = db.ref('.info/connected');
+        const onCon = conRef.on('value', (v) => { live = !!v.val(); if (live) { mineRef.onDisconnect().remove(); mineRef.set({ p: JSON.stringify(mine), t: firebase.database.ServerValue.TIMESTAMP }); } });
+        const onVal = base.on('value', (snap) => {
+          const val = snap.val() || {}, next = new Map();
+          for (const id in val) { let pr = {}; try { pr = JSON.parse(val[id].p || '{}'); } catch (e) { pr = {}; } next.set(id, { peer: id, isMe: id === me, presence: pr }); }
+          const left = [...prev.values()].filter((p) => !next.has(p.peer));
+          prev = next; list = [...next.values()];
+          hs.forEach((h) => h({ peers: list, left }));
+        });
+        return {
+          presence: async (patch) => { mine = { ...mine, ...patch }; await mineRef.set({ p: JSON.stringify(mine), t: firebase.database.ServerValue.TIMESTAMP }); },
+          onPeers: (h) => { hs.push(h); if (list.length) setTimeout(() => h({ peers: list, left: [] }), 0); return () => { const i = hs.indexOf(h); if (i >= 0) hs.splice(i, 1); }; },
+          leave: async () => { base.off('value', onVal); conRef.off('value', onCon); hs.length = 0; await mineRef.remove(); },
+        };
+      },
+    };
+  }
+  function mockRoom() { // local testing only: tabs of one browser talk over BroadcastChannel
+    const me = Math.random().toString(36).slice(2, 10);
+    return {
+      now: () => Date.now(),
+      join: async (name) => {
+        const bc = new BroadcastChannel('mock-' + name); let mine = {}; const others = new Map(); const hs = [];
+        const snap = () => [{ peer: me, isMe: true, presence: mine }, ...[...others].map(([peer, v]) => ({ peer, isMe: false, presence: v }))];
+        const fire = (left = []) => { const peers = snap(); hs.forEach((h) => h({ peers, left })); };
+        bc.onmessage = (e) => {
+          const d = e.data;
+          if (d.type === 'bye') { if (others.delete(d.peer)) fire([{ peer: d.peer }]); return; }
+          others.set(d.peer, d.presence);
+          if (d.type === 'hello') bc.postMessage({ type: 'state', peer: me, presence: mine });
+          fire();
+        };
+        bc.postMessage({ type: 'hello', peer: me, presence: mine });
+        window.addEventListener('beforeunload', () => bc.postMessage({ type: 'bye', peer: me }));
+        return {
+          presence: async (patch) => { mine = { ...mine, ...patch }; bc.postMessage({ type: 'state', peer: me, presence: mine }); fire(); },
+          onPeers: (h) => { hs.push(h); setTimeout(() => h({ peers: snap(), left: [] }), 0); return () => {}; },
+          leave: async () => { bc.postMessage({ type: 'bye', peer: me }); bc.close(); hs.length = 0; },
+        };
+      },
+    };
+  }
+  const elt = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  function mpStatus(nodes) { const el = $('mpStatus'); el.textContent = ''; el.hidden = !nodes; if (nodes) nodes.forEach((n) => el.append(n)); }
+  function cancelBtn() { const b = elt('button', '', 'Cancel'); b.addEventListener('click', () => { mpLeave(); mpStatus(null); }); return b; }
+  const r3 = (v) => Math.round(Number(v) * 1000) / 1000;
+  const fin = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
+  const KINDS = ['trapS', 'trapW', 'high', 'low', 'driven'];
+
+  async function mpOpen(code, host) {
+    mpLeave();
+    const api = await getRoomApi();
+    if (!api) { mpStatus([elt('div', '', 'Friend games are not available here. Check your internet connection and reload.')]); return; }
+    let room;
+    try { room = await api.join(`nd-${code}`); } catch (e) { mpStatus([elt('div', '', 'Could not open the room. Check your connection and try again.')]); return; }
+    G.mp = { code, room, host, now: api.now, oppPeer: null, started: false, len: S.mpLen, lv: S.lv, log: '', n: -1, spec: null, shots: {}, shotN: -1, out: null, leftTimer: null, opp: { name: 'FRIEND', num: '' } };
+    G.mp.unsub = room.onPeers(mpPeers);
+    mpPresence();
+  }
+  function mpPresence() {
+    const m = G.mp; if (!m) return;
+    m.room.presence({ app: 'clay', v: 1, host: m.host, pl: S.player, len: m.len, lv: m.lv, msg: m.out }).catch(() => {});
+  }
+  function mpSend(msg) { const m = G.mp; if (!m) return; m.out = msg; mpPresence(); }
+  function mpPeers(change) {
+    const m = G.mp; if (!m) return;
+    const others = change.peers.filter((p) => !p.isMe && p.presence && p.presence.app === 'clay');
+    if (!m.oppPeer) { const c = others.find((p) => !!p.presence.host !== m.host); if (!c) return; m.oppPeer = c.peer; }
+    const opp = others.find((p) => p.peer === m.oppPeer);
+    if (!opp) { if (!m.leftTimer) m.leftTimer = setTimeout(() => mpGone('Your friend left the room.'), 4000); return; }
+    clearTimeout(m.leftTimer); m.leftTimer = null;
+    const pr = opp.presence, pl = pr.pl;
+    m.opp = { name: cleanName(pl && pl.name, 'FRIEND'), num: cleanNum(pl && pl.num, '') };
+    if (!m.host) { m.len = [15, 45, 90].includes(pr.len) ? pr.len : 15; m.lv = [0, 1, 2].includes(pr.lv) ? pr.lv : 1; }
+    if (!m.started) mpStart();
+    const msg = pr.msg;
+    if (!msg || typeof msg !== 'object') return;
+    if (msg.t === 'quit') { mpEnd('Your friend left the game.'); return; }
+    if (m.host && msg.t === 'shot' && (msg.n | 0) === m.n && m.shots[m.n] && !m.shots[m.n].g) m.shots[m.n].g = { hit: !!msg.hit, sm: !!msg.sm, ts: fin(msg.ts, 9e15) };
+    if (!m.host && msg.t === 'clay') mpTake(msg);
+  }
+  function mpStart() {
+    const m = G.mp; m.started = true;
+    if (m.host && window.ndTrack) ndTrack('multi');
+    Gm = null; $('startOv').hidden = true; mpStatus(null);
+    G.paused = false; G.fx = []; G.shot = null; G.clay = null; G.press = null; G.joy = null; G.phase = 'mpdone';
+    G.yaw = 0; G.pitch = 0.12;
+    toast('VS ' + m.opp.name, `${m.len} clays · first to break each one scores`, '#ffbb4a', 1600);
+    renderHud();
+    if (m.host) mpNext(3200);
+  }
+  // host: throw the next clay
+  function mpNext(delay) {
+    const m = G.mp; if (!m || !m.host) return;
+    const n = m.log.length; if (n >= m.len) return;
+    const R = ROUNDS[Math.min(ROUNDS_N - 1, Math.floor(n * ROUNDS_N / m.len))], kind = R.kinds[Math.floor(Math.random() * R.kinds.length)];
+    const svLv = S.lv; S.lv = m.lv; const c = launch(kind, R.fast); S.lv = svLv;
+    const f = cloneClay(c); let life = 0; while (!lost(f) && life < 7) { stepClay(f, 0.05); life += 0.05; }
+    m.shots[n] = { h: null, g: null };
+    const msg = { t: 'clay', n, k: kind, p: [r3(c.p.x), r3(c.p.y), r3(c.p.z)], v: [r3(c.v.x), r3(c.v.y), r3(c.v.z)], at: Math.round(m.now() + delay), life: r3(life), log: m.log };
+    mpSend(msg); mpTake(msg);
+  }
+  // both phones: a new clay, or a new point in the log
+  function mpTake(msg) {
+    const m = G.mp; if (!m || !m.started) return;
+    const log = String(msg.log || '').replace(/[^hg-]/g, '').slice(0, m.len);
+    if (log.length > m.log.length) {
+      m.log = log; const w = log[log.length - 1], mine = m.host ? 'h' : 'g';
+      const c = G.clay;
+      if (w === mine) { if (c && c.alive) { c.alive = false; breakFx(c.p, false); crack(); } toast('YOUR POINT', 'You broke it first', '#4fd88a', 1100); }
+      else if (w === '-') toast('NO POINT', 'Nobody broke it', '#f1ecdc', 1000);
+      else { if (c && c.alive) { c.alive = false; breakFx(c.p, false); crack(); } toast(m.opp.name + ' SCORES', 'Your friend broke it first', '#5aa9ff', 1100); }
+      if (G.phase === 'mpwait' || G.phase === 'flight') { G.press = null; G.phase = 'mpdone'; }
+      renderHud();
+      if (m.log.length >= m.len) { setTimeout(() => mpEnd(), 1400); return; }
+    }
+    const n = msg.n | 0;
+    if (msg.t === 'clay' && n > m.n && n === m.log.length && KINDS.includes(msg.k) && Array.isArray(msg.p) && Array.isArray(msg.v)) {
+      m.n = n; m.spec = { k: msg.k, p: { x: fin(msg.p[0]), y: fin(msg.p[1]), z: fin(msg.p[2]) }, v: { x: fin(msg.v[0]), y: fin(msg.v[1]), z: fin(msg.v[2]) }, at: fin(msg.at), life: clamp(fin(msg.life, 5), 0.5, 7) };
+      G.clay = null; G.shot = null; G.phase = 'mpwait'; G.holdTo = HOLD_OF[msg.k];
+      banner(`Clay ${n + 1} of ${m.len} · hold to get ready`);
+      renderHud();
+    }
+  }
+  function mpShot(s) {
+    const m = G.mp; if (!m) return;
+    m.shotN = m.n;
+    if (m.host) { if (m.shots[m.n] && !m.shots[m.n].h) m.shots[m.n].h = s; }
+    else mpSend({ t: 'shot', n: m.n, hit: s.hit, sm: s.sm, ts: Math.round(s.ts) });
+  }
+  const mpCount = () => { const m = G.mp, s = m && m.spec; if (!s) return 'FIRE'; const left = Math.ceil((s.at - m.now()) / 1000); return left > 0 ? String(left) : 'FIRE'; };
+  function mpUpdate(dt) {
+    const m = G.mp, s = m.spec;
+    if (s && !G.clay && m.now() >= s.at && (G.phase === 'mpwait' || G.phase === 'mpdone') && m.log.length === m.n) {
+      G.clay = { kind: s.k, p: { ...s.p }, v: { ...s.v }, t: 0, spin: rnd(0, 6), alive: true };
+      const late = (m.now() - s.at) / 1000; if (late > 0) stepClay(G.clay, Math.min(0.6, late)); // catch up if this phone heard late
+      thrower(); banner('');
+      if (G.phase === 'mpwait') { G.phase = 'flight'; say('PULL!'); }
+    }
+    const c = G.clay;
+    if (c && c.alive) {
+      stepClay(c, dt);
+      if (lost(c)) { c.alive = false; if (G.phase === 'flight') { G.press = null; G.phase = 'mpdone'; mpShot({ hit: false, sm: false, ts: m.now() }); } }
+    }
+    if (m.host) mpJudge();
+  }
+  // host: give the point once both shots are in, or once nobody can beat the first hit
+  function mpJudge() {
+    const m = G.mp, s = m.spec, n = m.n; if (!s || m.log.length !== n || !m.shots[n]) return;
+    const sh = m.shots[n], now = m.now(), hits = [['h', sh.h], ['g', sh.g]].filter((x) => x[1] && x[1].hit).sort((a, b) => a[1].ts - b[1].ts);
+    const done = (sh.h && sh.g) || (hits.length && now > hits[0][1].ts + 1200) || now > s.at + s.life * 1000 + 1500;
+    if (!done) return;
+    const w = hits.length ? hits[0][0] : '-';
+    const msg = { t: 'clay', n, log: m.log + w };
+    mpSend(msg); mpTake(msg);
+    if (m.log.length < m.len) setTimeout(() => mpNext(2400), 900);
+  }
+  function mpHud() {
+    const m = G.mp, mine = m.host ? 'h' : 'g', me = [...m.log].filter((x) => x === mine).length, op = [...m.log].filter((x) => x !== mine && x !== '-').length;
+    $('rd').firstChild.textContent = 'CLAY '; $('rdNum').textContent = String(Math.min(m.len, m.log.length + 1)); $('rdOf').textContent = '/' + m.len;
+    $('tot').innerHTML = `${me}<small> - </small><span class="vs">${op}</span>`;
+    const base = Math.floor(Math.min(m.log.length, m.len - 1) / PER_ROUND) * PER_ROUND, dots = $('dots'); dots.textContent = '';
+    for (let i = 0; i < PER_ROUND; i++) { const d = document.createElement('i'), x = m.log[base + i]; if (x) d.className = x === mine ? 'hit' : x === '-' ? 'miss' : 'opp'; else if (base + i === m.log.length) d.className = 'now'; dots.append(d); }
+    const R = ROUNDS[Math.min(ROUNDS_N - 1, Math.floor(m.log.length * ROUNDS_N / m.len))];
+    $('rname').textContent = `vs ${m.opp.name}${m.opp.num ? ' #' + m.opp.num : ''} · ${R.name}`;
+  }
+  function mpEnd(reason) {
+    const m = G.mp; if (!m || !m.started) return;
+    const mine = m.host ? 'h' : 'g', me = [...m.log].filter((x) => x === mine).length, op = [...m.log].filter((x) => x !== mine && x !== '-').length;
+    const quit = !!reason, win = quit || me > op, draw = !quit && me === op;
+    const st = save.stats; st.mpGames = (st.mpGames || 0) + 1; if (win && !draw) st.mpWins = (st.mpWins || 0) + 1; persist();
+    G.phase = 'menu'; G.press = null; G.clay = null; banner('');
+    mpLeave(); G.mp = null;
+    $('endTitle').innerHTML = draw ? 'ALL<br><em>SQUARE</em>' : win ? 'YOU<br><em>WIN!</em>' : `${m.opp.name}<br><em>WINS</em>`;
+    $('endSub').textContent = reason || (draw ? 'Same score. Go again to settle it.' : win ? 'You beat your friend to more clays.' : 'Your friend was quicker on the trigger.');
+    $('endScore').textContent = `${S.player.name} ${me} - ${op} ${m.opp.name}`;
+    $('endList').textContent = '';
+    fillStats($('endStats'), [['Clays', m.log.length], ['Nobody', [...m.log].filter((x) => x === '-').length], ['Friend wins', st.mpWins]]);
+    $('endOv').hidden = false;
+  }
+  function mpGone(text) {
+    const m = G.mp; if (!m) return;
+    if (m.started) { mpEnd('Your friend left the game.'); return; }
+    mpLeave(); mpStatus([elt('div', '', text)]);
+  }
+  function mpLeave() {
+    const m = G.mp; if (!m) return;
+    G.mp = null; clearTimeout(m.leftTimer);
+    try { m.unsub && m.unsub(); } catch (e) { /* ignore */ }
+    m.room.leave().catch(() => {});
+  }
+  $('mpLenSeg').addEventListener('click', (e) => { const v = e.target.closest('[data-v]')?.dataset.v; if (v) { S.mpLen = Number(v); persist(); renderStart(); } });
+  $('mpCreate').addEventListener('click', async () => {
+    audio(); $('mpJoinRow').hidden = true;
+    const code = String(Math.floor(1000 + Math.random() * 9000));
+    mpStatus([elt('div', '', 'Opening a room…')]);
+    await mpOpen(code, true);
+    if (!G.mp) return;
+    mpStatus([elt('div', '', `${S.mpLen} clays on ${LV_NAME[S.lv]}. Ask your friend to tap Join with code and enter:`), elt('div', 'code', code), elt('div', '', 'Waiting for your friend…'), cancelBtn()]);
+  });
+  $('mpJoinShow').addEventListener('click', () => { $('mpJoinRow').hidden = false; mpStatus(null); $('mpCode').focus(); });
+  $('mpCode').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4); });
+  async function joinByCode() {
+    audio();
+    const code = $('mpCode').value.trim();
+    if (!/^\d{4}$/.test(code)) { mpStatus([elt('div', '', 'Enter the 4-digit code from your friend’s screen.')]); return; }
+    mpStatus([elt('div', '', `Joining room ${code}…`)]);
+    await mpOpen(code, false);
+    if (!G.mp) return;
+    mpStatus([elt('div', '', `In room ${code}. Waiting for the room creator…`), elt('div', '', 'If nothing happens, check the code with your friend.'), cancelBtn()]);
+  }
+  $('mpJoin').addEventListener('click', joinByCode);
+  $('mpCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') joinByCode(); });
+  window.addEventListener('pagehide', () => mpLeave());
 
   renderStart(); resize(); requestAnimationFrame(frame);
   // test hook
-  window.__clay = { G, get Gm() { return Gm; }, S, P, aimDir, launch, stepClay, cloneClay, fire, LV, ROUNDS, total };
+  window.__clay = { G, get Gm() { return Gm; }, mpTake, fireNow: () => { G.press = { t0: performance.now() - 800, id: 'bot', live: true, x0: 0, y0: 0, lx: 0, ly: 0 }; release({ pointerId: 'bot' }); }, S, P, aimDir, launch, stepClay, cloneClay, fire, LV, ROUNDS, total };
 })();
 </script>
 </body>
