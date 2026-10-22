@@ -240,7 +240,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   const G = {
     T: 0, phase: 'menu', paused: false,
     me: { x: 0.8, z: -0.4, tx: 0.8, tz: -0.4, side: 1, swingT: -9 },
-    cpu: { x: -0.8, z: LEN + 0.4, tx: -0.8, tz: LEN + 0.4, side: 1, swingT: -9 },
+    cpu: { x: -0.8, z: LEN + 0.4, tx: -0.8, tz: LEN + 0.4, side: -1, swingT: -9 },
     ball: null, shot: null, press: null, toss: null, swung: false, pendingHit: null, overAt: 0, nextAt: 0, cpuServeAt: 0, lastHitter: null, ring: true,
   };
 
@@ -400,7 +400,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       me.x = me.tx = deuce ? 2.3 : -2.3; me.z = me.tz = -1.0;
       G.phase = 'cpuServe'; G.cpuServeAt = performance.now() + 1300; banner((M.serveNo === 2 ? 'Second serve. ' : 'CPU to serve. ') + 'Left: move. Right: hold, let go as the ball reaches your circle');
     }
-    me.side = S.hand === 'R' ? 1 : -1; cpu.side = 1;
+    me.side = S.hand === 'R' ? 1 : -1; cpu.side = -1;
     $('speed').textContent = '';
     renderHud();
   }
@@ -445,7 +445,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
   // ---------------- Rally ----------------
   function racketSideFor(pl, cx, facing) { // +1: racket on +x side of the body
-    const fh = pl === G.me ? (S.hand === 'R' ? 1 : -1) : 1;
+    const fh = pl === G.me ? (S.hand === 'R' ? 1 : -1) : -1; // the CPU is right-handed and faces you, so its forehand is on your left
     const rel = (cx - pl.x) * 1; // world x offset
     if (Math.abs(rel) < 0.35) return fh;
     return rel > 0 ? 1 : -1;
@@ -692,25 +692,151 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     const a = P(x1, 0, z1), b = P(x2, 0, z2);
     ctx.lineWidth = Math.max(1, w * (a.s + b.s) / 2); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
   }
+  // ---- crowd: tiered rows of fans, drawn once per screen size ----
+  let crowdKey = '', crowdCv = null;
+  function seeded(n) { let x = n >>> 0; return () => { x = (x * 1664525 + 1013904223) >>> 0; return x / 4294967296; }; }
+  function crowdImage(h) {
+    const key = W + 'x' + h + '@' + DPR; if (key === crowdKey) return crowdCv;
+    crowdKey = key; crowdCv = document.createElement('canvas');
+    crowdCv.width = Math.max(1, Math.round(W * DPR)); crowdCv.height = Math.max(1, Math.round(h * DPR));
+    const c = crowdCv.getContext('2d'); c.scale(DPR, DPR);
+    const rnd = seeded(7);
+    const skins = ['#f1c9a5', '#e0ac85', '#c68863', '#9a6646', '#6d4630', '#f6d6bd'];
+    const hairs = ['#1d1612', '#3a2618', '#6b4a2b', '#b8894f', '#2b2b2b', '#8a8a8a'];
+    const shirts = ['#d94b4b', '#3b6fc4', '#f2f2f2', '#2f9e6b', '#f2c14e', '#1f2a44', '#8e5bc4', '#e57a3a', '#4fb3d9', '#c2c2c2', '#262626', '#b33a6b'];
+    c.fillStyle = '#0f1828'; c.fillRect(0, 0, W, h);
+    const aisles = [W * 0.25, W * 0.5, W * 0.75];
+    let y = h, sz = Math.max(9, Math.min(15, h / 9)), row = 0;
+    while (y > -sz) {
+      const rh = sz * 1.15, top = y - rh;
+      c.fillStyle = row % 2 ? '#1a2335' : '#1d283c'; c.fillRect(0, top, W, rh); // seat riser
+      c.fillStyle = 'rgba(0,0,0,.35)'; c.fillRect(0, y - 2, W, 2);
+      const gap = sz * 0.95;
+      for (let x = (row % 2) * gap * 0.5 + gap * 0.5; x < W; x += gap) {
+        if (aisles.some((a) => Math.abs(x - a) < sz * 0.7)) continue;
+        const px = x + (rnd() - 0.5) * sz * 0.2, base = y - 2;
+        if (rnd() < 0.07) { c.fillStyle = '#2b3550'; c.fillRect(px - sz * 0.32, base - sz * 0.5, sz * 0.64, sz * 0.5); continue; } // empty seat
+        const shirt = shirts[Math.floor(rnd() * shirts.length)], skin = skins[Math.floor(rnd() * skins.length)];
+        const up = rnd() < 0.06; // a fan on their feet
+        const bh = sz * (up ? 1.0 : 0.72), hw = sz * 0.36;
+        c.fillStyle = shirt; c.beginPath(); c.moveTo(px - hw, base); c.lineTo(px - hw * 0.9, base - bh + hw * 0.5); c.quadraticCurveTo(px, base - bh - hw * 0.15, px + hw * 0.9, base - bh + hw * 0.5); c.lineTo(px + hw, base); c.closePath(); c.fill();
+        if (up && rnd() < 0.6) { c.strokeStyle = skin; c.lineWidth = Math.max(1.2, sz * 0.12); c.beginPath(); c.moveTo(px - hw * 0.8, base - bh + hw * 0.6); c.lineTo(px - hw * 1.2, base - bh - sz * 0.45); c.moveTo(px + hw * 0.8, base - bh + hw * 0.6); c.lineTo(px + hw * 1.2, base - bh - sz * 0.45); c.stroke(); }
+        const hr = sz * 0.2, hy = base - bh - hr * 0.6;
+        c.fillStyle = skin; c.beginPath(); c.arc(px, hy, hr, 0, Math.PI * 2); c.fill();
+        const k = rnd();
+        if (k < 0.12) { c.fillStyle = shirts[Math.floor(rnd() * shirts.length)]; c.beginPath(); c.arc(px, hy - hr * 0.2, hr * 1.05, Math.PI, 0); c.fill(); c.fillRect(px - hr * 1.5, hy - hr * 0.25, hr * 1.5, hr * 0.3); } // cap
+        else if (k < 0.9) { c.fillStyle = hairs[Math.floor(rnd() * hairs.length)]; c.beginPath(); c.arc(px, hy - hr * 0.15, hr * 1.02, Math.PI * 1.05, Math.PI * 1.95); c.fill(); }
+      }
+      y = top; sz *= 0.92; row++;
+      if (sz < 3) break;
+    }
+    for (const a of aisles) { const g = c.createLinearGradient(0, 0, 0, h); g.addColorStop(0, '#141c2c'); g.addColorStop(1, '#25304a'); c.fillStyle = g; c.fillRect(a - 3, 0, 6, h); }
+    // stadium lighting: brighter near the court, darker up high
+    const sh = c.createLinearGradient(0, 0, 0, h); sh.addColorStop(0, 'rgba(6,10,20,.7)'); sh.addColorStop(0.55, 'rgba(6,10,20,.25)'); sh.addColorStop(1, 'rgba(6,10,20,.08)');
+    c.fillStyle = sh; c.fillRect(0, 0, W, h);
+    c.fillStyle = '#0c1220'; c.fillRect(0, h - 3, W, 3); // railing
+    return crowdCv;
+  }
+  function drawBoards(w1, w2, w3, w4) {
+    const y0 = w4.y, y1 = w1.y; if (y1 - y0 < 6) return;
+    const g = ctx.createLinearGradient(0, y0, 0, y1); g.addColorStop(0, '#173a2c'); g.addColorStop(1, '#0f2a20');
+    ctx.fillStyle = g; ctx.fillRect(0, y0, W, y1 - y0);
+    ctx.fillStyle = 'rgba(255,255,255,.08)'; ctx.fillRect(0, y0, W, 1.5);
+    ctx.save(); ctx.beginPath(); ctx.rect(0, y0, W, y1 - y0); ctx.clip();
+    ctx.font = `800 ${Math.max(8, Math.round((y1 - y0) * 0.5))}px "Saira Condensed", sans-serif`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    const words = ['BREAK POINT TENNIS', 'WEPLAYSPORTSGAMES.COM'], step = W / 2;
+    for (let i = 0; i < 3; i++) { ctx.fillStyle = i % 2 ? 'rgba(255,187,74,.85)' : 'rgba(241,236,220,.85)'; ctx.fillText(words[i % 2], step * i, (y0 + y1) / 2 + 1); }
+    ctx.restore(); ctx.textBaseline = 'alphabetic';
+  }
+  // ---- people on court: the CPU player, the umpire, ball kids ----
+  // pose: 'stand' | 'kneel' | 'sit'; scale makes far figures readable on a phone
+  function drawPerson(x, z, o) {
+    const f = P(x, o.baseY || 0, z), s = f.s * (o.scale || 1);
+    const fx = f.x, fy = f.y;
+    if (!o.baseY) { ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(fx, fy, 0.38 * s, 0.12 * s, 0, 0, Math.PI * 2); ctx.fill(); }
+    const kneel = o.pose === 'kneel', sit = o.pose === 'sit';
+    const hip = kneel ? 0.5 : sit ? 0.05 : 0.9, sh = hip + (kneel || sit ? 0.58 : 0.6), bw = 0.4 * s;
+    ctx.lineCap = 'round';
+    if (!sit) {
+      ctx.strokeStyle = o.skin; ctx.lineWidth = Math.max(1.5, 0.12 * s);
+      const run = o.run ? Math.sin(G.T * 18) * 0.15 * s : 0;
+      ctx.beginPath();
+      if (kneel) { ctx.moveTo(fx - 0.1 * s, fy - hip * s); ctx.lineTo(fx - 0.15 * s, fy); ctx.lineTo(fx - 0.35 * s, fy); ctx.moveTo(fx + 0.1 * s, fy - hip * s); ctx.lineTo(fx + 0.22 * s, fy - 0.05 * s); }
+      else { ctx.moveTo(fx - 0.1 * s, fy - hip * s); ctx.lineTo(fx - 0.13 * s + run, fy); ctx.moveTo(fx + 0.1 * s, fy - hip * s); ctx.lineTo(fx + 0.13 * s - run, fy); }
+      ctx.stroke();
+      ctx.fillStyle = '#f4f4f4'; ctx.fillRect(fx - 0.17 * s + (kneel ? -0.2 * s : run), fy - 0.06 * s, 0.12 * s, 0.07 * s); ctx.fillRect(fx + 0.05 * s - run, fy - 0.06 * s, 0.12 * s, 0.07 * s); // shoes
+    }
+    ctx.fillStyle = o.shorts; ctx.fillRect(fx - bw / 2, fy - (hip + 0.08) * s, bw, 0.28 * s);
+    // arms (behind the body first if the racket is held behind)
+    const shY = fy - sh * s;
+    const arm = (side, hx, hy) => { ctx.strokeStyle = o.skin; ctx.lineWidth = Math.max(1.5, 0.09 * s); ctx.beginPath(); ctx.moveTo(fx + side * 0.18 * s, shY + 0.06 * s); ctx.lineTo(hx, hy); ctx.stroke(); };
+    let rk = null;
+    if (o.racket) {
+      const u = o.swing, side = o.racket; // u: -1 ready, 0..1 swinging
+      const a = u < 0 ? 0.9 : 0.9 - u * 2.6; // racket angle around the shoulder, screen space
+      const hx = fx + side * (0.25 + 0.45 * Math.cos(a)) * s, hy = shY + (0.35 - 0.3 * Math.sin(a)) * s;
+      rk = { hx, hy, tx: hx + side * Math.cos(a - 0.6) * 0.55 * s, ty: hy - Math.sin(a + 0.4) * 0.5 * s };
+    }
+    ctx.fillStyle = o.shirt; ctx.beginPath();
+    if (ctx.roundRect) ctx.roundRect(fx - bw / 2, shY, bw, (sh - hip) * s + 0.04 * s, 0.08 * s); else ctx.rect(fx - bw / 2, shY, bw, (sh - hip) * s);
+    ctx.fill();
+    if (o.trim) { ctx.fillStyle = o.trim; ctx.fillRect(fx - bw / 2, shY + 0.18 * s, bw, 0.05 * s); }
+    // free arm
+    if (sit) arm(-1, fx - 0.25 * s, shY + 0.35 * s), arm(1, fx + 0.25 * s, shY + 0.35 * s);
+    else if (kneel) arm(-1, fx - 0.22 * s, fy - 0.45 * s), arm(1, fx + 0.24 * s, fy - 0.42 * s);
+    else if (!o.racket) arm(-1, fx - 0.24 * s, fy - 0.85 * s), arm(1, fx + 0.24 * s, fy - 0.85 * s);
+    else arm(-o.racket, fx - o.racket * 0.3 * s, shY + 0.45 * s);
+    if (rk) {
+      arm(o.racket, rk.hx, rk.hy);
+      ctx.strokeStyle = '#222'; ctx.lineWidth = Math.max(1.2, 0.05 * s); ctx.beginPath(); ctx.moveTo(rk.hx, rk.hy); ctx.lineTo((rk.hx + rk.tx) / 2, (rk.hy + rk.ty) / 2); ctx.stroke();
+      ctx.fillStyle = 'rgba(255,255,255,.18)'; ctx.strokeStyle = '#4fd88a'; ctx.lineWidth = Math.max(1.2, 0.045 * s);
+      ctx.beginPath(); ctx.ellipse(rk.tx, rk.ty, 0.15 * s, 0.19 * s, Math.atan2(rk.ty - rk.hy, rk.tx - rk.hx) + Math.PI / 2, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    }
+    // head, hair or cap
+    const hr = 0.13 * s, hy = shY - 0.16 * s;
+    ctx.fillStyle = o.skin; ctx.beginPath(); ctx.arc(fx, hy, hr, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = o.hair; ctx.beginPath(); ctx.arc(fx, hy - hr * 0.15, hr * 1.05, Math.PI, 0); ctx.fill();
+    if (o.cap) { ctx.fillStyle = o.cap; ctx.fillRect(fx - hr * 1.1, hy - hr * 0.35, hr * 2.2, hr * 0.35); }
+  }
+  const UMP_X = -(DHW + 1.5);
+  function drawUmpire() {
+    const z = NET, x = UMP_X, sh = 1.9;
+    ctx.strokeStyle = '#3a4152'; ctx.lineCap = 'butt';
+    for (const [dx, dz] of [[-0.35, -0.35], [0.35, -0.35], [-0.35, 0.35], [0.35, 0.35]]) {
+      const a = P(x + dx, 0, z + dz), b = P(x + dx * 0.8, sh, z + dz * 0.8); ctx.lineWidth = Math.max(2, 0.07 * a.s); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+    }
+    ctx.lineWidth = 1.5; for (let h = 0.4; h < sh; h += 0.4) { const a = P(x + 0.35, h, z - 0.35), b = P(x + 0.35, h, z + 0.35); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); } // ladder rungs
+    const s1 = P(x - 0.4, sh, z - 0.4), s2 = P(x + 0.4, sh, z - 0.4), s3 = P(x + 0.4, sh, z + 0.4), s4 = P(x - 0.4, sh, z + 0.4);
+    quad(s1, s2, s3, s4, '#4a5368');
+    const b1 = P(x - 0.45, sh + 0.12, z - 0.45), b2 = P(x + 0.45, sh + 0.12, z - 0.45);
+    ctx.fillStyle = '#2d3445'; ctx.fillRect(Math.min(b1.x, b2.x), b1.y, Math.abs(b2.x - b1.x), Math.max(3, s1.y - b1.y + 2));
+    drawPerson(x, z, { baseY: sh, pose: 'sit', shirt: '#1f2f52', shorts: '#1f2f52', skin: '#e0ac85', hair: '#555', trim: '#ffbb4a', scale: 1.4 });
+  }
+  const KIDS = [
+    { x: DHW + 0.9, z: NET + 0.5 }, { x: -(DHW + 0.7), z: NET - 2.4 },
+    { x: -(DHW + 1.3), z: LEN + 3.4 }, { x: DHW + 1.3, z: LEN + 3.4 },
+    { x: -(DHW - 0.1), z: -1.2, near: true }, { x: DHW - 0.1, z: -1.2, near: true },
+  ];
+  const kid = (k) => drawPerson(k.x, k.z, { pose: 'kneel', shirt: '#6a3fa0', shorts: '#1b1b2a', skin: k.x > 0 ? '#c68863' : '#f1c9a5', hair: '#2a1d14', cap: '#6a3fa0', scale: k.near ? 0.85 : 1.4 });
+  function drawCpuPlayer() {
+    const pl = G.cpu, side = pl.side || -1, u = (G.T - pl.swingT) / 0.3;
+    drawPerson(pl.x - side * 0.8, pl.z, { shirt: '#e0483e', shorts: '#f1ecdc', skin: '#d9a77c', hair: '#1a1a1a', trim: '#ffffff', racket: side, swing: u >= 0 && u <= 1 ? u : -1, run: Math.hypot(pl.tx - pl.x, pl.tz - pl.z) > 0.05, scale: 1.5 });
+  }
   function drawCourt() {
     const sf = SURF[M ? M.surface : S.surface];
     const sky = ctx.createLinearGradient(0, 0, 0, H); sky.addColorStop(0, '#0b1424'); sky.addColorStop(1, '#070c16');
     ctx.fillStyle = sky; ctx.fillRect(0, 0, W, H);
     // stands and back wall
-    const w1 = P(-14, 0, LEN + 6.4), w2 = P(14, 0, LEN + 6.4), w3 = P(14, 2.6, LEN + 6.4), w4 = P(-14, 2.6, LEN + 6.4);
+    const w1 = P(-30, 0, LEN + 6.4), w2 = P(30, 0, LEN + 6.4), w3 = P(30, 2.6, LEN + 6.4), w4 = P(-30, 2.6, LEN + 6.4);
     quad(w1, w2, w3, w4, '#16233a');
-    // stands: rows of crowd under two banks of lights
-    ctx.fillStyle = '#132038'; ctx.fillRect(0, 0, W, w4.y);
-    const rows = Math.max(3, Math.floor(w4.y / 16));
-    for (let r = 0; r < rows; r++) {
-      const y = w4.y - (r + 1) * 16; ctx.fillStyle = r % 2 ? '#17263f' : '#1a2b47'; ctx.fillRect(0, y, W, 16);
-      for (let i = 0; i < W / 9; i++) { const k = (i * 7919 + r * 104729) % 97; if (k < 55) { ctx.fillStyle = ['#2a3a58', '#33476b', '#3d3550', '#4a3b3b', '#2f4a4a'][k % 5]; ctx.beginPath(); ctx.arc(i * 9 + (r % 2) * 4 + 4, y + 9, 3.2, 0, Math.PI * 2); ctx.fill(); } }
-    }
+    // stands: a pre-drawn crowd, then sponsor boards on the back wall
+    ctx.drawImage(crowdImage(Math.round(w4.y)), 0, 0, W, Math.round(w4.y));
+    drawBoards(w1, w2, w3, w4);
     for (const lx of [W * 0.16, W * 0.84]) {
       const gl = ctx.createRadialGradient(lx, 18, 0, lx, 18, 90); gl.addColorStop(0, 'rgba(255,216,144,.35)'); gl.addColorStop(1, 'rgba(255,216,144,0)');
       ctx.fillStyle = gl; ctx.fillRect(lx - 90, 0, 180, 110); ctx.fillStyle = '#fff6dc'; ctx.fillRect(lx - 22, 10, 44, 12);
     }
-    quad(P(-14, 0, -9), P(14, 0, -9), w2, w1, sf.out);
+    quad(P(-30, 0, -9), P(30, 0, -9), w2, w1, sf.out);
     quad(P(-DHW, 0, 0), P(DHW, 0, 0), P(DHW, 0, LEN), P(-DHW, 0, LEN), sf.court);
     if (M && M.surface === 'grass' || (!M && S.surface === 'grass')) {
       for (let i = -4; i < 14; i += 2) quad(P(-14, 0, -3 + i * 2.6), P(14, 0, -3 + i * 2.6), P(14, 0, Math.min(LEN + 6.4, -3 + (i + 1) * 2.6)), P(-14, 0, Math.min(LEN + 6.4, -3 + (i + 1) * 2.6)), 'rgba(255,255,255,.045)');
@@ -818,10 +944,18 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       // where the ball will bounce, and how far your racket reaches
       if (!sh.bounced) { const l = P(sh.land.x, 0, sh.land.z); ctx.strokeStyle = 'rgba(228,242,74,.8)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.ellipse(l.x, l.y, 0.35 * l.s, 0.14 * l.s, 0, 0, Math.PI * 2); ctx.stroke(); }
     }
-    drawPlayer(G.cpu, false);
     drawPlayer(G.me, true);
-    if (b && b.z >= NET) drawBall(G.T);
+    // back to front: far ball kids, the CPU, the ball on that side, umpire and net, then near ball kids
+    kid(KIDS[2]); kid(KIDS[3]);
+    const cpuBehindBall = b && b.z < G.cpu.z;
+    if (!cpuBehindBall && b && b.z >= NET) drawBall(G.T);
+    drawCpuPlayer();
+    if (cpuBehindBall && b.z >= NET) drawBall(G.T);
+    kid(KIDS[0]);
+    drawUmpire();
     drawNet();
+    kid(KIDS[1]);
+    kid(KIDS[4]); kid(KIDS[5]);
     if (b && b.z < NET) drawBall(G.T);
     // aim arrow while holding (slide right thumb before letting go)
     if (G.press) {
