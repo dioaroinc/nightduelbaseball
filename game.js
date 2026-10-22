@@ -1431,7 +1431,6 @@
       logs.slice(0, 12).forEach((l) => { const r = document.createElement('div'); const a = document.createElement('span'); a.textContent = `Inn ${l.inn}  ${l.txt}${l.sub ? ' · ' + l.sub : ''}`; const c = document.createElement('span'); c.textContent = `${l.cnt}`; r.append(a, c); lg.append(r); });
       body.append(h, lg);
     }
-    renderQuit(false);
     renderReset();
   }
   function renderReset(confirming) {
@@ -1471,7 +1470,7 @@
     if (prev) $(prev).hidden = false;
     else { if (!G.started) $('startOv').hidden = false; G.paused = false; }
   }
-  function closeAllOv() { while (ovStack.length) closeOv(); }
+  function closeAllOv() { while (ovStack.length) closeOv(); try { if (history.state && history.state.ov) history.replaceState({ ov: 0 }, ''); } catch (e) { /* ignore */ } } // closed without going back: reset the depth so the next back gesture matches
   function back() { if (history.state && history.state.ov && ovStack.length) history.back(); else closeOv(); }
   window.addEventListener('popstate', (e) => { const depth = (e.state && e.state.ov) || 0; while (ovStack.length > depth) closeOv(); });
   document.querySelectorAll('.backbtn').forEach((b) => b.addEventListener('click', back));
@@ -1771,24 +1770,30 @@
     box.scrollIntoView({ block: 'nearest' });
   });
   $('startStats').addEventListener('click', () => { statTab = S.role; openOv('statsOv'); renderStats(); });
-  $('menuBtn').addEventListener('click', () => { statTab = G.mp ? 'friend' : S.role; G.paused = !G.mp; openOv('statsOv'); renderStats(); });
+  // in-game menu: resume, stats, settings, or leave (to the baseball start screen or the site's game picker)
+  $('menuBtn').addEventListener('click', () => { G.paused = !G.mp; renderQuit(null); openOv('menuOv'); });
+  $('menuResume').addEventListener('click', back);
+  $('menuStats').addEventListener('click', () => { statTab = G.mp ? 'friend' : S.role; openOv('statsOv'); renderStats(); });
+  $('menuSet').addEventListener('click', () => openSettings());
   $('closeStats').addEventListener('click', back);
   function toMenu() { closeAllOv(); G.started = false; G.phase = 'menu'; G.pwr = null; renderPower(0); hideToast(); banner(''); $('startOv').hidden = false; renderStart(); }
-  $('changeRole').addEventListener('click', () => { if (G.mp) { renderQuit(true); return; } toMenu(); });
-  // quit: single player keeps the saved game; friend mode forfeits
-  function renderQuit(confirming) {
+  const SITE_HOME = '../';
+  $('changeRole').addEventListener('click', () => renderQuit('menu'));
+  $('menuSite').addEventListener('click', () => renderQuit('site'));
+  // leaving a game: single player keeps the saved game; friend mode forfeits. dest = 'menu' | 'site'
+  function renderQuit(dest) {
     const qa = $('quitArea'); qa.textContent = '';
-    if (!G.started) return;
-    if (!confirming) {
-      const b = elt('button', 'ghost', G.mp ? 'Quit game' : 'Quit (game is saved)'); b.style.width = '100%';
-      b.addEventListener('click', () => renderQuit(true)); qa.append(b); return;
-    }
+    $('menuNote').textContent = G.mp ? 'Leaving a friend game counts as a forfeit.' : 'Your game is saved when you leave. Continue it next time from the start screen.';
+    if (!dest || !G.started) return;
     const w = elt('div', 'confirm');
-    const t = elt('span', '', G.mp ? 'Quitting now counts as a forfeit. Your friend wins.' : 'Your game is saved. You can continue it next time from the start screen.');
-    const y = elt('button', '', G.mp ? 'Forfeit & quit' : 'Quit');
+    const t = elt('span', '', G.mp ? 'Quitting now counts as a forfeit. Your friend wins.' : 'Your game is saved. Leave now?');
+    const y = elt('button', '', G.mp ? 'Forfeit & leave' : 'Leave');
     const n = elt('button', '', 'Cancel'); n.style.borderColor = '#26385a'; n.style.color = '#f1ecdc';
-    y.addEventListener('click', () => { if (G.mp) { const m = G.mp; m.seq++; mpSend({ t: 'forfeit', seq: m.seq, why: 'quit' }); mpEnd(false, 'You quit the game.', 1500); } else { persist(); toMenu(); } });
-    n.addEventListener('click', () => renderQuit(false));
+    y.addEventListener('click', () => {
+      if (G.mp) { const m = G.mp; m.seq++; mpSend({ t: 'forfeit', seq: m.seq, why: 'quit' }); if (dest === 'site') { setTimeout(() => { mpLeave(); location.href = SITE_HOME; }, 600); return; } mpEnd(false, 'You quit the game.', 1500); }
+      else { persist(); if (dest === 'site') { location.href = SITE_HOME; return; } toMenu(); }
+    });
+    n.addEventListener('click', () => renderQuit(null));
     w.append(t, y, n); qa.append(w);
   }
   $('statTabs').addEventListener('click', (e) => { const t = e.target.closest('button')?.dataset.t; if (t) { statTab = t; renderStats(); } });

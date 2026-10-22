@@ -217,7 +217,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 .prow input { flex: 1; min-width: 0; height: 42px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--chalk); font-family: var(--f-board); font-size: 20px; padding: 0 10px; text-transform: uppercase; }
 .prow input.num { flex: 0 0 64px; text-align: center; }
 .topbar { display: flex; align-items: center; gap: 12px; }
-.backbtn { height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--chalk); font-size: 14px; font-weight: 600; flex: none; }
+.backbtn { display: inline-flex; align-items: center; text-decoration: none; height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--chalk); font-size: 14px; font-weight: 600; flex: none; }
 .resume { background: var(--panel); border: 1px solid var(--accent); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 10px; font-size: 13px; color: var(--chalk); line-height: 1.5; }
 .mp { border-top: 1px solid var(--line); padding-top: 14px; }
 .joinrow { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
@@ -253,7 +253,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     <button class="iconbtn" id="setBtn" aria-label="Settings">
       <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>
     </button>
-    <button class="iconbtn" id="menuBtn" aria-label="Stats">
+    <button class="iconbtn" id="menuBtn" aria-label="Menu">
       <svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 5h12M3 9h12M3 13h12"/></svg>
     </button>
   </header>
@@ -289,6 +289,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
 
   <div class="ov" id="startOv">
     <div class="inner">
+      <div class="topbar"><a class="backbtn" href="../">‹ All games</a></div>
       <div class="logo">NIGHT DUEL<br><em>BASEBALL</em></div>
       <div class="sub">Pitcher vs. batter, one on one, nine innings by default. Every three outs you switch sides: pitch a half inning, then bat a half inning. The CPU plays at a league-average MLB level by default; change it in Settings.</div>
       <div class="grp">
@@ -323,7 +324,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         <div class="mpstatus" id="mpStatus" hidden></div>
         <div class="note">The room creator picks the length and starts in the role picked above; the friend starts in the other. You switch sides every three outs. If the game is tied after the last inning it goes to extras. A pitcher who does not throw for 20 seconds forfeits.</div>
       </div>
-      <div class="note">Stats are saved in this browser only. No sign-up needed. <span id="buildTag">Build 2026-10-22 01:08 UTC</span></div>
+      <div class="note">Stats are saved in this browser only. No sign-up needed. <span id="buildTag">Build 2026-10-22 01:13 UTC</span></div>
     </div>
   </div>
 
@@ -366,14 +367,24 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
     </div>
   </div>
 
+  <div class="ov" id="menuOv" hidden>
+    <div class="inner">
+      <div class="topbar"><button class="backbtn" aria-label="Back">‹ Back</button><div class="logo" style="font-size:34px">GAME <em>MENU</em></div></div>
+      <button class="cta" id="menuResume">Resume</button>
+      <div class="row2"><button class="ghost" id="menuStats">My stats</button><button class="ghost" id="menuSet">Settings</button></div>
+      <div class="grp"><h3>LEAVE</h3>
+        <div class="row2"><button class="ghost" id="changeRole">Baseball menu</button><button class="ghost" id="menuSite">All games</button></div>
+        <div id="quitArea"></div>
+        <div class="note" id="menuNote"></div></div>
+    </div>
+  </div>
+
   <div class="ov" id="statsOv" hidden>
     <div class="inner">
       <div class="topbar"><button class="backbtn" aria-label="Back">‹ Back</button><div class="logo" style="font-size:34px">MY <em>STATS</em></div></div>
-      <div id="quitArea"></div>
       <div class="tabs" id="statTabs"><button data-t="pitcher">Pitching</button><button data-t="batter">Hitting</button><button data-t="friend">vs Friend</button></div>
       <div id="statBody"></div>
-      <div class="row2"><button class="ghost" id="closeStats">Back</button><button class="ghost" id="changeRole">Main menu</button></div>
-      <button class="ghost" id="statsSet">Settings</button>
+      <div class="row2"><button class="ghost" id="closeStats">Back</button><button class="ghost" id="statsSet">Settings</button></div>
       <div id="resetArea"></div>
     </div>
   </div>
@@ -2280,7 +2291,6 @@ if (typeof module !== 'undefined') module.exports = Engine;
       logs.slice(0, 12).forEach((l) => { const r = document.createElement('div'); const a = document.createElement('span'); a.textContent = `Inn ${l.inn}  ${l.txt}${l.sub ? ' · ' + l.sub : ''}`; const c = document.createElement('span'); c.textContent = `${l.cnt}`; r.append(a, c); lg.append(r); });
       body.append(h, lg);
     }
-    renderQuit(false);
     renderReset();
   }
   function renderReset(confirming) {
@@ -2320,7 +2330,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
     if (prev) $(prev).hidden = false;
     else { if (!G.started) $('startOv').hidden = false; G.paused = false; }
   }
-  function closeAllOv() { while (ovStack.length) closeOv(); }
+  function closeAllOv() { while (ovStack.length) closeOv(); try { if (history.state && history.state.ov) history.replaceState({ ov: 0 }, ''); } catch (e) { /* ignore */ } } // closed without going back: reset the depth so the next back gesture matches
   function back() { if (history.state && history.state.ov && ovStack.length) history.back(); else closeOv(); }
   window.addEventListener('popstate', (e) => { const depth = (e.state && e.state.ov) || 0; while (ovStack.length > depth) closeOv(); });
   document.querySelectorAll('.backbtn').forEach((b) => b.addEventListener('click', back));
@@ -2620,24 +2630,30 @@ if (typeof module !== 'undefined') module.exports = Engine;
     box.scrollIntoView({ block: 'nearest' });
   });
   $('startStats').addEventListener('click', () => { statTab = S.role; openOv('statsOv'); renderStats(); });
-  $('menuBtn').addEventListener('click', () => { statTab = G.mp ? 'friend' : S.role; G.paused = !G.mp; openOv('statsOv'); renderStats(); });
+  // in-game menu: resume, stats, settings, or leave (to the baseball start screen or the site's game picker)
+  $('menuBtn').addEventListener('click', () => { G.paused = !G.mp; renderQuit(null); openOv('menuOv'); });
+  $('menuResume').addEventListener('click', back);
+  $('menuStats').addEventListener('click', () => { statTab = G.mp ? 'friend' : S.role; openOv('statsOv'); renderStats(); });
+  $('menuSet').addEventListener('click', () => openSettings());
   $('closeStats').addEventListener('click', back);
   function toMenu() { closeAllOv(); G.started = false; G.phase = 'menu'; G.pwr = null; renderPower(0); hideToast(); banner(''); $('startOv').hidden = false; renderStart(); }
-  $('changeRole').addEventListener('click', () => { if (G.mp) { renderQuit(true); return; } toMenu(); });
-  // quit: single player keeps the saved game; friend mode forfeits
-  function renderQuit(confirming) {
+  const SITE_HOME = '../';
+  $('changeRole').addEventListener('click', () => renderQuit('menu'));
+  $('menuSite').addEventListener('click', () => renderQuit('site'));
+  // leaving a game: single player keeps the saved game; friend mode forfeits. dest = 'menu' | 'site'
+  function renderQuit(dest) {
     const qa = $('quitArea'); qa.textContent = '';
-    if (!G.started) return;
-    if (!confirming) {
-      const b = elt('button', 'ghost', G.mp ? 'Quit game' : 'Quit (game is saved)'); b.style.width = '100%';
-      b.addEventListener('click', () => renderQuit(true)); qa.append(b); return;
-    }
+    $('menuNote').textContent = G.mp ? 'Leaving a friend game counts as a forfeit.' : 'Your game is saved when you leave. Continue it next time from the start screen.';
+    if (!dest || !G.started) return;
     const w = elt('div', 'confirm');
-    const t = elt('span', '', G.mp ? 'Quitting now counts as a forfeit. Your friend wins.' : 'Your game is saved. You can continue it next time from the start screen.');
-    const y = elt('button', '', G.mp ? 'Forfeit & quit' : 'Quit');
+    const t = elt('span', '', G.mp ? 'Quitting now counts as a forfeit. Your friend wins.' : 'Your game is saved. Leave now?');
+    const y = elt('button', '', G.mp ? 'Forfeit & leave' : 'Leave');
     const n = elt('button', '', 'Cancel'); n.style.borderColor = '#26385a'; n.style.color = '#f1ecdc';
-    y.addEventListener('click', () => { if (G.mp) { const m = G.mp; m.seq++; mpSend({ t: 'forfeit', seq: m.seq, why: 'quit' }); mpEnd(false, 'You quit the game.', 1500); } else { persist(); toMenu(); } });
-    n.addEventListener('click', () => renderQuit(false));
+    y.addEventListener('click', () => {
+      if (G.mp) { const m = G.mp; m.seq++; mpSend({ t: 'forfeit', seq: m.seq, why: 'quit' }); if (dest === 'site') { setTimeout(() => { mpLeave(); location.href = SITE_HOME; }, 600); return; } mpEnd(false, 'You quit the game.', 1500); }
+      else { persist(); if (dest === 'site') { location.href = SITE_HOME; return; } toMenu(); }
+    });
+    n.addEventListener('click', () => renderQuit(null));
     w.append(t, y, n); qa.append(w);
   }
   $('statTabs').addEventListener('click', (e) => { const t = e.target.closest('button')?.dataset.t; if (t) { statTab = t; renderStats(); } });
