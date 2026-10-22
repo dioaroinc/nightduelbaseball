@@ -220,7 +220,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   const EYE = { x: 0, y: 1.6, z: 0 }, GRAV = 9.81, DRAG = 0.011;
   const PER_ROUND = 15, ROUNDS_N = 6, MAX_RANGE = 52;
   // per level: clay speed factor, shot pattern radius at full mount (radians), shot speed (m/s, slowed a little so lead shows)
-  const LV = [{ spd: 0.76, pat: 0.1, shot: 270 }, { spd: 0.86, pat: 0.08, shot: 245 }, { spd: 1.0, pat: 0.062, shot: 220 }];
+  const LV = [{ spd: 0.8, pat: 0.092, shot: 260 }, { spd: 0.92, pat: 0.073, shot: 238 }, { spd: 1.04, pat: 0.058, shot: 215 }];
   const HOUSES = { trap: { x: 0, y: 0, z: 14 }, high: { x: -21, y: 0, z: 25 }, low: { x: 21, y: 0, z: 25 } };
   // each round: name, which launches it uses, and where the gun waits between clays
   const ROUNDS = [
@@ -398,7 +398,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   const stage = $('stage');
   function stageXY(e) { const r = stage.getBoundingClientRect(); return { x: e.clientX - r.left, y: e.clientY - r.top }; }
   const JOY_R = 56, BTN_R = 56;
-  const joyC = () => ({ x: W - 30 - BTN_R, y: H - 30 - BTN_R }), btnC = joyC;
+  const joyC = () => ({ x: W / 2, y: H - 26 - BTN_R }), btnC = joyC;
   // one thumb does it all: press anywhere to call PULL and fill the gauge, slide to swing the gun, let go to fire
   const SENS = 1.6; // sight moves 1.6x as far as the thumb
   stage.addEventListener('pointerdown', (e) => {
@@ -542,14 +542,42 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     ctx.save(); ctx.translate(tx, ty); ctx.rotate(Math.atan2(ay, ax));
     ctx.fillStyle = 'rgba(255,122,46,.95)'; ctx.beginPath(); ctx.moveTo(14, 0); ctx.lineTo(-6, -9); ctx.lineTo(-6, 9); ctx.closePath(); ctx.fill(); ctx.restore();
   }
+  // over-and-under shotgun seen from the shooter's cheek: muzzle just under the sight, receiver off the bottom right
   function drawGun() {
-    const rc = G.recoil, bx = CX + 12, by = CY + 46 + rc * 26;
-    const g = ctx.createLinearGradient(bx, 0, W * 0.75, 0); g.addColorStop(0, '#2a2d33'); g.addColorStop(1, '#0f1115');
-    const ex = W * 0.6, ey = H + 10;
-    ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(bx - 3.5, by); ctx.lineTo(bx + 3.5, by); ctx.lineTo(ex + 24, ey); ctx.lineTo(ex - 18, ey); ctx.closePath(); ctx.fill();
-    ctx.strokeStyle = 'rgba(255,255,255,.14)'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(bx, by); ctx.lineTo(ex + 3, ey); ctx.stroke();
-    ctx.fillStyle = '#e8e2cf'; ctx.beginPath(); ctx.arc(bx, by - 2, 2.4, 0, Math.PI * 2); ctx.fill(); // front bead
-    if (rc > 0.75) { const fl = ctx.createRadialGradient(bx, by - 8, 0, bx, by - 8, 40); fl.addColorStop(0, 'rgba(255,230,160,.9)'); fl.addColorStop(1, 'rgba(255,180,80,0)'); ctx.fillStyle = fl; ctx.beginPath(); ctx.arc(bx, by - 8, 40, 0, Math.PI * 2); ctx.fill(); }
+    const rc = G.recoil, M = { x: CX + 10, y: CY + 40 + rc * 30 }, R = { x: W * 0.95 + rc * 10, y: H + 70 + rc * 40 };
+    const ax = R.x - M.x, ay = R.y - M.y, L = Math.hypot(ax, ay), ux = ax / L, uy = ay / L, nx = -uy, ny = ux; // n points up-right of the axis
+    const wid = (t) => 5 + Math.pow(t, 1.6) * 58; // half-width grows toward the eye
+    const at = (t, off) => ({ x: M.x + ax * t + nx * off * wid(t), y: M.y + ay * t + ny * off * wid(t) });
+    // a tapered band along the gun between t0..t1, from side offset a0..a1 (in half-widths), shaded across
+    function band(t0, t1, o0, o1, stops) {
+      const p = [at(t0, o0), at(t1, o0), at(t1, o1), at(t0, o1)];
+      const m = at((t0 + t1) / 2, 0), w = wid((t0 + t1) / 2);
+      const g = ctx.createLinearGradient(m.x + nx * o0 * w, m.y + ny * o0 * w, m.x + nx * o1 * w, m.y + ny * o1 * w);
+      stops.forEach(([o, c]) => g.addColorStop(o, c));
+      ctx.fillStyle = g; ctx.beginPath(); ctx.moveTo(p[0].x, p[0].y); p.slice(1).forEach((q) => ctx.lineTo(q.x, q.y)); ctx.closePath(); ctx.fill();
+    }
+    const steel = [[0, '#07080a'], [0.35, '#2b3038'], [0.55, '#59616c'], [0.7, '#262a31'], [1, '#08090b']];
+    // walnut fore-end wrapped around the barrels, with checkering
+    band(0.5, 0.86, -1.55, 1.25, [[0, '#2a150a'], [0.2, '#6b3a1c'], [0.45, '#9a5a2c'], [0.75, '#5a2f15'], [1, '#2e170b']]);
+    ctx.save(); ctx.strokeStyle = 'rgba(30,14,5,.4)'; ctx.lineWidth = 1;
+    for (let i = 0; i < 10; i++) { const t = 0.56 + i * 0.026; for (const sd of [-1, 1]) { const a = at(t, sd * 1.4), b = at(t + 0.035, sd * 0.75); ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); } }
+    ctx.restore();
+    // lower barrel peeks out under the top one
+    band(0, 1, -1.05, -0.05, steel);
+    // top barrel
+    band(0, 1, -0.55, 0.55, [[0, '#0a0b0d'], [0.3, '#30353d'], [0.5, '#6d7581'], [0.62, '#363b44'], [1, '#0b0c0e']]);
+    // muzzle rings
+    { const a = at(0, -1.05), b = at(0, 0.55); ctx.strokeStyle = '#8b939e'; ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke(); }
+    // receiver: brushed steel with a little engraving glint
+    band(0.86, 1.05, -1.25, 0.65, [[0, '#2a2d31'], [0.3, '#9aa1aa'], [0.5, '#d6dbe0'], [0.7, '#8d949d'], [1, '#2c2f34']]);
+    { const c = at(0.94, -0.3); ctx.strokeStyle = 'rgba(60,64,70,.6)'; ctx.lineWidth = 1; for (let k = 0; k < 3; k++) { ctx.beginPath(); ctx.arc(c.x + k * 6, c.y + k * 3, 6 + k * 3, 0.4, 2.4); ctx.stroke(); } }
+    // flat rib along the top of the barrels with a bright edge
+    band(0, 0.88, -0.16, 0.16, [[0, '#121316'], [0.45, '#4a505a'], [0.55, '#8d95a0'], [1, '#121316']]);
+    // front bead and a middle bead
+    { const f = at(0, 0); ctx.fillStyle = '#f4efe0'; ctx.shadowColor = 'rgba(255,255,255,.6)'; ctx.shadowBlur = 4; ctx.beginPath(); ctx.arc(f.x, f.y - 1, 2.6, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
+      const m2 = at(0.42, 0); ctx.fillStyle = '#b9b3a3'; ctx.beginPath(); ctx.arc(m2.x, m2.y - 1, 2, 0, Math.PI * 2); ctx.fill(); }
+    if (rc > 0.7) { const f = at(0, 0), fl = ctx.createRadialGradient(f.x, f.y - 6, 0, f.x, f.y - 6, 46); fl.addColorStop(0, 'rgba(255,236,170,.95)'); fl.addColorStop(0.4, 'rgba(255,190,90,.5)'); fl.addColorStop(1, 'rgba(255,170,70,0)'); ctx.fillStyle = fl; ctx.beginPath(); ctx.arc(f.x, f.y - 6, 46, 0, Math.PI * 2); ctx.fill(); }
+    if (rc > 0) { const f = at(0, 0); ctx.fillStyle = `rgba(220,220,215,${0.25 * rc})`; ctx.beginPath(); ctx.arc(f.x - 6, f.y - 18 - (1 - rc) * 20, 10 + (1 - rc) * 22, 0, Math.PI * 2); ctx.fill(); } // smoke
   }
   function drawSight() {
     const live = G.phase === 'flight', g = G.press ? G.gv : 0;
