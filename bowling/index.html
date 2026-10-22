@@ -149,7 +149,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
         <div class="prow"><input id="nameP" maxlength="10" placeholder="Name" autocomplete="off" autocapitalize="characters" aria-label="Player name"><input id="numP" class="num" inputmode="numeric" maxlength="2" placeholder="#" aria-label="Number"></div></div>
       <div class="grp"><h3>LEVEL</h3>
         <div class="seg" id="lvSeg"><button data-v="0">Easy</button><button data-v="1">Normal</button><button data-v="2">Pro</button></div>
-        <div class="note">Easy: bumpers in the gutters, the full path drawn for you and a long sweet spot on the gauge. Pro: no help, and a late or early release pulls the ball off line.</div></div>
+        <div class="note">Easy: bumpers in the gutters, the ball's path drawn for you and a long sweet spot on the gauge. Normal: no path shown. Pro: no help, and a late or early release pulls the ball off line.</div></div>
       <button class="cta" id="startBtn">PLAY</button>
       <div class="resume" id="resumeBox" hidden></div>
       <div class="row2"><button class="ghost" id="startStats">My stats</button><button class="ghost" id="soundBtn">Sound: on</button></div>
@@ -210,8 +210,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   // per level: speed range (m/s), hook strength, release error, plateau at the top of the gauge (s), bumpers, extra pin action
   const LV = [
     { v0: 6.2, v1: 8.6, hook: 1.0, err: 0, top: 0.3, bump: true, kick: 1.4, guide: 99 },
-    { v0: 5.0, v1: 8.8, hook: 1.1, err: 0.011, top: 0.16, bump: false, kick: 1.1, guide: 10.5 },
-    { v0: 4.6, v1: 9.0, hook: 1.2, err: 0.026, top: 0.08, bump: false, kick: 1.0, guide: 4.6 },
+    { v0: 5.0, v1: 8.8, hook: 1.1, err: 0.011, top: 0.16, bump: false, kick: 1.1, guide: 0 },
+    { v0: 4.6, v1: 9.0, hook: 1.2, err: 0.026, top: 0.08, bump: false, kick: 1.0, guide: 0 },
   ];
   const SPIN_K = 0.36; // lateral pull (m/s^2) per spin step, past the oil
   const newRack = (standing) => SPOTS.map((s, i) => ({ n: i + 1, x: s.x + (Math.random() - 0.5) * 0.008, z: s.z + (Math.random() - 0.5) * 0.008, vx: 0, vz: 0, up: standing ? standing[i] : true, gone: false, fall: 0, dx: 0, dz: 1, at: 0 }));
