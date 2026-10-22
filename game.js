@@ -1512,7 +1512,10 @@
     roomApiTried = true;
     try {
       if (window.claude && typeof window.claude.use === 'function') roomApi = await window.claude.use('room');
-      else if (window.firebase && window.FIREBASE_CONFIG) roomApi = firebaseRoom();
+      else if (window.FIREBASE_CONFIG && (window.firebase || window.ndLoadFirebase)) {
+        if (!window.firebase) await window.ndLoadFirebase();
+        roomApi = firebaseRoom();
+      }
       else if (location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') roomApi = mockRoom();
     } catch (e) { roomApi = null; }
     if (!roomApi) roomApiTried = false;
