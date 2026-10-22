@@ -320,10 +320,9 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         <div class="grp"><h3>CPU BATS</h3>
           <div class="seg" id="cpuBatSeg"><button data-v="R">R</button><button data-v="L">L</button><button data-v="X">Mix</button></div></div>
       </div>
-      <div class="grp"><h3>YOUR PLAYERS</h3>
-        <div class="prow"><span>Lefty</span><input id="nameL" maxlength="10" placeholder="Name" autocomplete="off" autocapitalize="characters" aria-label="Left-handed player name"><input id="numL" class="num" inputmode="numeric" maxlength="2" placeholder="#" aria-label="Left-handed player number"></div>
-        <div class="prow"><span>Righty</span><input id="nameR" maxlength="10" placeholder="Name" autocomplete="off" autocapitalize="characters" aria-label="Right-handed player name"><input id="numR" class="num" inputmode="numeric" maxlength="2" placeholder="#" aria-label="Right-handed player number"></div>
-        <div class="note">Your lefty plays when you throw or bat left-handed, your righty when right-handed. Name and number go on the jersey.</div></div>
+      <div class="grp"><h3>YOUR PLAYER</h3>
+        <div class="prow"><input id="nameP" maxlength="10" placeholder="Name" autocomplete="off" autocapitalize="characters" aria-label="Player name"><input id="numP" class="num" inputmode="numeric" maxlength="2" placeholder="#" aria-label="Jersey number"></div>
+        <div class="note">Name and number go on your jersey and in the matchup line.</div></div>
       <button class="cta" id="startBtn">PLAY BALL</button>
       <div class="resume" id="resumeBox" hidden></div>
       <div class="row2"><button class="ghost" id="startStats">My stats</button><button class="ghost" id="startSet">Settings</button></div>
@@ -339,7 +338,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         <div class="mpstatus" id="mpStatus" hidden></div>
         <div class="note">The room creator picks the length and starts in the role picked above; the friend starts in the other. You switch sides every three outs. If the game is tied after the last inning it goes to extras. A pitcher who does not throw for 20 seconds forfeits.</div>
       </div>
-      <div class="note">Stats are saved in this browser only. No sign-up needed. <span id="buildTag">Build 2026-10-22 01:40 UTC</span></div>
+      <div class="note">Stats are saved in this browser only. No sign-up needed. <span id="buildTag">Build 2026-10-22 01:46 UTC</span></div>
     </div>
   </div>
 
@@ -356,7 +355,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   <div class="ov" id="setOv" hidden>
     <div class="inner">
       <div class="topbar"><button class="backbtn" aria-label="Back">‹ Back</button><div class="logo" style="font-size:34px">SET<em>TINGS</em></div></div>
-      <div class="note">Player names and numbers are on the start screen, under YOU BAT.</div>
+      <div class="note">Your player name and number are on the start screen, under YOU BAT.</div>
       <div class="grp"><h3>UNITS</h3>
         <div class="seg wide" id="unitSeg"><button data-v="mph">mph · feet</button><button data-v="kmh">km/h · meters</button></div></div>
       <div class="grp"><h3>GAME LENGTH (VS CPU)</h3>
@@ -906,11 +905,11 @@ if (typeof module !== 'undefined') module.exports = Engine;
   if (S.cpuBatLv == null) S.cpuBatLv = 1;
   if (![3, 6, 9].includes(S.mpInn)) S.mpInn = 3;
   if (![0, 3, 6, 9].includes(S.innings)) S.innings = 9; // vs CPU; 0 = endless
-  // the user's two players: a lefty and a righty, each with a name and a number for the jersey
-  const DEF_PLAYERS = { L: { name: 'SUN', num: '36' }, R: { name: 'TEO', num: '24' } };
+  // the user's player: one name and number for the jersey, whichever hand they throw or bat with
+  const DEF_PLAYER = { name: 'SUN', num: '36' };
   const cleanName = (v, d) => { const t = String(v == null ? '' : v).toUpperCase().replace(/[^A-Z0-9 .'-]/g, '').trim().slice(0, 10); return t || d; };
   const cleanNum = (v, d) => { const t = String(v == null ? '' : v).replace(/\D/g, '').slice(0, 2); return t === '' ? d : t; };
-  for (const h of ['L', 'R']) { const q = S.players && S.players[h] || {}; S.players = S.players || {}; S.players[h] = { name: cleanName(q.name, DEF_PLAYERS[h].name), num: cleanNum(q.num, DEF_PLAYERS[h].num) }; }
+  { const q = S.player || {}; S.player = { name: cleanName(q.name, DEF_PLAYER.name), num: cleanNum(q.num, DEF_PLAYER.num) }; delete S.players; }
   const metric = () => S.units === 'kmh';
   const spd = (mph, d = 0) => (metric() ? `${(mph * KMH).toFixed(d)} km/h` : `${mph.toFixed(d)} mph`);
   const distNum = (ft) => String(Math.round(metric() ? ft * 0.3048 : ft));
@@ -1207,9 +1206,9 @@ if (typeof module !== 'undefined') module.exports = Engine;
     cpu: { jersey: '#9aa1b0', jerseyD: '#7b8292', trim: '#a51e2e', pants: '#aeb4c1', sock: '#a51e2e', helmet: '#a51e2e', cap: '#a51e2e', glove: '#5b3a1e', skin: '#b98263', name: 'CPU', num: '45' },
   };
   // the user's two batters: a lefty and a righty
-  const myPlayer = hand => ({ ...TEAM.me, ...S.players[hand === 'L' ? 'L' : 'R'] });
+  const myPlayer = () => ({ ...TEAM.me, ...S.player });
   // the opponent: the CPU, or the friend's own player when they sent one
-  const oppPlayer = hand => (G.mp && G.mp.oppPlayers && G.mp.oppPlayers[hand === 'L' ? 'L' : 'R']) ? { ...TEAM.cpu, ...G.mp.oppPlayers[hand === 'L' ? 'L' : 'R'] } : TEAM.cpu;
+  const oppPlayer = () => (G.mp && G.mp.oppPlayer ? { ...TEAM.cpu, ...G.mp.oppPlayer } : TEAM.cpu);
   const ease = (t) => t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
   const lerp = (a, b, t) => a + (b - a) * t;
   function keyf(frames, t) {
@@ -1355,7 +1354,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
     if (team === 'me') { foot.x = Math.max(W * 0.07, Math.min(W * 0.93, foot.x)); foot.k *= 0.5; } // keep the user's batter in frame, out of the zone
     const dir = plate.x > foot.x ? 1 : -1;
     const t = swingT == null ? 0 : Math.min(1, swingT);
-    const T = team === 'me' ? myPlayer(hand) : oppPlayer(hand);
+    const T = team === 'me' ? myPlayer() : oppPlayer();
     renderFigure(foot.x, foot.y, foot.k, dir, alpha, 7.5, 8.6, () => batterArt(T, t, team === 'cpu', now, dir));
   }
 
@@ -1409,7 +1408,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
     if (!foot) return;
     const rel = P(c, hand === 'R' ? -1.9 : 1.9, 5.9, 60.5);
     const arm = rel && rel.x > foot.x ? 1 : -1;
-    renderFigure(foot.x, foot.y, foot.k, arm, alpha, 5.6, 8, () => pitcherArt(team === 'me' ? myPlayer(hand) : oppPlayer(hand), w == null ? 0 : w, fromBehind, arm));
+    renderFigure(foot.x, foot.y, foot.k, arm, alpha, 5.6, 8, () => pitcherArt(team === 'me' ? myPlayer() : oppPlayer(), w == null ? 0 : w, fromBehind, arm));
   }
 
   // ---- Fielder (ready stance, facing the plate) ----
@@ -2210,10 +2209,10 @@ if (typeof module !== 'undefined') module.exports = Engine;
   }
   const handName = (h, role) => (role === 'pitcher' ? (h === 'R' ? 'RHP' : 'LHP') : (h === 'R' ? 'RHB' : 'LHB'));
   function renderMatchup() {
-    const mine = S.role === 'pitcher' ? myPlayer(G.pHand) : myPlayer(G.bHand);
+    const mine = myPlayer();
     const me = `${mine.name} #${mine.num} ${S.role === 'pitcher' ? handName(G.pHand, 'pitcher') : handName(G.bHand, 'batter')}`;
-    const oh = S.role === 'pitcher' ? G.bHand : G.pHand, op = oppPlayer(oh);
-    const who = G.mp ? (G.mp.oppPlayers ? `${op.name} #${op.num}` : 'Friend') : 'CPU';
+    const op = oppPlayer();
+    const who = G.mp ? (G.mp.oppPlayer ? `${op.name} #${op.num}` : 'Friend') : 'CPU';
     const cpu = `${who} ${S.role === 'pitcher' ? handName(G.bHand, 'batter') : handName(G.pHand, 'pitcher')}`;
     const opp = G.mp ? cpu + `  ·  ${G.mp.innings} inn` : cpu;
     $('matchup').textContent = `${me}  vs  ${opp}`;
@@ -2472,7 +2471,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
   function mpPresence(msg) {
     const m = G.mp; if (!m) return;
     if (msg !== undefined) m.out = msg;
-    m.room.presence({ app: 'nd', v: 1, host: m.host, role: m.myRole, th: S.myThrow, bh: S.myBat, pl: S.players, inn: m.innings, msg: m.out || null }).catch(() => {});
+    m.room.presence({ app: 'nd', v: 1, host: m.host, role: m.myRole, th: S.myThrow, bh: S.myBat, pl: S.player, inn: m.innings, msg: m.out || null }).catch(() => {});
   }
   const mpSend = (msg) => mpPresence(msg);
 
@@ -2491,7 +2490,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
     clearTimeout(m.leftTimer); m.leftTimer = null;
     m.oppThrow = opp.presence.th === 'L' ? 'L' : 'R'; m.oppBat = opp.presence.bh === 'L' ? 'L' : 'R';
     const pl = opp.presence.pl;
-    m.oppPlayers = pl && pl.L && pl.R ? { L: { name: cleanName(pl.L.name, 'FRIEND'), num: cleanNum(pl.L.num, '0') }, R: { name: cleanName(pl.R.name, 'FRIEND'), num: cleanNum(pl.R.num, '0') } } : null;
+    m.oppPlayer = pl && pl.name ? { name: cleanName(pl.name, 'FRIEND'), num: cleanNum(pl.num, '0') } : null;
     if (!m.started) {
       if (m.host && opp.presence.role !== (S.role === 'pitcher' ? 'batter' : 'pitcher')) return;
       mpStart();
@@ -2671,12 +2670,10 @@ if (typeof module !== 'undefined') module.exports = Engine;
   $('statTabs').addEventListener('click', (e) => { const t = e.target.closest('button')?.dataset.t; if (t) { statTab = t; renderStats(); } });
   // ---------------- Settings overlay ----------------
   // player name and number fields
-  for (const h of ['L', 'R']) {
-    const nm = $('name' + h), nu = $('num' + h);
-    nm.value = S.players[h].name; nu.value = S.players[h].num;
-    nm.addEventListener('change', () => { S.players[h].name = cleanName(nm.value, DEF_PLAYERS[h].name); nm.value = S.players[h].name; persist(); if (G.started) renderMatchup(); });
-    nu.addEventListener('change', () => { S.players[h].num = cleanNum(nu.value, DEF_PLAYERS[h].num); nu.value = S.players[h].num; persist(); if (G.started) renderMatchup(); });
-  }
+  { const nm = $('nameP'), nu = $('numP');
+    nm.value = S.player.name; nu.value = S.player.num;
+    nm.addEventListener('change', () => { S.player.name = cleanName(nm.value, DEF_PLAYER.name); nm.value = S.player.name; persist(); if (G.started) renderMatchup(); });
+    nu.addEventListener('change', () => { S.player.num = cleanNum(nu.value, DEF_PLAYER.num); nu.value = S.player.num; persist(); if (G.started) renderMatchup(); }); }
   const SET_SEGS = { unitSeg: ['units', String], innSeg: ['innings', Number], speedSeg: ['speed', Number], cpuPitchSeg: ['cpuPitchLv', Number], cpuBatSeg: ['cpuBatLv', Number] };
   function renderSettings() {
     for (const id in SET_SEGS) { const [key] = SET_SEGS[id]; [...$(id).children].forEach((b) => b.setAttribute('aria-pressed', String(S[key]) === b.dataset.v ? 'true' : 'false')); }
