@@ -220,18 +220,18 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   const EYE = { x: 0, y: 1.6, z: 0 }, GRAV = 9.81, DRAG = 0.011;
   const PER_ROUND = 15, ROUNDS_N = 6, MAX_RANGE = 52;
   // per level: clay speed factor, shot pattern radius at full mount (radians), shot speed (m/s, slowed a little so lead shows)
-  const LV = [{ spd: 0.8, pat: 0.088, shot: 260 }, { spd: 0.92, pat: 0.07, shot: 235 }, { spd: 1.04, pat: 0.055, shot: 215 }];
+  const LV = [{ spd: 0.76, pat: 0.1, shot: 270 }, { spd: 0.86, pat: 0.08, shot: 245 }, { spd: 1.0, pat: 0.062, shot: 220 }];
   const HOUSES = { trap: { x: 0, y: 0, z: 14 }, high: { x: -21, y: 0, z: 25 }, low: { x: 21, y: 0, z: 25 } };
   // each round: name, which launches it uses, and where the gun waits between clays
   const ROUNDS = [
     { name: 'Trap · straight away', kinds: ['trapS'], hold: [0, 0.09] },
     { name: 'Trap · wide angles', kinds: ['trapW'], hold: [0, 0.09] },
-    { name: 'Skeet · high house, left to right', kinds: ['high'], hold: [-0.32, 0.17] },
-    { name: 'Skeet · low house, right to left', kinds: ['low'], hold: [0.32, 0.12] },
+    { name: 'Skeet · high house, left to right', kinds: ['high'], hold: [-0.42, 0.17] },
+    { name: 'Skeet · low house, right to left', kinds: ['low'], hold: [0.42, 0.12] },
     { name: 'Driven · high birds coming at you', kinds: ['driven'], hold: [0, 0.2] },
     { name: 'Mixed · fast, any house', kinds: ['trapW', 'high', 'low', 'driven'], hold: null, fast: true },
   ];
-  const HOLD_OF = { trapS: [0, 0.09], trapW: [0, 0.09], high: [-0.32, 0.17], low: [0.32, 0.12], driven: [0, 0.2] };
+  const HOLD_OF = { trapS: [0, 0.09], trapW: [0, 0.09], high: [-0.42, 0.17], low: [0.42, 0.12], driven: [0, 0.2] };
   function launch(kind, fast) {
     const k = LV[S.lv].spd * (fast ? 1.12 : 1);
     let p, d, v;
@@ -302,7 +302,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
       const f = cloneClay(c), sv = LV[Gm.lv].shot; let tt = 0;
       for (let i = 0; i < 200; i++) { const dist = Math.hypot(f.p.x - EYE.x, f.p.y - EYE.y, f.p.z - EYE.z); if (sv * tt >= dist) break; stepClay(f, 0.004); tt += 0.004; }
       const to = norm({ x: f.p.x - EYE.x, y: f.p.y - EYE.y, z: f.p.z - EYE.z }), dist = Math.hypot(f.p.x - EYE.x, f.p.y - EYE.y, f.p.z - EYE.z);
-      const ang = Math.acos(clamp(d.x * to.x + d.y * to.y + d.z * to.z, -1, 1)), clayAng = 0.055 / dist;
+      const ang = Math.acos(clamp(d.x * to.x + d.y * to.y + d.z * to.z, -1, 1)), clayAng = 0.15 / dist; // a little bigger than a real clay, like it is drawn
       res = { hit: false, d, R, at: f.p, tt, dist, ang, clayAng };
       if (dist > MAX_RANGE) res.why = 'far';
       else if (ang <= R + clayAng) { res.hit = true; res.smash = ang <= R * 0.4 && g > 0.9; }
@@ -377,7 +377,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
     // aim: the stick turns the gun; a soft curve so small moves are fine
     const j = G.joy;
     if (j) {
-      const m = Math.hypot(j.mx, j.my), sp = 1.55 * Math.pow(m, 1.5);
+      const m = Math.hypot(j.mx, j.my), sp = 1.0 * Math.pow(m, 1.5);
       if (m > 0.04) { G.yaw += j.mx / m * sp * dt; G.pitch -= j.my / m * sp * dt; }
     } else if (G.holdTo && (G.phase === 'ready' || G.phase === 'result')) { // drift back to the hold point between clays
       G.yaw += (G.holdTo[0] - G.yaw) * Math.min(1, dt * 3); G.pitch += (G.holdTo[1] - G.pitch) * Math.min(1, dt * 3);
@@ -448,7 +448,8 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   // ---------------- Drawing ----------------
   const cv = $('cv'), ctx = cv.getContext('2d');
   let W = 1, H = 1, DPR = 1, F = 300, CX = 0, CY = 0;
-  function fitCam() { F = Math.min((W / 2) / Math.tan(33 * DEG), (H / 2) / Math.tan(30 * DEG)); CX = W / 2; CY = H * 0.4; }
+  function fitCam() { F = Math.min((W / 2) / Math.tan(21 * DEG), (H / 2) / Math.tan(19 * DEG)); // zoomed in so clays look big on a phone
+  CX = W / 2; CY = H * 0.4; }
   // world point to screen; null when behind you
   function P(x, y, z) {
     const dx = x - EYE.x, dy = y - EYE.y, dz = z - EYE.z, cy = Math.cos(G.yaw), sy = Math.sin(G.yaw), cp = Math.cos(G.pitch), sp = Math.sin(G.pitch);
@@ -512,7 +513,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   }
   function drawClay(c) {
     const s = P(c.p.x, c.p.y, c.p.z); if (!s) return null;
-    const r = Math.max(4, 0.055 * s.s * 3.2), tilt = 0.45 + 0.25 * Math.sin(c.t * 3 + c.spin);
+    const r = Math.max(9, 0.055 * s.s * 7), tilt = 0.45 + 0.25 * Math.sin(c.t * 3 + c.spin);
     ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.ellipse(s.x, s.y + r * 0.25, r * 1.05, r * tilt * 1.05, 0, 0, Math.PI * 2); ctx.fill();
     ctx.fillStyle = '#ff7a2e'; ctx.strokeStyle = 'rgba(255,240,220,.85)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.ellipse(s.x, s.y, r, r * tilt, 0, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
     ctx.fillStyle = '#ffd0a8'; ctx.beginPath(); ctx.ellipse(s.x - r * 0.15, s.y - r * tilt * 0.25, r * 0.45, r * tilt * 0.3, 0, 0, Math.PI * 2); ctx.fill();
