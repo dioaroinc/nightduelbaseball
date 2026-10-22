@@ -18,12 +18,12 @@
 <meta property="og:description" content="6 rounds of 15 clays. Hold, slide to aim, let go to fire.">
 <meta property="og:url" content="https://weplaysportsgames.com/clay/">
 <meta property="og:image" content="https://weplaysportsgames.com/icons/og-image.png">
-<script src="../firebase-config.js"></script>
-<script src="../track.js"></script>
+<script defer src="../firebase-config.js"></script>
+<script defer src="../track.js"></script>
 <script>if("serviceWorker" in navigator)addEventListener("load",function(){navigator.serviceWorker.register("../sw.js",{scope:"../"}).catch(function(){})})</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700;800&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap">
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700;800&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700;800&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap"></noscript>
 <style>
 :root {
   --night: #0a111d; --panel: #111b2b; --panel-2: #192740; --line: #26385a; --chalk: #f1ecdc; --muted: #8f9cb6;
@@ -110,6 +110,17 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 </style>
 </head>
 <body>
+<!--LOADER: shared loading bar, copied into each page by tools/apply-loader.py-->
+<style>#ldr{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0a111d;color:#f1ecdc;font:700 12px/1 system-ui,-apple-system,sans-serif;letter-spacing:.2em;transition:opacity .25s}#ldr.out{opacity:0;pointer-events:none}#ldr .lb{width:min(240px,64vw);text-align:center}#ldr .lt{display:flex;justify-content:space-between;margin-bottom:10px;color:#8f9cb6}#ldr .lt b{color:#ffbb4a;font-variant-numeric:tabular-nums;letter-spacing:.04em}#ldr .lr{height:6px;border-radius:3px;background:#1f2b40;overflow:hidden}#ldr .lr i{display:block;height:100%;background:#ffbb4a;box-shadow:0 0 10px #ffbb4a;transform-origin:left;transform:scaleX(0)}</style>
+<div id="ldr" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100"><div class="lb"><div class="lt"><span>LOADING</span><b id="ldrPct">0%</b></div><div class="lr"><i id="ldrFill"></i></div></div></div>
+<script>(function(){var el=document.getElementById('ldr'),fi=document.getElementById('ldrFill'),pc=document.getElementById('ldrPct'),p=0,goal=45,end=false,t0=Date.now();
+function set(v){p=v;fi.style.transform='scaleX('+v/100+')';pc.textContent=Math.round(v)+'%';el.setAttribute('aria-valuenow',Math.round(v));}
+function tick(){if(end)return;set(p+(goal-p)*.07);setTimeout(tick,30);}
+function finish(){if(end)return;end=true;set(100);var fast=Date.now()-t0<300;setTimeout(function(){el.className='out';setTimeout(function(){el.remove();},300);},fast?0:150);}
+document.addEventListener('DOMContentLoaded',function(){goal=80;setTimeout(finish,4000);});
+addEventListener('load',function(){goal=95;var f=document.fonts&&document.fonts.ready;if(f)Promise.race([f,new Promise(function(r){setTimeout(r,800);})]).then(finish);else finish();});
+setTimeout(finish,10000);tick();})();</script>
+<!--/LOADER-->
 <div id="app">
   <header id="hud">
     <div class="hrow">

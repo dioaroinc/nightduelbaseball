@@ -22,6 +22,10 @@ node build.js
 The build writes `dist/web/index.html`; the published game is `baseball/index.html` (served at weplaysportsgames.com/baseball/).
 The repository root `index.html` is the game picker for the site; each sport lives in its own folder (`baseball/`, later `tennis/` and so on) with its own manifest, service worker and icons. `admin/` is the usage stats page.
 
+## Loading bar
+
+`loader.html` is the shared loading screen (dark screen with a LOADING bar). `python3 tools/apply-loader.py` copies it into every page (hub, tennis, clay, bowling, and `index.src.html` for baseball; run `node build.js` and copy `dist/web/index.html` to `baseball/index.html` after). The same script makes the Google Fonts stylesheet load without blocking the first paint and adds `defer` to `firebase-config.js` / `track.js`. The baseball page loads the Firebase SDK only when a friend game opens (`window.ndLoadFirebase`), and prefetches it once the page is idle.
+
 ## Break Point Tennis
 
 `tennis/index.html` is a self-contained page (no build step) served at weplaysportsgames.com/tennis/. One set against the CPU with real scoring (tiebreak at 6-6), hard/clay/grass courts, right- or left-handed player. Hold to start a one-second power gauge, slide to aim, let go as the ball arrives. It loads the shared `firebase-config.js` and `track.js`, so visits and games show under tennis on the admin page.
