@@ -29,3 +29,7 @@ The repository root `index.html` is the game picker for the site; each sport liv
 ## Sky Shot Clay
 
 `clay/index.html` is a self-contained page (no build step) served at weplaysportsgames.com/clay/. Clay shooting against your own score: 6 rounds of 15 targets (trap straight, trap wide, skeet high house, skeet low house, driven birds, fast mixed), Easy/Normal/Pro. Aim with the left stick (the view turns with the gun), hold the right FIRE button to call PULL and mount the gun (the sight ring grows as it fills, then shrinks if held too long), let go to fire. Shot travels at a set speed, so crossing clays need lead. It loads the shared `firebase-config.js` and `track.js`, so visits and games show under 클레이 사격 on the admin page.
+
+## Strike Lane Bowling
+
+`bowling/index.html` is a self-contained page (no build step) served at weplaysportsgames.com/bowling/. Ten-pin bowling against your own score: 10 frames with real scoring (strike and spare bonuses, up to three balls in the 10th), Easy/Normal/Pro. Slide the left stick to move along the foul line, set the spin with the curved arrows (the ball skids through the oil, then hooks near the pins), hold the right THROW button and let go at the top of the gauge for full speed. Ball and pins run on a small top-down physics model (ball-pin and pin-pin collisions, falling pins knock over their neighbors). Easy has bumpers and shows the whole path. It loads the shared `firebase-config.js` and `track.js`, so visits and games show under 볼링 on the admin page.
