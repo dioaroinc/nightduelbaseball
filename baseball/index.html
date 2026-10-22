@@ -320,6 +320,10 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         <div class="grp"><h3>CPU BATS</h3>
           <div class="seg" id="cpuBatSeg"><button data-v="R">R</button><button data-v="L">L</button><button data-v="X">Mix</button></div></div>
       </div>
+      <div class="grp"><h3>YOUR PLAYERS</h3>
+        <div class="prow"><span>Lefty</span><input id="nameL" maxlength="10" placeholder="Name" autocomplete="off" autocapitalize="characters" aria-label="Left-handed player name"><input id="numL" class="num" inputmode="numeric" maxlength="2" placeholder="#" aria-label="Left-handed player number"></div>
+        <div class="prow"><span>Righty</span><input id="nameR" maxlength="10" placeholder="Name" autocomplete="off" autocapitalize="characters" aria-label="Right-handed player name"><input id="numR" class="num" inputmode="numeric" maxlength="2" placeholder="#" aria-label="Right-handed player number"></div>
+        <div class="note">Your lefty plays when you throw or bat left-handed, your righty when right-handed. Name and number go on the jersey.</div></div>
       <button class="cta" id="startBtn">PLAY BALL</button>
       <div class="resume" id="resumeBox" hidden></div>
       <div class="row2"><button class="ghost" id="startStats">My stats</button><button class="ghost" id="startSet">Settings</button></div>
@@ -335,7 +339,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         <div class="mpstatus" id="mpStatus" hidden></div>
         <div class="note">The room creator picks the length and starts in the role picked above; the friend starts in the other. You switch sides every three outs. If the game is tied after the last inning it goes to extras. A pitcher who does not throw for 20 seconds forfeits.</div>
       </div>
-      <div class="note">Stats are saved in this browser only. No sign-up needed. <span id="buildTag">Build 2026-10-22 01:16 UTC</span></div>
+      <div class="note">Stats are saved in this browser only. No sign-up needed. <span id="buildTag">Build 2026-10-22 01:40 UTC</span></div>
     </div>
   </div>
 
@@ -352,10 +356,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
   <div class="ov" id="setOv" hidden>
     <div class="inner">
       <div class="topbar"><button class="backbtn" aria-label="Back">‹ Back</button><div class="logo" style="font-size:34px">SET<em>TINGS</em></div></div>
-      <div class="grp"><h3>YOUR PLAYERS</h3>
-        <div class="prow"><span>Lefty</span><input id="nameL" maxlength="10" placeholder="Name" autocomplete="off" autocapitalize="characters" aria-label="Left-handed player name"><input id="numL" class="num" inputmode="numeric" maxlength="2" placeholder="#" aria-label="Left-handed player number"></div>
-        <div class="prow"><span>Righty</span><input id="nameR" maxlength="10" placeholder="Name" autocomplete="off" autocapitalize="characters" aria-label="Right-handed player name"><input id="numR" class="num" inputmode="numeric" maxlength="2" placeholder="#" aria-label="Right-handed player number"></div>
-        <div class="note">Shown on the jersey and in the matchup line. Your lefty plays when you throw or bat left-handed, your righty when right-handed.</div></div>
+      <div class="note">Player names and numbers are on the start screen, under YOU BAT.</div>
       <div class="grp"><h3>UNITS</h3>
         <div class="seg wide" id="unitSeg"><button data-v="mph">mph · feet</button><button data-v="kmh">km/h · meters</button></div></div>
       <div class="grp"><h3>GAME LENGTH (VS CPU)</h3>
