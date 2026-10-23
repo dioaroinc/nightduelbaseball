@@ -1,0 +1,28 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#060b16"/><stop offset="1" stop-color="#1a2b48"/>
+    </linearGradient>
+    <linearGradient id="pitch" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#1d5a2f"/><stop offset="1" stop-color="#2f7d3d"/>
+    </linearGradient>
+    <radialGradient id="ball" cx="38%" cy="34%" r="70%">
+      <stop offset="0" stop-color="#ffffff"/><stop offset=".7" stop-color="#e3e5ea"/><stop offset="1" stop-color="#9aa0ab"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="0%" r="70%">
+      <stop offset="0" stop-color="#e6f0ff" stop-opacity=".35"/><stop offset="1" stop-color="#e6f0ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" fill="url(#sky)"/>
+  <rect width="512" height="300" fill="url(#glow)"/>
+  <rect y="300" width="512" height="212" fill="url(#pitch)"/>
+  <g stroke="#f1ecdc" stroke-opacity=".35" stroke-width="3" fill="none">
+    <path d="M86 140v160M126 140v160M166 140v160M206 140v160M246 140v160M286 140v160M326 140v160M366 140v160M406 140v160M66 180h380M66 220h380M66 260h380"/>
+  </g>
+  <path d="M60 302V128h392v174" stroke="#f6f6f2" stroke-width="18" fill="none" stroke-linejoin="round"/>
+  <path d="M0 302h512" stroke="#f6f6f2" stroke-opacity=".8" stroke-width="5"/>
+  <path d="M120 470 Q230 330 352 214" stroke="#ffbb4a" stroke-opacity=".75" stroke-width="12" fill="none" stroke-linecap="round" stroke-dasharray="2 24"/>
+  <circle cx="368" cy="200" r="58" fill="url(#ball)" stroke="#1b2232" stroke-width="4"/>
+  <path d="M368 176l22 16-8 26h-28l-8-26z" fill="#1b2232"/>
+  <path d="M390 192l22-6M382 218l12 20M354 218l-12 20M346 192l-22-6M368 176v-24" stroke="#1b2232" stroke-width="4"/>
+</svg>
