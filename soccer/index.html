@@ -67,7 +67,7 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 #toast { position: absolute; left: 50%; top: 20%; transform: translate(-50%, -50%) scale(.9); opacity: 0; font-family: var(--f-board); font-weight: 800; font-size: 48px; letter-spacing: .04em; text-align: center; text-shadow: 0 2px 0 #000, 0 0 24px rgba(0,0,0,.8); pointer-events: none; transition: opacity .18s, transform .18s; white-space: nowrap; }
 #toast small { display: block; font-family: var(--f-body); font-size: 14px; font-weight: 600; letter-spacing: 0; opacity: .92; margin-top: 4px; }
 #toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
-#banner { position: absolute; left: 0; right: 0; bottom: 14px; text-align: center; pointer-events: none; font-size: 13px; padding: 0 96px 0 16px; }
+#banner { position: absolute; left: 0; right: 0; top: 12px; text-align: center; pointer-events: none; font-size: 13px; padding: 0 16px; }
 #banner span { display: inline-block; background: rgba(8,14,26,.8); padding: 6px 12px; border-radius: 14px; line-height: 1.4; }
 
 /* Overlays */
@@ -676,7 +676,7 @@ setTimeout(finish,10000);tick();})();</script>
   function drawKeeper(pose, kit, t, bob) {
     const Z = 0.35, by = pose.stand && !pose.e ? Math.abs(Math.sin(t * 4)) * 0.03 * bob : 0;
     const p2 = (x, y) => [x, y + by, Z];
-    const line = (a, b, w, c) => seg3(a, b, w, c);
+    const line = (a, b, w, c) => limb(a, b, w, w * 0.85, c);
     const sh = P(pose.C.x, 0, Z);
     if (sh) { ctx.fillStyle = 'rgba(0,0,0,.28)'; ctx.beginPath(); ctx.ellipse(sh.x, sh.y, 0.6 * sh.s, 0.12 * sh.s, 0, 0, Math.PI * 2); ctx.fill(); }
     ctx.lineCap = 'round';
@@ -707,42 +707,114 @@ setTimeout(finish,10000);tick();})();</script>
   function glove(a) { const p = P(a[0], a[1], a[2]); if (!p) return; ctx.fillStyle = '#f4f4f0'; ctx.beginPath(); ctx.arc(p.x, p.y, Math.max(2, 0.1 * p.s), 0, Math.PI * 2); ctx.fill(); ctx.strokeStyle = '#2d3550'; ctx.lineWidth = 1; ctx.stroke(); }
   function head(a, kit) { const p = P(a[0], a[1], a[2]); if (!p) return; const r = Math.max(3, 0.13 * p.s); ctx.fillStyle = '#c8956b'; ctx.beginPath(); ctx.arc(p.x, p.y, r, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#20160f'; ctx.beginPath(); ctx.arc(p.x, p.y - r * 0.25, r, Math.PI * 1.05, Math.PI * 1.95); ctx.fill(); void kit; }
   // kicker seen from behind: runs in from the left, plants, strikes with the right foot
-  function drawKicker(K, kit, num, t) {
-    const S0 = { x: -0.8, z: 12.9 }, S1 = { x: -0.42, z: 11.32 };
+  const v3 = { add: (a, b) => [a[0] + b[0], a[1] + b[1], a[2] + b[2]], sub: (a, b) => [a[0] - b[0], a[1] - b[1], a[2] - b[2]], mul: (a, k) => [a[0] * k, a[1] * k, a[2] * k], dot: (a, b) => a[0] * b[0] + a[1] * b[1] + a[2] * b[2], lerp: (a, b, k) => [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, a[2] + (b[2] - a[2]) * k] };
+  v3.len = (a) => Math.hypot(a[0], a[1], a[2]); v3.norm = (a) => v3.mul(a, 1 / (v3.len(a) || 1));
+  // two-bone joint (knee, elbow): bends toward dir
+  function joint(a, c, L1, L2, dir) {
+    const v = v3.sub(c, a), d = Math.min(v3.len(v), L1 + L2 - 0.002), f = v3.norm(v);
+    const end = v3.add(a, v3.mul(f, d)), m = (L1 * L1 - L2 * L2 + d * d) / (2 * d), h = Math.sqrt(Math.max(0, L1 * L1 - m * m));
+    const b = v3.norm(v3.sub(dir, v3.mul(f, v3.dot(dir, f))));
+    return [v3.add(v3.add(a, v3.mul(f, m)), v3.mul(b, h)), end];
+  }
+  // a tapered, rounded body part between two points (widths in meters)
+  function limb(a, b, wa, wb, fill, edge) {
+    const p = P(a[0], a[1], a[2]), q = P(b[0], b[1], b[2]); if (!p || !q) return;
+    const dx = q.x - p.x, dy = q.y - p.y, l = Math.hypot(dx, dy) || 1, nx = -dy / l, ny = dx / l, ra = wa * p.s / 2, rb = wb * q.s / 2;
+    const an = Math.atan2(ny, nx);
+    ctx.beginPath(); ctx.arc(p.x, p.y, ra, an, an + Math.PI); ctx.lineTo(q.x - nx * rb, q.y - ny * rb); ctx.arc(q.x, q.y, rb, an + Math.PI, an + Math.PI * 2); ctx.closePath();
+    ctx.fillStyle = fill; ctx.fill();
+    if (edge !== false) { ctx.strokeStyle = edge || 'rgba(0,0,0,.28)'; ctx.lineWidth = 1; ctx.stroke(); }
+  }
+  function blob(c, rx, ry, fill, edge) { const p = P(c[0], c[1], c[2]); if (!p) return; ctx.beginPath(); ctx.ellipse(p.x, p.y, rx * p.s, ry * p.s, 0, 0, Math.PI * 2); ctx.fillStyle = fill; ctx.fill(); if (edge) { ctx.strokeStyle = edge; ctx.lineWidth = 1; ctx.stroke(); } }
+  const SKIN = '#c98f62', SKIN_D = '#a8714a', HAIR = '#1c130c';
+  function drawKicker(K, kit, num, name, t) {
+    const S0 = { x: -0.95, z: 12.5 }, S1 = { x: -0.42, z: 11.32 };
     const k = K && K.kick;
-    let bx = S0.x, bz = S0.z, cyc = 0, kickU = -1, run = 0;
+    let bx = S0.x, bz = S0.z, cyc = 0, kickU = -1, run = 0, idle = Math.sin(t * 2.2) * 0.012;
     if (k && t >= k.ts - RUN) {
       const u = clamp((t - (k.ts - RUN)) / RUN, 0, 1), e = u < 1 ? u * (2 - u) * 0.15 + u * 0.85 : 1;
-      bx = S0.x + (S1.x - S0.x) * e; bz = S0.z + (S1.z - S0.z) * e; cyc = u * Math.PI * 4.5; run = u < 0.82 ? 1 : 0;
+      bx = S0.x + (S1.x - S0.x) * e; bz = S0.z + (S1.z - S0.z) * e; cyc = u * Math.PI * 4.5; run = u < 0.82 ? 1 : 0; idle = 0;
       if (t > k.ts - 0.22) kickU = clamp((t - (k.ts - 0.22)) / 0.6, 0, 1);
     }
-    const sw = run ? Math.sin(cyc) : 0, lift = (v) => Math.max(0, v);
+    const sw = run ? Math.sin(cyc) : 0, lift = (v) => Math.max(0, v), kicking = kickU >= 0;
+    const bob = run ? Math.abs(Math.cos(cyc)) * 0.04 : 0;
     const P3 = (dx, y, dz) => [bx + dx, y, bz + dz];
-    const lean = run ? -0.12 : 0;
-    const hipL = P3(-0.1, 0.95, 0), hipR = P3(0.1, 0.95, 0);
-    let footL = P3(-0.14, 0.05 + lift(sw) * 0.25, -sw * 0.35), footR = P3(0.14, 0.05 + lift(-sw) * 0.25, sw * 0.35);
-    if (kickU >= 0) { // plant left beside the ball, swing the right through it
-      footL = [S1.x + 0.06, 0.05, S1.z - 0.25];
+    const lean = run ? -0.14 : kicking ? -0.08 + kickU * 0.04 : 0;
+    const hy = 0.95 + bob + idle * 0.5 - (kicking ? 0.05 : 0);
+    const hipL = P3(-0.1, hy, 0), hipR = P3(0.1, hy, 0);
+    let footL = P3(-0.13, 0.08 + lift(sw) * 0.22, -sw * 0.38), footR = P3(0.13, 0.08 + lift(-sw) * 0.22, sw * 0.38);
+    let toeTilt = [0, 0];
+    if (kicking) { // plant left beside the ball, swing the right through it
+      footL = [S1.x + 0.08, 0.08, S1.z - 0.26];
       const a = -0.9 + kickU * 2.6; // swing angle around the hip, forward is negative z
-      footR = [S1.x + 0.32 - kickU * 0.12, Math.max(0.06, 0.95 - Math.cos(a) * 0.9), S1.z - Math.sin(a) * 0.9];
+      footR = [S1.x + 0.32 - kickU * 0.12, Math.max(0.09, hy - Math.cos(a) * 0.9), S1.z - Math.sin(a) * 0.9];
+      toeTilt = [0, a];
     }
-    const kneeOf = (h, f) => [(h[0] + f[0]) / 2, (h[1] + f[1]) / 2 + 0.04, (h[2] + f[2]) / 2 - 0.12];
+    // shadow
     const sh = P(bx, 0, bz);
-    if (sh) { ctx.fillStyle = 'rgba(0,0,0,.3)'; ctx.beginPath(); ctx.ellipse(sh.x, sh.y, 0.45 * sh.s, 0.1 * sh.s, 0, 0, Math.PI * 2); ctx.fill(); }
-    ctx.lineCap = 'round';
-    for (const [h, f] of [[hipL, footL], [hipR, footR]]) { const kn = kneeOf(h, f); seg3(h, kn, 0.16, '#c8956b'); seg3(kn, f, 0.14, kit.socks); const fp = P(f[0], f[1], f[2]); if (fp) { ctx.fillStyle = '#111'; ctx.beginPath(); ctx.ellipse(fp.x, fp.y, 0.09 * fp.s, 0.05 * fp.s, 0, 0, Math.PI * 2); ctx.fill(); } }
-    seg3(P3(-0.13, 0.98, 0), P3(-0.12, 0.72, 0), 0.2, kit.shorts); seg3(P3(0.13, 0.98, 0), P3(0.12, 0.72, 0), 0.2, kit.shorts);
-    const neck = P3(0, 1.5, lean);
-    // arms swing against the legs
-    const armA = run ? sw * 0.3 : kickU >= 0 ? 0.3 : 0;
-    seg3(P3(-0.22, 1.45, lean), P3(-0.42 - (kickU >= 0 ? 0.25 : 0), 1.0 + (kickU >= 0 ? 0.25 : 0), lean + armA), 0.11, kit.shirt);
-    seg3(P3(0.22, 1.45, lean), P3(0.4, 1.0, lean - armA), 0.11, kit.shirt);
-    seg3(P3(0, 0.98, 0), neck, 0.46, kit.shirt);
-    // name and number on the back
-    const np = P(bx, 1.23, bz + 0.05);
-    if (np) { ctx.fillStyle = kit.num; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.font = `800 ${Math.round(0.24 * np.s)}px "Saira Condensed", sans-serif`; ctx.fillText(num, np.x, np.y); }
-    const hp = P(bx, 1.7, bz + lean); if (hp) { const r = 0.13 * hp.s; ctx.fillStyle = '#20160f'; ctx.beginPath(); ctx.arc(hp.x, hp.y, r, 0, Math.PI * 2); ctx.fill(); }
-    ctx.lineCap = 'butt';
+    if (sh) { ctx.fillStyle = 'rgba(0,0,0,.32)'; ctx.beginPath(); ctx.ellipse(sh.x, sh.y, 0.42 * sh.s, 0.1 * sh.s, 0, 0, Math.PI * 2); ctx.fill(); }
+    ctx.lineJoin = 'round';
+    // legs, the far one first
+    const legs = [[hipL, footL, toeTilt[0]], [hipR, footR, toeTilt[1]]].sort((a, b) => a[1][2] - b[1][2]);
+    for (const [hip, foot, tilt] of legs) {
+      const [knee, ank] = joint(hip, foot, 0.46, 0.45, [0, 0.15, -1]);
+      // boot: heel to toe, pointing at the goal (or along the swing)
+      const tz = -Math.cos(Math.max(0, tilt) * 0.6) * 0.21, ty = -0.03 - Math.sin(Math.max(0, tilt) * 0.6) * 0.12;
+      const heel = v3.add(ank, [0, -0.04, 0.05]), toe = v3.add(ank, [0, ty, tz]);
+      limb(heel, toe, 0.115, 0.085, '#16181d');
+      limb(v3.add(heel, [0, 0.02, -0.02]), v3.add(toe, [0, 0.03, 0.06]), 0.02, 0.015, kit.shirt, false); // stripe
+      // sock (pulled up to below the knee), with a band at the top
+      const sockTop = v3.lerp(knee, ank, 0.18);
+      limb(sockTop, v3.add(ank, [0, 0.02, 0]), 0.125, 0.085, kit.socks);
+      limb(sockTop, v3.lerp(knee, ank, 0.27), 0.128, 0.12, kit.dark, false);
+      limb(knee, sockTop, 0.13, 0.125, SKIN); // knee
+      limb(hip, knee, 0.2, 0.13, SKIN); // thigh
+      limb(v3.lerp(hip, knee, 0.12), v3.lerp(hip, knee, 0.24), 0.07, 0.05, 'rgba(255,255,255,.12)', false); // light on the thigh
+      limb(hip, v3.lerp(hip, knee, 0.42), 0.25, 0.22, kit.shorts); // shorts leg
+    }
+    limb(P3(0, hy + 0.08, lean * 0.3), P3(0, hy - 0.1, 0), 0.36, 0.34, kit.shorts); // seat of the shorts
+    // torso: wide at the shoulders, narrower at the waist, shaded at the sides
+    const sY = hy + 0.53, wY = hy + 0.04;
+    const tp = [P3(-0.235, sY, lean), P3(0.235, sY, lean), P3(0.175, wY, lean * 0.15), P3(-0.175, wY, lean * 0.15)].map((a) => P(a[0], a[1], a[2]));
+    if (tp.every(Boolean)) {
+      const g = ctx.createLinearGradient(tp[0].x, 0, tp[1].x, 0);
+      g.addColorStop(0, kit.dark); g.addColorStop(0.22, kit.shirt); g.addColorStop(0.6, kit.shirt); g.addColorStop(1, kit.dark);
+      ctx.beginPath(); ctx.moveTo(tp[0].x, tp[0].y + (tp[1].y - tp[0].y) * 0);
+      ctx.quadraticCurveTo((tp[0].x + tp[1].x) / 2, tp[0].y - 0.04 * tp[0].s, tp[1].x, tp[1].y);
+      ctx.quadraticCurveTo(tp[1].x + 0.02 * tp[1].s, (tp[1].y + tp[2].y) / 2, tp[2].x, tp[2].y);
+      ctx.lineTo(tp[3].x, tp[3].y);
+      ctx.quadraticCurveTo(tp[0].x - 0.02 * tp[0].s, (tp[0].y + tp[3].y) / 2, tp[0].x, tp[0].y);
+      ctx.closePath(); ctx.fillStyle = g; ctx.fill(); ctx.strokeStyle = 'rgba(0,0,0,.3)'; ctx.lineWidth = 1; ctx.stroke();
+      // shirt hem and a crease down the back
+      ctx.strokeStyle = 'rgba(0,0,0,.18)'; ctx.lineWidth = Math.max(1, 0.012 * tp[2].s);
+      ctx.beginPath(); ctx.moveTo(tp[3].x, tp[3].y - 0.03 * tp[3].s); ctx.lineTo(tp[2].x, tp[2].y - 0.03 * tp[2].s); ctx.stroke();
+      // name and number on the back
+      const nm = P(bx, sY - 0.1, bz + lean * 0.8), np = P(bx, sY - 0.28, bz + lean * 0.6);
+      ctx.fillStyle = kit.num; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      if (nm) { ctx.font = `700 ${Math.max(6, Math.round(0.075 * nm.s))}px "Saira Condensed", sans-serif`; ctx.fillText(name, nm.x, nm.y); }
+      if (np) { ctx.font = `800 ${Math.round(0.24 * np.s)}px "Saira Condensed", sans-serif`; ctx.fillText(num, np.x, np.y); }
+    }
+    // arms: swing against the legs while running; out wide for balance on the kick
+    for (const side of [-1, 1]) {
+      const S = P3(side * 0.22, sY - 0.04, lean);
+      let hand;
+      if (kicking) hand = side < 0 ? v3.add(S, [-0.5, -0.12 + kickU * 0.12, -0.1]) : v3.add(S, [0.26, -0.38, 0.22 - kickU * 0.3]);
+      else if (run) { const a = side * sw * 0.75; hand = v3.add(S, [side * 0.1, -0.4 * Math.cos(a), -0.4 * Math.sin(a)]); }
+      else hand = v3.add(S, [side * 0.1, -0.52, -0.04]);
+      const [el, hd] = joint(S, hand, 0.29, 0.27, [side * 0.3, 0, 1]);
+      limb(S, el, 0.105, 0.085, SKIN); limb(el, hd, 0.085, 0.065, SKIN); blob(hd, 0.045, 0.05, SKIN_D);
+      limb(v3.add(S, [-side * 0.02, 0.02, 0]), v3.lerp(S, el, 0.6), 0.135, 0.118, kit.shirt); // sleeve
+      limb(v3.lerp(S, el, 0.52), v3.lerp(S, el, 0.6), 0.12, 0.118, kit.dark, false); // sleeve cuff
+    }
+    // neck, collar and head (back of the head: hair, ears)
+    const nk = P3(0, sY + 0.03, lean), hc = P3(0, sY + 0.2, lean * 1.1);
+    limb(v3.add(nk, [0, -0.02, 0]), v3.add(nk, [0, 0.08, 0]), 0.11, 0.1, SKIN_D);
+    limb(v3.add(nk, [-0.075, -0.005, 0]), v3.add(nk, [0.075, -0.005, 0]), 0.035, 0.035, kit.dark, false);
+    blob(v3.add(hc, [-0.112, -0.015, 0]), 0.025, 0.04, SKIN_D); blob(v3.add(hc, [0.112, -0.015, 0]), 0.025, 0.04, SKIN_D);
+    blob(hc, 0.112, 0.128, SKIN);
+    blob(v3.add(hc, [0, 0.022, 0.005]), 0.114, 0.112, HAIR);
+    { const hp = P(hc[0], hc[1], hc[2]); if (hp) { ctx.strokeStyle = 'rgba(255,255,255,.08)'; ctx.lineWidth = Math.max(1, 0.02 * hp.s); ctx.beginPath(); ctx.arc(hp.x - 0.03 * hp.s, hp.y - 0.02 * hp.s, 0.07 * hp.s, Math.PI * 1.1, Math.PI * 1.6); ctx.stroke(); } }
+    ctx.lineJoin = 'miter';
   }
   function drawAim(t) {
     const K = G.K; if (!K || K.res || G.phase !== 'play') return;
@@ -784,7 +856,7 @@ setTimeout(finish,10000);tick();})();</script>
       ctx.strokeStyle = 'rgba(255,255,255,.3)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(pr.x0, pr.y0, 7, 0, Math.PI * 2); ctx.stroke();
       ctx.fillStyle = 'rgba(255,187,74,.45)'; ctx.beginPath(); ctx.arc(pr.lx, pr.ly, 15, 0, Math.PI * 2); ctx.fill();
     }
-    const R = 38, bx = W - R - 16, by = H - R - 16, live = canPress();
+    const R = 42, bx = W / 2, by = H - R - 18, live = canPress();
     const u = pr ? (performance.now() - pr.t0) / 1000 : 0, v = pr ? (K.me ? powerAt(u) : setAt(u)) : 0;
     ctx.fillStyle = 'rgba(16,25,42,.82)'; ctx.beginPath(); ctx.arc(bx, by, R, 0, Math.PI * 2); ctx.fill();
     if (v > 0) {
@@ -798,7 +870,7 @@ setTimeout(finish,10000);tick();})();</script>
     if (v > 1.02) label = 'OVER'; else if (v >= 0.98) label = K.me ? 'FULL' : 'SET'; else if (v > 0) label = String(Math.round(v * 100));
     else if (!K.me && K.kick === null && G.mp) label = 'WAIT';
     ctx.fillStyle = v > 0.5 ? '#1a1205' : live ? '#ffbb4a' : 'rgba(255,187,74,.45)'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-    ctx.font = '800 18px "Saira Condensed", sans-serif'; ctx.fillText(label, bx, by + 1);
+    ctx.font = '800 20px "Saira Condensed", sans-serif'; ctx.fillText(label, bx, by + 1);
     void t;
   }
   function draw() {
@@ -816,8 +888,8 @@ setTimeout(finish,10000);tick();})();</script>
       const keeperMe = !K.me, kit = keeperMe ? KIT.me : KIT.op;
       const items = [{ z: 0.35, f: () => drawKeeper(kpose(K.dive, t), kit, t, keeperMe ? 0.4 : 1) }];
       if (b.z >= 0) items.push({ z: b.z, f: () => drawBall(b) });
-      const kz = K.kick && t >= K.kick.ts - RUN ? 11.3 : 12.9;
-      items.push({ z: kz, f: () => drawKicker(K, K.me ? KIT.me : KIT.op, K.me ? S.player.num : (G.opp.num || '9'), t) });
+      const kz = K.kick && t >= K.kick.ts - RUN ? 11.3 : 12.5;
+      items.push({ z: kz, f: () => drawKicker(K, K.me ? KIT.me : KIT.op, K.me ? S.player.num : (G.opp.num || '9'), K.me ? S.player.name : G.opp.name, t) });
       items.sort((a, c) => a.z - c.z).forEach((i) => i.f());
       drawAim(t);
       drawControls(t);
