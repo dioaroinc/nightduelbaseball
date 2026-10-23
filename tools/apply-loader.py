@@ -2,7 +2,7 @@
 # Run from the repo root: python3 tools/apply-loader.py  (then node build.js for baseball)
 import re
 snip = open('loader.html').read().strip()
-pages = ['index.html', 'tennis/index.html', 'clay/index.html', 'bowling/index.html', 'soccer/index.html', 'index.src.html']
+pages = ['index.html', 'tennis/index.html', 'clay/index.html', 'bowling/index.html', 'soccer/index.html', 'basketball/index.html', 'index.src.html']
 for path in pages:
     s = open(path).read()
     s = re.sub(r'<!--LOADER.*?<!--/LOADER-->\n?', '', s, flags=re.S)
