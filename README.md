@@ -26,6 +26,10 @@ The repository root `index.html` is the game picker for the site; each sport liv
 
 `loader.html` is the shared loading screen (dark screen with a LOADING bar). `python3 tools/apply-loader.py` copies it into every page (hub, tennis, clay, bowling, soccer, basketball, and `index.src.html` for baseball; run `node build.js` and copy `dist/web/index.html` to `baseball/index.html` after). The same script makes the Google Fonts stylesheet load without blocking the first paint and adds `defer` to `firebase-config.js` / `track.js`. The baseball page loads the Firebase SDK only when a friend game opens (`window.ndLoadFirebase`), and prefetches it once the page is idle.
 
+## Daily play limit
+
+`playtime.js` limits play to 30 minutes a day per device (localStorage, resets at local midnight). It counts time on game pages while the tab is visible and the player touched the screen in the last minute; the hub shows the time left. When time runs out mid-game a note says to finish the game, and after 3 more minutes (or when a new game starts) a "That's all for today" screen covers the page. A device logged in to `admin/` has no limit. Change `LIMIT_MIN` / `GRACE_MIN` at the top of `playtime.js`, then run `python3 tools/apply-loader.py`, `node build.js` and copy `dist/web/index.html` to `baseball/index.html`, since the script is copied inline into every page.
+
 ## Break Point Tennis
 
 `tennis/index.html` is a self-contained page (no build step) served at weplaysportsgames.com/tennis/. One set against the CPU with real scoring (tiebreak at 6-6), hard/clay/grass courts, right- or left-handed player. Hold to start a one-second power gauge, slide to aim, let go as the ball arrives. It loads the shared `firebase-config.js` and `track.js`, so visits and games show under tennis on the admin page.
