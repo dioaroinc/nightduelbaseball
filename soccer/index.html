@@ -164,7 +164,7 @@ setTimeout(finish,10000);tick();})();</script>
       <div class="grp mp" id="mpGrp">
         <h3>PLAY WITH A FRIEND</h3>
         <div class="grp"><h3>KICKS EACH</h3>
-          <div class="seg" id="mpLenSeg"><button data-v="3">3 kicks</button><button data-v="5">5 kicks</button></div></div>
+          <div class="seg" id="mpLenSeg"><button data-v="5">5 kicks</button><button data-v="10">10 kicks</button></div></div>
         <div class="row2"><button class="ghost" id="mpCreate">Create room</button><button class="ghost" id="mpJoinShow">Join with code</button></div>
         <div class="joinrow" id="mpJoinRow" hidden>
           <input id="mpCode" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="4-digit code" autocomplete="off" aria-label="Room code">
@@ -328,7 +328,7 @@ setTimeout(finish,10000);tick();})();</script>
   }
   if (![0, 1, 2].includes(S.lv)) S.lv = 1;
   if (S.sound == null) S.sound = true;
-  if (![3, 5].includes(S.mpLen)) S.mpLen = 5;
+  if (![5, 10].includes(S.mpLen)) S.mpLen = 5;
 
   // ---------------- Game state ----------------
   const RUN = 0.8; // run-up, seconds before the ball is struck
@@ -1110,7 +1110,7 @@ setTimeout(finish,10000);tick();})();</script>
     clearTimeout(m.leftTimer); m.leftTimer = null;
     const pr = opp.presence, pl = pr.pl;
     m.opp = { name: cleanName(pl && pl.name, 'FRIEND'), num: cleanNum(pl && pl.num, '') };
-    if (!m.host) { m.len = [3, 5].includes(pr.len) ? pr.len : 5; m.lv = [0, 1, 2].includes(pr.lv) ? pr.lv : 1; }
+    if (!m.host) { m.len = [5, 10].includes(pr.len) ? pr.len : 5; m.lv = [0, 1, 2].includes(pr.lv) ? pr.lv : 1; }
     if (pr.q) { if (m.started) mpGone('Your friend left the game.'); return; }
     m.oppActs = pr.acts && typeof pr.acts === 'object' ? pr.acts : {};
     if (!m.started) mpStart();
