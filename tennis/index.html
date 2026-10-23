@@ -141,7 +141,13 @@ setTimeout(finish,10000);tick();})();</script>
       <div class="topbar"><a class="backbtn" href="../">‹ All games</a></div>
       <div class="logo">BREAK POINT<br><em>TENNIS</em></div>
       <div class="sub">One set against the CPU with real tennis scoring: 15, 30, 40, deuce, first to six games by two, tiebreak at 6-6.</div>
-      <div class="how"><ol>
+      <div class="how" id="howOne"><ol>
+        <li>You are the <b>yellow circle</b>. It runs to the dashed circle (where to stand) by itself.</li>
+        <li><b>Hold anywhere</b> with one thumb: the gauge fills up and drains again over one second.</li>
+        <li><b>Let go to swing</b> as the ball reaches your circle (the ring closes on the ball). Slide right or left while holding to aim; early swings pull cross-court, late ones push wide.</li>
+        <li>To serve: hold to toss, let go at the top.</li>
+      </ol></div>
+      <div class="how" id="howTwo"><ol>
         <li>You are the <b>yellow circle</b>. Move it with the <b>stick</b> at bottom left (or touch anywhere on the left half and slide). The small yellow mark shows where the ball will bounce, and the dashed circle where to stand (with Assist on, you drift there by yourself).</li>
         <li>With your right thumb, <b>hold the HIT button</b> (or anywhere on the right half): it fills up and drains again over one second.</li>
         <li><b>Let go to swing</b> as the ball reaches your circle (the ring closes on the ball). Middle of the circle and a full button hit hardest. Slide right or left before letting go to aim; early swings pull cross-court, late ones push wide.</li>
@@ -159,7 +165,10 @@ setTimeout(finish,10000);tick();})();</script>
         <div class="prow"><input id="nameP" maxlength="10" placeholder="Name" autocomplete="off" autocapitalize="characters" aria-label="Player name"><input id="numP" class="num" inputmode="numeric" maxlength="2" placeholder="#" aria-label="Number"></div></div>
       <div class="grp"><h3>CPU LEVEL</h3>
         <div class="seg" id="lvSeg"><button data-v="0">Rookie</button><button data-v="1">Tour pro</button><button data-v="2">Champion</button></div></div>
-      <div class="grp"><h3>MOVING</h3>
+      <div class="grp"><h3>CONTROLS</h3>
+        <div class="seg" id="ctrlSeg"><button data-v="one">One hand</button><button data-v="two">Two hands</button></div>
+        <div class="note" id="ctrlNote"></div></div>
+      <div class="grp" id="moveGrp"><h3>MOVING</h3>
         <div class="seg" id="asSeg"><button data-v="auto">Auto</button><button data-v="assist">Assist</button><button data-v="off">Manual</button></div>
         <div class="note">The dashed yellow circle is where to stand for the next ball. Auto takes you there; Assist drifts you there until you touch the stick, then that ball is yours to reach; Manual is all you.</div></div>
       <div class="grp"><h3>BALL SPEED</h3>
@@ -229,6 +238,8 @@ setTimeout(finish,10000);tick();})();</script>
   if (![0, 1, 2].includes(S.lv)) S.lv = 1;
   if (![1, 0.75, 0.55].includes(S.speed)) S.speed = 0.75;
   if (!['auto', 'assist', 'off'].includes(S.assist)) S.assist = 'assist';
+  if (!['one', 'two'].includes(S.ctrl)) S.ctrl = 'one';
+  const oneHand = () => S.ctrl === 'one';
   if (S.sound == null) S.sound = true;
 
   // ---------------- Court (meters). x: left/right, y: up, z: from your baseline (0) to the CPU's (23.77) ----------------
@@ -413,7 +424,7 @@ setTimeout(finish,10000);tick();})();</script>
     } else {
       cpu.x = cpu.tx = deuce ? -0.8 : 0.8; cpu.z = cpu.tz = LEN + 0.3;
       me.x = me.tx = deuce ? 2.3 : -2.3; me.z = me.tz = -1.0;
-      G.phase = 'cpuServe'; G.cpuServeAt = performance.now() + 1300; banner((M.serveNo === 2 ? 'Second serve. ' : 'CPU to serve. ') + 'Left: move. Right: hold, let go as the ball reaches your circle');
+      G.phase = 'cpuServe'; G.cpuServeAt = performance.now() + 1300; banner((M.serveNo === 2 ? 'Second serve. ' : 'CPU to serve. ') + (oneHand() ? 'Hold anywhere, let go as the ball reaches your circle' : 'Left: move. Right: hold, let go as the ball reaches your circle'));
     }
     me.side = S.hand === 'R' ? 1 : -1; cpu.side = -1;
     $('speed').textContent = '';
@@ -570,12 +581,17 @@ setTimeout(finish,10000);tick();})();</script>
       // move assist: drift toward the spot where the incoming ball can be hit
       // once you steer for a ball, Assist hands that ball over to you: letting go leaves the circle where you put it
       if (stick && G.shot) G.shot.steered = true;
-      const tg = hitSpot();
-      if (tg && (S.assist === 'auto' || (S.assist === 'assist' && !G.shot.steered))) {
+      const tg = hitSpot(), mode = oneHand() ? 'auto' : S.assist;
+      if (!tg && oneHand() && canMove && G.shot && G.shot.hitter === 'me') {
+        // one hand: after your shot, jog back toward the middle of the baseline to be ready
+        const dx = -G.me.x * 0.85, dz = -0.9 - G.me.z, d = Math.hypot(dx, dz);
+        if (d > 0.1) { const sp = Math.min(ME_RUN * 0.55, d * 3); tvx = dx / d * sp; tvz = dz / d * sp; }
+      }
+      if (tg && (mode === 'auto' || (S.assist === 'assist' && !G.shot.steered))) {
         const dx = tg.x - G.me.x, dz = tg.z - G.me.z, d = Math.hypot(dx, dz);
         if (d > 0.05) {
           const full = Math.min(ME_RUN, d * 6); // slows down as it arrives
-          if (!stick) { const k = S.assist === 'auto' ? 1 : 0.8; tvx = dx / d * full * k; tvz = dz / d * full * k; }
+          if (!stick) { const k = mode === 'auto' ? 1 : 0.8; tvx = dx / d * full * k; tvz = dz / d * full * k; }
           else { tvx = tvx * 0.5 + dx / d * full * 0.5; tvz = tvz * 0.5 + dz / d * full * 0.5; } // Auto: the stick only nudges
         }
       }
@@ -623,7 +639,7 @@ setTimeout(finish,10000);tick();})();</script>
       const passed = ct != null ? G.T > ct + 0.45 : G.T > sh.contactT + 1;
       if (passed || (second && G.T >= second)) {
         const why = sh.isServe && !G.swung ? 'ACE' : G.swung ? 'MISSED' : passed ? 'NO SWING' : 'TWO BOUNCES';
-        endRally(1, why, G.swung ? 'Let go as the ball reaches your circle' : passed ? 'Hold the right side, let go as the ball reaches your circle' : 'Get to the ball before it bounces twice');
+        endRally(1, why, G.swung ? 'Let go as the ball reaches your circle' : passed ? (oneHand() ? 'Hold, then let go as the ball reaches your circle' : 'Hold the right side, let go as the ball reaches your circle') : 'Get to the ball before it bounces twice');
       }
     }
   }
@@ -652,7 +668,7 @@ setTimeout(finish,10000);tick();})();</script>
     audio();
     if (G.paused || G.phase === 'menu') return;
     const q = stageXY(e);
-    if (q.x < W / 2) {
+    if (!oneHand() && q.x < W / 2) {
       if (G.joy) return;
       stage.setPointerCapture?.(e.pointerId);
       // touching the stick grabs it at its center; touching elsewhere on the left works from that spot
@@ -664,7 +680,7 @@ setTimeout(finish,10000);tick();})();</script>
     if (G.press) return;
     if (G.phase === 'serveReady') {
       stage.setPointerCapture?.(e.pointerId);
-      G.press = { t0: performance.now(), x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, id: e.pointerId }; // toss: up and down in one second, highest at the gauge peak
+      G.press = { t0: performance.now(), x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, id: e.pointerId, sx: q.x, sy: q.y }; // toss: up and down in one second, highest at the gauge peak
       G.phase = 'toss';
       const hx = G.me.x + (S.hand === 'R' ? 0.3 : -0.3);
       G.ball = { segs: [{ t0: G.T, p: { x: hx, y: 1.6, z: G.me.z + 0.25 }, v: { x: 0, y: 4.9 / S.speed, z: 0 }, g: GRAV / (S.speed * S.speed) }] };
@@ -673,7 +689,7 @@ setTimeout(finish,10000);tick();})();</script>
     }
     if (G.phase === 'rally' && G.shot && G.shot.hitter === 'cpu' && !G.swung && !G.shot.net) {
       stage.setPointerCapture?.(e.pointerId);
-      G.press = { t0: performance.now(), x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, id: e.pointerId };
+      G.press = { t0: performance.now(), x0: e.clientX, y0: e.clientY, x: e.clientX, y: e.clientY, id: e.pointerId, sx: q.x, sy: q.y };
       banner('');
     }
   });
@@ -920,8 +936,13 @@ setTimeout(finish,10000);tick();})();</script>
     ctx.font = `700 ${isMe ? 14 : 11}px "Saira Condensed", sans-serif`;
     ctx.fillText(isMe ? `${S.player.name} ${S.player.num}` : 'CPU', f.x, f.y + ry + (isMe ? 15 : 12));
   }
+  function gaugeC() { return oneHand() ? { x: W / 2, y: H - 34 - JOY_R } : btnC(); } // one hand: the gauge sits bottom center, out of the court's way
   function drawControls() {
     if (G.phase === 'menu') return;
+    if (!oneHand()) drawStick();
+    drawHitButton();
+  }
+  function drawStick() {
     // movement stick: base with four arrows, knob follows the thumb
     const c = joyC(), j = G.joy, kx = c.x + (j ? j.mx : 0) * JOY_R * 0.62, ky = c.y + (j ? j.my : 0) * JOY_R * 0.62;
     const gb = ctx.createRadialGradient(c.x, c.y, JOY_R * 0.2, c.x, c.y, JOY_R);
@@ -937,8 +958,10 @@ setTimeout(finish,10000);tick();})();</script>
     gk.addColorStop(0, '#ffe0a0'); gk.addColorStop(1, '#d98c1c');
     ctx.fillStyle = gk; ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = 8; ctx.beginPath(); ctx.arc(kx, ky, 24, 0, Math.PI * 2); ctx.fill(); ctx.shadowBlur = 0;
     if (j) { ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = 1.5; ctx.beginPath(); ctx.arc(j.ax, j.ay, 6, 0, Math.PI * 2); ctx.stroke(); }
-    // HIT button: fills from the bottom as the gauge rises
-    const b = btnC(), v = G.press ? (G.gv || 0) : 0, live = G.phase === 'serveReady' || G.phase === 'toss' || (G.phase === 'rally' && G.shot && G.shot.hitter === 'cpu' && !G.swung);
+  }
+  function drawHitButton() {
+    // HIT button: fills from the bottom as the gauge rises (one hand: it pops up above your thumb)
+    const b = gaugeC(), v = G.press ? (G.gv || 0) : 0, live = G.phase === 'serveReady' || G.phase === 'toss' || (G.phase === 'rally' && G.shot && G.shot.hitter === 'cpu' && !G.swung);
     ctx.save(); ctx.beginPath(); ctx.arc(b.x, b.y, BTN_R, 0, Math.PI * 2); ctx.clip();
     ctx.fillStyle = 'rgba(36,52,84,.75)'; ctx.fillRect(b.x - BTN_R, b.y - BTN_R, BTN_R * 2, BTN_R * 2);
     if (v > 0) {
@@ -952,7 +975,7 @@ setTimeout(finish,10000);tick();})();</script>
     ctx.beginPath(); ctx.arc(b.x, b.y, BTN_R, 0, Math.PI * 2); ctx.stroke(); ctx.shadowBlur = 0;
     ctx.fillStyle = v > 0.55 ? '#1a1205' : live ? '#ffbb4a' : 'rgba(255,187,74,.5)'; ctx.textAlign = 'center';
     ctx.font = '800 20px "Saira Condensed", sans-serif';
-    ctx.fillText(v >= 0.95 ? 'MAX' : v > 0 ? String(Math.round(v * 100)) : (G.phase === 'serveReady' ? 'SERVE' : 'HIT'), b.x, b.y + 7);
+    ctx.fillText(v >= 0.95 ? 'MAX' : v > 0 ? String(Math.round(v * 100)) : (G.phase === 'serveReady' ? 'SERVE' : oneHand() ? 'HOLD' : 'HIT'), b.x, b.y + 7);
   }
   function drawBall(t) {
     const b = ballPos(t); if (!b) return;
@@ -999,7 +1022,7 @@ setTimeout(finish,10000);tick();})();</script>
     if (b && b.z < NET) drawBall(G.T);
     // aim arrow while holding (slide right thumb before letting go)
     if (G.press) {
-      const dx = G.press.x - G.press.x0, b = btnC();
+      const dx = G.press.x - G.press.x0, b = gaugeC();
       if (Math.abs(dx) > 6) { const y0 = b.y - BTN_R - 16, x1 = b.x + clamp(dx, -70, 70); ctx.strokeStyle = 'rgba(255,187,74,.9)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(b.x, y0); ctx.lineTo(x1, y0); ctx.stroke(); ctx.beginPath(); ctx.moveTo(x1 + Math.sign(dx) * 4, y0); ctx.lineTo(x1 - Math.sign(dx) * 6, y0 - 6); ctx.lineTo(x1 - Math.sign(dx) * 6, y0 + 6); ctx.closePath(); ctx.fillStyle = 'rgba(255,187,74,.9)'; ctx.fill(); }
     }
     drawControls();
@@ -1032,13 +1055,16 @@ setTimeout(finish,10000);tick();})();</script>
 
   function setSeg(id, val) { document.querySelectorAll(`#${id} [data-v]`).forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.v === String(val)))); }
   function renderStart() {
-    setSeg('surfSeg', S.surface); setSeg('handSeg', S.hand); setSeg('lvSeg', S.lv); setSeg('spdSeg', S.speed); setSeg('asSeg', S.assist);
+    setSeg('surfSeg', S.surface); setSeg('handSeg', S.hand); setSeg('lvSeg', S.lv); setSeg('spdSeg', S.speed); setSeg('asSeg', S.assist); setSeg('ctrlSeg', S.ctrl);
+    $('moveGrp').hidden = oneHand(); $('howOne').hidden = !oneHand(); $('howTwo').hidden = oneHand();
+    $('ctrlNote').textContent = oneHand() ? 'Hold anywhere, slide to aim, let go to swing. Your circle runs to the ball by itself.' : 'Stick on the left moves you, HIT button on the right swings.';
     $('soundBtn').textContent = 'Sound: ' + (S.sound ? 'on' : 'off');
   }
   $('surfSeg').addEventListener('click', (e) => { const v = e.target.closest('[data-v]')?.dataset.v; if (v) { S.surface = v; persist(); renderStart(); } });
   $('handSeg').addEventListener('click', (e) => { const v = e.target.closest('[data-v]')?.dataset.v; if (v) { S.hand = v; persist(); renderStart(); } });
   $('lvSeg').addEventListener('click', (e) => { const v = e.target.closest('[data-v]')?.dataset.v; if (v) { S.lv = Number(v); persist(); renderStart(); } });
   $('asSeg').addEventListener('click', (e) => { const v = e.target.closest('[data-v]')?.dataset.v; if (v) { S.assist = v; persist(); renderStart(); } });
+  $('ctrlSeg').addEventListener('click', (e) => { const v = e.target.closest('[data-v]')?.dataset.v; if (v) { S.ctrl = v; persist(); renderStart(); } });
   $('spdSeg').addEventListener('click', (e) => { const v = e.target.closest('[data-v]')?.dataset.v; if (v) { S.speed = Number(v); persist(); renderStart(); } });
   $('soundBtn').addEventListener('click', () => { S.sound = !S.sound; persist(); renderStart(); });
   { const nm = $('nameP'), nu = $('numP'); nm.value = S.player.name; nu.value = S.player.num;
