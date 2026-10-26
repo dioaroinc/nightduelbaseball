@@ -277,7 +277,7 @@ setTimeout(finish,10000);tick();})();</script>
       <div class="how"><ol>
         <li><b>Push the wheel</b> at the bottom to run. Push further to run faster. Let go to stop.</li>
         <li>Run over a ball to <b>pick it up</b>. Clear all <b>100</b> before the lesson's 100 shots are over.</li>
-        <li><b>Red circles</b> show where a shot will land. Watch the shadows and <b>don't get hit</b>. A hit knocks a few balls out of your basket.</li>
+        <li><b>Red circles</b> show where a shot will land. <b>Don't get hit</b>, not even after the bounce: a ball glowing red still hurts until it slows down. A hit knocks a few balls out of your basket.</li>
       </ol></div>
       <div class="grp"><h3>YOUR PLAYER</h3>
         <div class="prow"><input id="nameP" maxlength="10" placeholder="Name" autocomplete="off" autocapitalize="characters" aria-label="Player name"><input id="numP" class="num" inputmode="numeric" maxlength="2" placeholder="#" aria-label="Number"></div></div>
@@ -551,7 +551,7 @@ setTimeout(finish,10000);tick();})();</script>
     if (!s.target) aimShot(s);
     const st = G.st; st.x = s.sx; st.y = s.sy; st.swing = G.t; st.swingSide = s.side; st.swingKind = s.type;
     const o = contactOf(s);
-    G.balls.push({ kind: 'live', x: o.x, y: o.y, z: o.z, vx: s.fl.vx, vy: s.fl.vy, vz: s.fl.vz, tx: s.target.x, ty: s.target.y, t0: G.t, landT: s.landT, ringT: LV[G.lv].early ? s.hitT - s.feedT : G.t, trail: [], smash: s.type === 'smash' });
+    G.balls.push({ kind: 'live', danger: true, x: o.x, y: o.y, z: o.z, vx: s.fl.vx, vy: s.fl.vy, vz: s.fl.vz, tx: s.target.x, ty: s.target.y, t0: G.t, landT: s.landT, ringT: LV[G.lv].early ? s.hitT - s.feedT : G.t, trail: [], smash: s.type === 'smash' });
     G.fired++;
     thock(s.type === 'smash' ? 1.4 : 1);
     renderHud();
@@ -591,7 +591,7 @@ setTimeout(finish,10000);tick();})();</script>
         const b = G.fb[i];
         if (hyp(b.x - p.x, b.y - p.y) < PICK_R) { G.fb.splice(i, 1); got++; sparkle(b.x, b.y); }
       }
-      if (got) { pickSound(); G.picks += got; pop('scMe'); renderHud(); if (!G.fb.length && !G.drops.length) courtClean(); }
+      if (got) { p.bendAt = G.t; pickSound(); G.picks += got; pop('scMe'); renderHud(); if (!G.fb.length && !G.drops.length) courtClean(); }
     }
   }
   function moveStudent(dt) {
@@ -604,7 +604,7 @@ setTimeout(finish,10000);tick();})();</script>
     for (let i = G.balls.length - 1; i >= 0; i--) {
       const b = G.balls[i];
       const sp = hyp(b.vx, b.vy, b.vz), n = Math.max(1, Math.ceil(sp * dt / 0.12)), h = dt / n;
-      if (b.kind === 'live' || b.kind === 'feed') { b.trail.push({ x: b.x, y: b.y, z: b.z }); if (b.trail.length > 7) b.trail.shift(); }
+      if (b.danger || b.kind === 'feed') { b.trail.push({ x: b.x, y: b.y, z: b.z }); if (b.trail.length > 7) b.trail.shift(); }
       for (let k = 0; k < n; k++) {
         if (b.rolling) {
           const v = hyp(b.vx, b.vy), nv = Math.max(0, v - 1.7 * h);
@@ -613,10 +613,10 @@ setTimeout(finish,10000);tick();})();</script>
         } else {
           b.x += b.vx * h; b.y += b.vy * h; b.z += b.vz * h; b.vz -= GRAV * h;
         }
-        if (b.kind === 'live' && p && G.phase === 'play' && p.inv <= 0 && b.z < BODY_H && hyp(b.x - p.x, b.y - p.y) < HIT_R + 0.07) { hurt(b); break; }
+        if (b.danger && p && G.phase === 'play' && p.inv <= 0 && b.z < BODY_H && hyp(b.x - p.x, b.y - p.y) < HIT_R + 0.07) { hurt(b); break; }
         if (b.z <= 0 && b.vz < 0 && !b.rolling) {
           b.z = 0;
-          if (b.kind === 'live') { b.kind = 'spent'; G.dodged++; puff(b.x, b.y, b.smash ? 10 : 6); bounceSound(1); renderHud(); }
+          if (b.kind === 'live') { b.kind = 'spent'; puff(b.x, b.y, b.smash ? 10 : 6); bounceSound(1); renderHud(); }
           else if (b.kind === 'spent' && Math.abs(b.vz) > 2) bounceSound(0.4);
           b.vz = -b.vz * 0.62; b.vx *= 0.8; b.vy *= 0.8;
           if (b.vz < 0.9) { b.vz = 0; b.rolling = true; }
@@ -628,6 +628,8 @@ setTimeout(finish,10000);tick();})();</script>
       }
       if (b.kind === 'feed' && G.t >= b.end + 0.4) { G.balls.splice(i, 1); continue; }
       if (b.rolling && hyp(b.vx, b.vy) < 0.12) b.stop = true;
+      // a bounced shot is still dangerous until it has slowed right down (or stopped at the fence)
+      if (b.danger && b.kind === 'spent' && (b.stop || (b.z < 0.3 && hyp(b.vx, b.vy) < 1.6))) { b.danger = false; G.dodged++; renderHud(); }
       if (b.stop) {
         if (b.keep) { G.fb.push({ x: b.x, y: b.y, r: 0 }); G.introBall = null; G.balls.splice(i, 1); continue; }
         if (b.fence) { G.pile.push({ x: b.x, y: b.y, r: Math.random() * 6.28 }); if (G.pile.length > 140) G.pile.shift(); G.balls.splice(i, 1); continue; }
@@ -650,7 +652,7 @@ setTimeout(finish,10000);tick();})();</script>
   function hurt(b) {
     const p = G.p;
     G.hits++; G.hearts = Math.max(0, G.hearts - 1);
-    b.kind = 'spent'; b.vx *= -0.25; b.vy *= -0.25; b.vz = Math.abs(b.vz) * 0.3 + 2;
+    b.kind = 'spent'; b.danger = false; b.vx *= -0.25; b.vy *= -0.25; b.vz = Math.abs(b.vz) * 0.3 + 2;
     const d = hyp(b.vx, b.vy) || 1;
     p.kx = -b.vx / d * 3.2; p.ky = -b.vy / d * 3.2; p.stun = 0.4; p.inv = 1.9;
     // a few balls fly out of your basket
@@ -683,7 +685,7 @@ setTimeout(finish,10000);tick();})();</script>
       if (G.t >= G.goT && G.goT > 0) { G.goT = -1; toast('GO!', 'Pick up your balls', '#4fd88a', 700); whistle(); }
       lessonTick();
       moveStudent(dt);
-      if (G.nextN >= N_SHOTS && !G.shots.length && !G.balls.some((b) => b.kind === 'live')) gameOver('time');
+      if (G.nextN >= N_SHOTS && !G.shots.length && !G.balls.some((b) => b.danger)) gameOver('time');
     }
     moveMe(dt);
     stepBalls(dt);
@@ -928,7 +930,12 @@ setTimeout(finish,10000);tick();})();</script>
     // shorts
     ctx.fillStyle = look.shorts;
     ctx.beginPath(); ctx.moveTo(-16, -59); ctx.lineTo(16, -59); ctx.lineTo(16.5, -41); ctx.lineTo(1.5, -41); ctx.lineTo(0, -46); ctx.lineTo(-1.5, -41); ctx.lineTo(-16.5, -41); ctx.closePath(); ctx.fill();
-    // arms behind the body when walking toward the camera are drawn after; simple order: arms first, then shirt
+    // bending at the waist to pick up a ball: the upper body tips forward (from behind it looks shorter and lower)
+    const bt = G.t - (m.bendAt == null ? -9 : m.bendAt);
+    const bend = opt.hopper ? (bt < 0.1 ? bt / 0.1 : bt < 0.28 ? 1 : Math.max(0, 1 - (bt - 0.28) / 0.16)) : 0;
+    const bsy = 1 - 0.58 * bend, bdy = 12 * bend;
+    if (bend > 0) { ctx.translate(0, -56 + bdy); ctx.scale(1, bsy); ctx.translate(0, 56); }
+    const unbend = (y) => (y - (-56 + bdy)) / bsy - 56; // a point on the ground, in the tipped upper body's space
     const arm = (sd, hx, hy) => {
       ctx.strokeStyle = look.skin; ctx.lineWidth = 6.5; ctx.lineCap = 'round';
       ctx.beginPath(); ctx.moveTo(sd * 16, -82); ctx.lineTo(hx, hy); ctx.stroke();
@@ -958,6 +965,11 @@ setTimeout(finish,10000);tick();})();</script>
         continue;
       }
       if (holdArm || (hitArm && !swinging)) { racketHand = arm(sd, sd * 22, -58); racketAng = sd * 0.5; continue; }
+      if (bend > 0.15 && sd === 1) { // reaching down for the ball
+        const h = arm(sd, 20 + 4 * bend, unbend(-6 - 40 * (1 - bend)));
+        ctx.save(); ctx.translate(h.x, h.y); ctx.scale(1, 1 / bsy); drawBall(0, 1, 3.4); ctx.restore();
+        continue;
+      }
       if (opt.hopper && sd === -1) { arm(sd, -22, -60); continue; }
       const lift = Math.max(0, -sd * sw) * 4;
       arm(sd, sd * 20, -57 - lift);
@@ -1059,7 +1071,7 @@ setTimeout(finish,10000);tick();})();</script>
       ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(e.x - e.rx * 0.35, e.y); ctx.lineTo(e.x + e.rx * 0.35, e.y); ctx.moveTo(e.x, e.y - e.ry * 0.35); ctx.lineTo(e.x, e.y + e.ry * 0.35); ctx.stroke();
     }
     // shadows of balls in the air
-    for (const b of G.balls) if (b.z > 0.02) { const e = groundEllipse(b.x, b.y, 0.14 + Math.min(0.14, b.z * 0.025)); ctx.fillStyle = b.kind === 'live' ? 'rgba(10,0,0,.5)' : 'rgba(0,10,20,.35)'; ctx.beginPath(); ctx.ellipse(e.x, e.y, e.rx, e.ry, 0, 0, 6.283); ctx.fill(); }
+    for (const b of G.balls) if (b.z > 0.02) { const e = groundEllipse(b.x, b.y, 0.14 + Math.min(0.14, b.z * 0.025)); ctx.fillStyle = b.danger ? 'rgba(10,0,0,.5)' : 'rgba(0,10,20,.35)'; ctx.beginPath(); ctx.ellipse(e.x, e.y, e.rx, e.ry, 0, 0, 6.283); ctx.fill(); }
     // everything else, far to near
     const items = [];
     for (const b of G.fb) items.push({ y: b.y, f: () => { const p = P(b.x, b.y, 0.04); drawBall(p.x, p.y - p.s * 0.03, Math.max(3.4, p.s * 0.15), ballSpr, b.r); } });
@@ -1108,8 +1120,8 @@ setTimeout(finish,10000);tick();})();</script>
   }
   function drawFlying(b) {
     const p = P(b.x, b.y, b.z + 0.035);
-    let r = Math.max(3.6, p.s * (b.kind === 'live' ? 0.2 : 0.15));
-    if (b.kind === 'live') {
+    let r = Math.max(3.6, p.s * (b.danger ? 0.2 : 0.15));
+    if (b.danger) {
       // a streak behind it and a red glow so it reads at speed
       ctx.lineCap = 'round';
       for (let i = 1; i < b.trail.length; i++) { const a = P(b.trail[i - 1].x, b.trail[i - 1].y, b.trail[i - 1].z), c = P(b.trail[i].x, b.trail[i].y, b.trail[i].z); ctx.strokeStyle = `rgba(255,120,80,${i / b.trail.length * 0.5})`; ctx.lineWidth = r * 1.4 * i / b.trail.length; ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(c.x, c.y); ctx.stroke(); }
@@ -1117,7 +1129,7 @@ setTimeout(finish,10000);tick();})();</script>
       ctx.fillStyle = gl; ctx.beginPath(); ctx.arc(p.x, p.y, r * 2.6, 0, 6.283); ctx.fill();
     }
     if (b.fade) ctx.globalAlpha = 1 - b.fade;
-    drawBall(p.x, p.y, r, b.kind === 'spent' && !b.keep ? ballDim : ballSpr, G.t * 9);
+    drawBall(p.x, p.y, r, b.kind === 'spent' && !b.keep && !b.danger ? ballDim : ballSpr, G.t * 9);
     ctx.globalAlpha = 1;
   }
 
