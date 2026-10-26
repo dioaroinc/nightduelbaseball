@@ -275,7 +275,7 @@ setTimeout(finish,10000);tick();})();</script>
       <div class="logo">BALL BOY<br><em>DASH</em></div>
       <div class="sub"><b>Your tennis lesson just ended.</b> Now pick up the 100 balls you hit, while the next student's lesson starts and their shots fly straight at you.</div>
       <div class="how"><ol>
-        <li><b>Press anywhere and slide</b> to run. Slide further to run faster. Let go to stop.</li>
+        <li><b>Push the wheel</b> at the bottom to run. Push further to run faster. Let go to stop.</li>
         <li>Run over a ball to <b>pick it up</b>. Clear all <b>100</b> before the lesson's 100 shots are over.</li>
         <li><b>Red circles</b> show where a shot will land. Watch the shadows and <b>don't get hit</b>. A hit knocks a few balls out of your basket.</li>
       </ol></div>
@@ -333,8 +333,8 @@ setTimeout(finish,10000);tick();})();</script>
   // CORE-START (court, levels, the lesson plan and shot flight; no DOM)
   // Meters. x across the court, y along it (your baseline is y = 0, the net y = 11.885, the far baseline y = 23.77), z up.
   const L = 23.77, NET = 11.885, DW = 5.485, SW = 4.115, SV = 6.4, POST = 6.4, GRAV = 9.81;
-  const FENCE_Y = -4.5, SIDE_X = 8.6, FAR_Y = 28.2;
-  const BOUND = { x0: -7.9, x1: 7.9, y0: -4.1, y1: NET - 0.45 }; // where you can run
+  const FENCE_Y = -3.6, SIDE_X = 7.4, FAR_Y = 27.4;
+  const BOUND = { x0: -6.8, x1: 6.8, y0: -3.2, y1: NET - 0.45 }; // where you can run
   const COACH = { x: 0.8, y: 7.3 }, CART = { x: -0.3, y: 7.6 };
   const N_BALLS = 100, N_SHOTS = 100;
   const SPEED = 4.9, HIT_R = 0.34, BODY_H = 2.0, PICK_R = 0.62;
@@ -399,9 +399,9 @@ setTimeout(finish,10000);tick();})();</script>
     for (let i = 0; i < n; i++) {
       const r = i % 10;
       if (r < 2) add(() => rnd(-6, 6), () => rnd(NET - 1.0, NET - 0.5));
-      else if (r < 5) add(() => rnd(-7.6, 7.6), () => rnd(BOUND.y0 + 0.1, 0.8));
+      else if (r < 5) add(() => rnd(-6.6, 6.6), () => rnd(BOUND.y0 + 0.1, 0.8));
       else if (r < 8) add(() => rnd(-5, 5), () => rnd(1, NET - 1.2));
-      else add(() => (Math.random() < 0.5 ? -1 : 1) * rnd(5.6, 7.7), () => rnd(-3, NET - 0.8));
+      else add(() => (Math.random() < 0.5 ? -1 : 1) * rnd(5.6, 6.6), () => rnd(-2.6, NET - 0.8));
     }
     return out;
   }
@@ -442,13 +442,13 @@ setTimeout(finish,10000);tick();})();</script>
   }
   setupCourt(false);
   // a few balls already piled against the back fence from earlier lessons
-  for (let i = 0; i < 26; i++) G.pile.push({ x: rnd(-8.3, 8.3), y: FENCE_Y + 0.12 + Math.random() * 0.22, r: Math.random() * 6.28 });
+  for (let i = 0; i < 26; i++) G.pile.push({ x: rnd(-7.1, 7.1), y: FENCE_Y + 0.12 + Math.random() * 0.22, r: Math.random() * 6.28 });
 
   function startGame() {
     ['startOv', 'endOv', 'menuOv', 'statsOv'].forEach((i) => ($(i).hidden = true));
     G.lv = S.lv; G.hearts = LV[G.lv].hearts; G.fired = 0; G.dodged = 0; G.hits = 0; G.nextN = 0; G.cleared = false; G.result = '';
     setupCourt(true);
-    G.st = newPerson(-9.2, 27.6, 'front'); G.st.kid = G.lv === 0;
+    G.st = newPerson(-7.2, 27.1, 'front'); G.st.kid = G.lv === 0;
     G.phase = 'intro'; G.paused = false; G.it = 0; G.introStep = 0; G.introBall = null;
     G.p.path = null; G.st.path = null;
     $('skipHint').hidden = false;
@@ -458,8 +458,8 @@ setTimeout(finish,10000);tick();})();</script>
   }
 
   // ---------------- Intro: your lesson ends, the next student walks on ----------------
-  const ME_PATH = [{ x: 6.9, y: 23 }, { x: 6.9, y: 12.6 }, { x: 6.9, y: 11 }, { x: 3.4, y: 3.6 }];
-  const ST_PATH = [{ x: -6.5, y: 25.6 }, { x: 0, y: 24.4 }];
+  const ME_PATH = [{ x: 6.7, y: 23 }, { x: 6.7, y: 12.6 }, { x: 6.6, y: 11 }, { x: 3.4, y: 3.6 }];
+  const ST_PATH = [{ x: -6, y: 25.4 }, { x: 0, y: 24.4 }];
   const INTRO_T = 6.6;
   function introTick(dt) {
     const it = (G.it += dt), p = G.p, st = G.st, c = G.coach;
@@ -558,7 +558,7 @@ setTimeout(finish,10000);tick();})();</script>
   const joy = { id: null, x0: 0, y0: 0, x: 0, y: 0, on: false };
   function inputVec() {
     let ix = 0, iy = 0;
-    if (joy.on) { const dx = joy.x - joy.x0, dy = joy.y - joy.y0, d = hyp(dx, dy); if (d > 6) { const m = Math.min(1, (d - 6) / 46); ix = dx / d * m; iy = -dy / d * m; } }
+    if (joy.on) { const dx = joy.x - WHEEL.x, dy = joy.y - WHEEL.y, d = hyp(dx, dy); if (d > 5) { const m = Math.min(1, (d - 5) / (WHEEL.r * 0.75)); ix = dx / d * m; iy = -dy / d * m; } }
     const kx = (keys.has('ArrowRight') || keys.has('KeyD') ? 1 : 0) - (keys.has('ArrowLeft') || keys.has('KeyA') ? 1 : 0);
     const ky = (keys.has('ArrowUp') || keys.has('KeyW') ? 1 : 0) - (keys.has('ArrowDown') || keys.has('KeyS') ? 1 : 0);
     if (kx || ky) { const d = hyp(kx, ky); ix = kx / d; iy = ky / d; }
@@ -773,7 +773,8 @@ setTimeout(finish,10000);tick();})();</script>
 
   // ---------------- Camera ----------------
   // A fixed camera behind and above your baseline looks down the whole court.
-  const CAM = { y: -22, z: 40, ty: 9.5 };
+  const CAM = { y: -15, z: 17, ty: 9, d: 14 }; // looks at ty from distance d, from behind your baseline
+  let CTRL_H = 150, WHEEL = { x: 0, y: 0, r: 52 }; // the wheel sits in a strip under the court
   let W = 1, H = 1, DPR = 1, SC = 1, OX = 0, OY = 0, cf = 0, cu = 0;
   const stage = $('stage'), cv = $('cv'), ctx = cv.getContext('2d');
   // camera basis: forward (0, cf, -cu) and up (0, cu, cf), with cf = cos(pitch), cu = sin(pitch)
@@ -782,13 +783,30 @@ setTimeout(finish,10000);tick();})();</script>
     return { x: OX + SC * x / depth, y: OY - SC * up / depth, s: SC / depth };
   }
   function fitCam() {
-    const pitch = Math.atan2(CAM.z, CAM.ty - CAM.y); cf = Math.cos(pitch); cu = Math.sin(pitch);
+    // the lowest camera (most "from behind") whose view still fills the screen's height
+    CTRL_H = Math.round(clamp(H * 0.19, 112, 160));
+    const CH0 = H - CTRL_H - 30;
+    for (let deg = 28; deg <= 72; deg += 1) { if (aimCam(deg) >= CH0 || deg === 72) break; }
+    finishFit();
+  }
+  function aimCam(deg) {
+    const a = deg * Math.PI / 180; CAM.y = CAM.ty - CAM.d * Math.cos(a); CAM.z = CAM.d * Math.sin(a); cf = Math.cos(a); cu = Math.sin(a);
+    SC = 1; OX = 0; OY = 0;
+    const nl = P(-SIDE_X + 0.3, FENCE_Y, 0), nr = P(SIDE_X - 0.3, FENCE_Y, 0), top = P(0, FAR_Y, 3.6);
+    return W / (nr.x - nl.x) * (nl.y - top.y);
+  }
+  function finishFit() {
     SC = 1; OX = 0; OY = 0;
     // fill the width with your half (out to the fences); keep the far baseline and the student in view
-    const nl = P(-SIDE_X + 0.3, FENCE_Y, 0), nr = P(SIDE_X - 0.3, FENCE_Y, 0), top = P(0, FAR_Y, 3.0);
-    const padT = 34, padB = 6;
-    SC = Math.min(W / (nr.x - nl.x), (H - padT - padB) / (nl.y - top.y));
-    OX = W / 2; OY = H - padB - SC * nl.y;
+    WHEEL = { x: W / 2, y: H - CTRL_H / 2, r: Math.round(CTRL_H * 0.34) };
+    const CH = H - CTRL_H;
+    const nl = P(-SIDE_X + 0.3, FENCE_Y, 0), nr = P(SIDE_X - 0.3, FENCE_Y, 0), top = P(0, FAR_Y, 3.6);
+    const padT = 30;
+    SC = Math.min(W / (nr.x - nl.x), (CH - padT) / (nl.y - top.y));
+    // court sits on the strip; the far fence goes as high as it needs to and no higher
+    const used = SC * (nl.y - top.y);
+    OX = W / 2; OY = CH - SC * nl.y;
+    $('skipHint').style.bottom = (CTRL_H + 12) + 'px';
     buildBg();
   }
 
@@ -877,14 +895,25 @@ setTimeout(finish,10000);tick();})();</script>
   };
   // a person from the knees-up view: 100 units tall, feet at (0,0)
   function drawPerson(m, look, opt) {
-    const f = P(m.x, m.y, 0), k = f.s * 1.75 * 1.18 / 100 * (m.kid ? 0.84 : 1);
+    const f = P(m.x, m.y, 0), k = f.s * 1.75 * 1.32 / 100 * (m.kid ? 0.84 : 1);
     ctx.save(); ctx.translate(f.x, f.y); ctx.scale(k, k);
     // shadow
     ctx.fillStyle = 'rgba(0,10,20,.38)'; ctx.beginPath(); ctx.ellipse(0, 0, 21, 6.5, 0, 0, 6.283); ctx.fill();
     if (m.inv > 0 && Math.floor(G.t * 14) % 2) ctx.globalAlpha = 0.35;
     const front = m.face === 'front', sw = Math.sin(m.walk) * m.moving;
+    const ath = !!opt.athletic, cr = ath ? 8 : 0; // crouch: the upper body sits this much lower
     // legs
-    for (const sd of [-1, 1]) {
+    if (ath) for (const sd of [-1, 1]) {
+      const lift = Math.max(0, sd * sw) * 7, hip = { x: sd * 7, y: -47 + cr }, foot = { x: sd * (17 + Math.max(0, -sd * sw) * 2), y: -lift }, knee = { x: sd * 15.5, y: -25 + cr * 0.6 - lift * 0.5 };
+      ctx.lineCap = 'round'; ctx.lineJoin = 'round';
+      ctx.strokeStyle = look.skin; ctx.lineWidth = 9.5; ctx.beginPath(); ctx.moveTo(hip.x, hip.y); ctx.lineTo(knee.x, knee.y); ctx.lineTo(foot.x, foot.y - 5); ctx.stroke();
+      ctx.strokeStyle = 'rgba(0,0,0,.12)'; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(hip.x + sd * 2.5, hip.y); ctx.lineTo(knee.x + sd * 2.5, knee.y); ctx.lineTo(foot.x + sd * 2.5, foot.y - 6); ctx.stroke();
+      ctx.strokeStyle = '#fafafa'; ctx.lineWidth = 8.8; ctx.lineCap = 'butt'; ctx.beginPath(); ctx.moveTo(foot.x, foot.y - 9.5); ctx.lineTo(foot.x, foot.y - 5); ctx.stroke();
+      ctx.fillStyle = look.shoe; ctx.beginPath(); ctx.ellipse(foot.x + sd * 1.5, foot.y - 3.5, 7, 3.9, sd * 0.25, 0, 6.283); ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,.25)'; ctx.fillRect(foot.x - 5.5 + sd * 1.5, foot.y - 1.6, 11, 1.6);
+    }
+    if (ath) ctx.translate(0, cr);
+    if (!ath) for (const sd of [-1, 1]) {
       const lift = Math.max(0, sd * sw) * 6, lx = sd * 6.5;
       ctx.fillStyle = look.skin; ctx.fillRect(lx - 4.3, -47, 8.6, 43 - lift);
       ctx.fillStyle = 'rgba(0,0,0,.12)'; ctx.fillRect(lx + (sd > 0 ? 1.5 : -4.3), -47, 2.8, 43 - lift);
@@ -918,6 +947,11 @@ setTimeout(finish,10000);tick();})();</script>
         else a = 2.2 - clamp((sT + 0.25) / 0.5, 0, 1) * 3.2;
         const hx = sd * (16 + Math.sin(a) * 22), hy = -82 + Math.cos(a) * 22;
         racketHand = arm(sd, hx, hy); racketAng = sd * a; continue;
+      }
+      if (ath && !swinging && opt.racket) { // ready position: both hands on the racket in front of the body
+        const hx = sd * 4 + 1, hy = -64; arm(sd, hx, hy);
+        if (sd === 1) { racketHand = { x: 2, y: -64 }; racketAng = Math.PI - 0.35; }
+        continue;
       }
       if (holdArm || (hitArm && !swinging)) { racketHand = arm(sd, sd * 22, -58); racketAng = sd * 0.5; continue; }
       if (opt.hopper && sd === -1) { arm(sd, -22, -60); continue; }
@@ -1009,6 +1043,7 @@ setTimeout(finish,10000);tick();})();</script>
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     if (G.shake > 0) ctx.translate(rnd(-1, 1) * G.shake * 14, rnd(-1, 1) * G.shake * 10);
     if (bg) ctx.drawImage(bg, 0, 0, W, H);
+    ctx.save(); ctx.beginPath(); ctx.rect(-30, -30, W + 60, H - CTRL_H + 30); ctx.clip();
     // landing warnings
     const warn = [];
     for (const s of G.shots) if (s.target && s.fed) warn.push({ x: s.target.x, y: s.target.y, t0: s.hitT - s.feedT, t1: s.landT, sm: s.type === 'smash' });
@@ -1020,33 +1055,56 @@ setTimeout(finish,10000);tick();})();</script>
       ctx.lineWidth = 1.2; ctx.beginPath(); ctx.moveTo(e.x - e.rx * 0.35, e.y); ctx.lineTo(e.x + e.rx * 0.35, e.y); ctx.moveTo(e.x, e.y - e.ry * 0.35); ctx.lineTo(e.x, e.y + e.ry * 0.35); ctx.stroke();
     }
     // shadows of balls in the air
-    for (const b of G.balls) if (b.z > 0.02) { const e = groundEllipse(b.x, b.y, 0.09 + Math.min(0.12, b.z * 0.02)); ctx.fillStyle = b.kind === 'live' ? 'rgba(10,0,0,.5)' : 'rgba(0,10,20,.35)'; ctx.beginPath(); ctx.ellipse(e.x, e.y, e.rx, e.ry, 0, 0, 6.283); ctx.fill(); }
+    for (const b of G.balls) if (b.z > 0.02) { const e = groundEllipse(b.x, b.y, 0.14 + Math.min(0.14, b.z * 0.025)); ctx.fillStyle = b.kind === 'live' ? 'rgba(10,0,0,.5)' : 'rgba(0,10,20,.35)'; ctx.beginPath(); ctx.ellipse(e.x, e.y, e.rx, e.ry, 0, 0, 6.283); ctx.fill(); }
     // everything else, far to near
     const items = [];
-    for (const b of G.fb) items.push({ y: b.y, f: () => { const p = P(b.x, b.y, 0.04); drawBall(p.x, p.y - p.s * 0.02, Math.max(2.4, p.s * 0.105), ballSpr, b.r); } });
-    for (const b of G.pile) items.push({ y: b.y, f: () => { const p = P(b.x, b.y, 0.04); drawBall(p.x, p.y, Math.max(2.2, p.s * 0.1), ballDim, b.r); } });
-    for (const d of G.drops) items.push({ y: d.y, f: () => { const s = P(d.x, d.y, 0); ctx.fillStyle = 'rgba(0,10,20,.3)'; ctx.beginPath(); ctx.ellipse(s.x, s.y, s.s * 0.1, s.s * 0.04, 0, 0, 6.283); ctx.fill(); const p = P(d.x, d.y, d.z + 0.04); drawBall(p.x, p.y, Math.max(2.4, p.s * 0.105)); } });
+    for (const b of G.fb) items.push({ y: b.y, f: () => { const p = P(b.x, b.y, 0.04); drawBall(p.x, p.y - p.s * 0.03, Math.max(3.4, p.s * 0.15), ballSpr, b.r); } });
+    for (const b of G.pile) items.push({ y: b.y, f: () => { const p = P(b.x, b.y, 0.04); drawBall(p.x, p.y, Math.max(3, p.s * 0.13), ballDim, b.r); } });
+    for (const d of G.drops) items.push({ y: d.y, f: () => { const s = P(d.x, d.y, 0); ctx.fillStyle = 'rgba(0,10,20,.3)'; ctx.beginPath(); ctx.ellipse(s.x, s.y, s.s * 0.1, s.s * 0.04, 0, 0, 6.283); ctx.fill(); const p = P(d.x, d.y, d.z + 0.04); drawBall(p.x, p.y, Math.max(3.4, p.s * 0.15)); } });
     for (const b of G.balls) items.push({ y: b.y, f: () => drawFlying(b) });
     items.push({ y: NET, f: drawNet });
     items.push({ y: CART.y, f: drawCart });
     if (G.coach) items.push({ y: G.coach.y, f: () => drawPerson(G.coach, LOOK.coach, { racket: true, rc: '#cf2f2f' }) });
-    if (G.st) items.push({ y: G.st.y, f: () => drawPerson(G.st, LOOK.st[G.lv], { racket: true, rc: G.lv === 2 ? '#e8e8e8' : G.lv === 1 ? '#1f4f9a' : '#ff6b6b' }) });
+    if (G.st) items.push({ y: G.st.y, f: () => drawPerson(G.st, LOOK.st[G.lv], { racket: true, athletic: true, rc: G.lv === 2 ? '#e8e8e8' : G.lv === 1 ? '#1f4f9a' : '#ff6b6b' }) });
     if (G.p) items.push({ y: G.p.y, f: () => drawPerson(G.p, LOOK.me, { racket: G.p.gear === 'racket', hopper: G.p.gear === 'hopper', fill: collected() / N_BALLS, name: S.player.name, num: S.player.num, rc: '#ff9c3a' }) });
     items.sort((a, b) => b.y - a.y);
     for (const it of items) it.f();
-    // particles
+    // particles (still clipped to the court)
     for (const q of G.parts) { const p = P(q.x, q.y, q.z), r = Math.max(1, p.s * q.sz); ctx.globalAlpha = clamp(q.life * 3, 0, 1); ctx.fillStyle = q.col; ctx.beginPath(); ctx.arc(p.x, p.y, q.dust ? r * (1.6 - q.life) : r, 0, 6.283); ctx.fill(); }
     ctx.globalAlpha = 1;
     // the thumb pad
-    if (joy.on && (G.phase === 'play')) {
-      const dx = joy.x - joy.x0, dy = joy.y - joy.y0, d = hyp(dx, dy), m = Math.min(d, 52), kx = d ? dx / d * m : 0, ky = d ? dy / d * m : 0;
-      ctx.strokeStyle = 'rgba(241,236,220,.28)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(joy.x0, joy.y0, 52, 0, 6.283); ctx.stroke();
-      ctx.fillStyle = 'rgba(241,236,220,.22)'; ctx.beginPath(); ctx.arc(joy.x0 + kx, joy.y0 + ky, 20, 0, 6.283); ctx.fill();
-    }
+    ctx.restore();
+    drawWheel();
+  }
+  // the control strip under the court with the steering wheel in the middle
+  function drawWheel() {
+    const top = H - CTRL_H, w = WHEEL, R = w.r;
+    let gr = ctx.createLinearGradient(0, top, 0, H); gr.addColorStop(0, '#0d1626'); gr.addColorStop(1, '#070c16');
+    ctx.fillStyle = gr; ctx.fillRect(-20, top, W + 40, CTRL_H + 20);
+    ctx.fillStyle = '#26385a'; ctx.fillRect(0, top, W, 1);
+    const live = G.phase === 'play' || G.phase === 'intro' || G.phase === 'over';
+    ctx.globalAlpha = live ? 1 : 0.45;
+    // base ring with direction ticks
+    gr = ctx.createRadialGradient(w.x, w.y - R * 0.3, R * 0.2, w.x, w.y, R * 1.15); gr.addColorStop(0, '#22324f'); gr.addColorStop(1, '#111b2b');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(w.x, w.y, R * 1.12, 0, 6.283); ctx.fill();
+    ctx.strokeStyle = '#33476d'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.fillStyle = 'rgba(241,236,220,.5)';
+    for (let i = 0; i < 4; i++) { const a = i * Math.PI / 2; ctx.save(); ctx.translate(w.x + Math.cos(a) * R * 0.9, w.y + Math.sin(a) * R * 0.9); ctx.rotate(a); ctx.beginPath(); ctx.moveTo(5, 0); ctx.lineTo(-3, -5); ctx.lineTo(-3, 5); ctx.closePath(); ctx.fill(); ctx.restore(); }
+    ctx.strokeStyle = 'rgba(241,236,220,.12)'; ctx.lineWidth = 1; ctx.beginPath(); ctx.arc(w.x, w.y, R * 0.62, 0, 6.283); ctx.stroke();
+    // knob
+    let kx = 0, ky = 0;
+    if (joy.on) { const dx = joy.x - w.x, dy = joy.y - w.y, d = hyp(dx, dy), m = Math.min(d, R * 0.75); kx = d ? dx / d * m : 0; ky = d ? dy / d * m : 0; }
+    else { const { ix, iy } = inputVec(); kx = ix * R * 0.75; ky = -iy * R * 0.75; }
+    const kr = R * 0.46;
+    ctx.fillStyle = 'rgba(0,0,0,.35)'; ctx.beginPath(); ctx.arc(w.x + kx, w.y + ky + 3, kr, 0, 6.283); ctx.fill();
+    gr = ctx.createRadialGradient(w.x + kx - kr * 0.3, w.y + ky - kr * 0.35, kr * 0.1, w.x + kx, w.y + ky, kr);
+    gr.addColorStop(0, joy.on ? '#ffd27a' : '#f1ecdc'); gr.addColorStop(1, joy.on ? '#d98f1c' : '#9aa6bd');
+    ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(w.x + kx, w.y + ky, kr, 0, 6.283); ctx.fill();
+    ctx.globalAlpha = 1;
   }
   function drawFlying(b) {
     const p = P(b.x, b.y, b.z + 0.035);
-    let r = Math.max(2.6, p.s * (b.kind === 'live' ? 0.13 : 0.105));
+    let r = Math.max(3.6, p.s * (b.kind === 'live' ? 0.2 : 0.15));
     if (b.kind === 'live') {
       // a streak behind it and a red glow so it reads at speed
       ctx.lineCap = 'round';
@@ -1080,8 +1138,8 @@ setTimeout(finish,10000);tick();})();</script>
   stage.addEventListener('pointerdown', (e) => {
     audio();
     if (G.phase === 'intro' && !G.paused) { endIntro(); return; }
-    if (joy.on) return;
-    joy.on = true; joy.id = e.pointerId; joy.x0 = joy.x = e.offsetX; joy.y0 = joy.y = e.offsetY;
+    if (joy.on || e.offsetY < H - CTRL_H) return; // only the wheel strip steers
+    joy.on = true; joy.id = e.pointerId; joy.x = e.offsetX; joy.y = e.offsetY;
     try { stage.setPointerCapture(e.pointerId); } catch (er) { /* ignore */ }
   });
   stage.addEventListener('pointermove', (e) => { if (joy.on && e.pointerId === joy.id) { joy.x = e.offsetX; joy.y = e.offsetY; } });
