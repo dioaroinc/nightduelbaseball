@@ -341,12 +341,12 @@ setTimeout(finish,10000);tick();})();</script>
   // the next student: shot speed (m/s), gap multiplier, how often they aim at you, aim spread (m), hits you can take,
   // whether the landing circle shows when the coach feeds (early) or only when the student hits, and run speed
   const LV = [
-    { key: 'BEGINNER', name: 'Beginner', spd: 12, gap: 1.3, aim: 0.22, noise: 1.4, hearts: 3, early: true, run: 5.5,
+    { key: 'BEGINNER', name: 'Beginner', spd: 14, gap: 1.12, aim: 0.38, noise: 1.0, cut: 0.25, hearts: 3, early: true, run: 5.5,
       note: 'A beginner. Slow, loopy balls, and the red circle shows as soon as the coach feeds. You can take 3 hits.' },
-    { key: 'CLUB PLAYER', name: 'Club', spd: 18.5, gap: 1.0, aim: 0.42, noise: 0.85, hearts: 2, early: false, run: 7,
-      note: 'A club player. Faster shots, aimed at you more often. The circle shows when they hit. 2 hits allowed.' },
-    { key: 'TOUR PRO', name: 'Tour pro', spd: 28, gap: 0.78, aim: 0.6, noise: 0.5, hearts: 1, early: false, run: 9,
-      note: 'A tour pro. The balls come really fast and hunt you down. One hit and you are done.' },
+    { key: 'CLUB PLAYER', name: 'Club', spd: 21.5, gap: 0.84, aim: 0.6, noise: 0.55, cut: 0.4, hearts: 2, early: false, run: 7,
+      note: 'A club player. Fast shots, mostly aimed at you, and they read where you are running. The circle shows when they hit. 2 hits allowed.' },
+    { key: 'TOUR PRO', name: 'Tour pro', spd: 31, gap: 0.68, aim: 0.78, noise: 0.32, cut: 0.55, hearts: 1, early: false, run: 9,
+      note: 'A tour pro. Really fast balls that hunt you down and cut off the ball you are going for. One hit and you are done.' },
   ];
   const DRILLS = ['RALLY', 'VOLLEY DRILL', 'LOBS & SMASHES', 'BASKET DRILL'];
   const drillOf = (n) => Math.min(3, Math.floor(n / 25));
@@ -355,10 +355,10 @@ setTimeout(finish,10000);tick();})();</script>
   function planShot(n, lv) {
     const d = drillOf(n), i = n % 25;
     if (d === 0) return { type: 'drive', sx: rnd(-3.2, 3.2), sy: rnd(24, 24.8), feedT: 0.95, gap: i === 0 ? 1.6 : rnd(1.35, 1.75) };
-    if (d === 1) return { type: 'volley', sx: rnd(-2.6, 2.6), sy: rnd(14.8, 15.8), feedT: 0.6, gap: i % 3 === 0 ? 1.55 : 0.46 };
+    if (d === 1) return { type: 'volley', sx: rnd(-2.6, 2.6), sy: rnd(14.8, 15.8), feedT: 0.6, gap: i % 3 === 0 ? (lv === 2 ? 1.2 : 1.45) : lv === 2 ? 0.36 : 0.44 };
     if (d === 2) return n % 2 ? { type: 'smash', sx: rnd(-2.2, 2.2), sy: rnd(15.5, 16.5), feedT: 1.25, gap: 1.2 } : { type: 'lob', sx: rnd(-2.6, 2.6), sy: rnd(24.2, 25), feedT: 0.95, gap: 1.35 };
     // basket drill: rapid fire, the student sweeps side to side; the tour pro sneaks in quick doubles
-    const dbl = lv === 2 && i % 4 === 3;
+    const dbl = lv >= 1 && i % (lv === 2 ? 3 : 5) === 2;
     return { type: i % 3 === 2 ? 'volley' : 'drive', sx: Math.sin(n * 1.3) * 3.2, sy: i % 3 === 2 ? 17.5 : 22.5, feedT: 0.7, gap: i === 0 ? 1.8 : dbl ? 0.3 : 0.64 };
   }
   // initial velocity from o to land at t (z = 0) after T seconds
@@ -380,11 +380,16 @@ setTimeout(finish,10000);tick();})();</script>
     return { T, ...aimVel(o, t, T) };
   }
   // where the shot goes: at you (where you are heading) or a random spot of the right depth for the shot type
-  function pickTarget(type, o, me, lv) {
+  // next: the ball you are probably heading for (nearest on the court), if any
+  function pickTarget(type, o, me, lv, next) {
     const P = LV[lv];
     let x, y;
-    if (Math.random() < P.aim) {
-      const lead = Math.min(1.1, hyp(me.x - o.x, me.y - o.y) / P.spd) * 0.7, a = rnd(0, 6.283), r = Math.sqrt(Math.random()) * P.noise;
+    const slow = hyp(me.vx, me.vy) < 1.2;
+    if (next && Math.random() < P.cut * (slow ? 1.4 : 0.8)) { // cut you off at the ball you want
+      const a = rnd(0, 6.283), r = Math.sqrt(Math.random()) * P.noise * 0.6;
+      x = next.x + Math.cos(a) * r; y = next.y + Math.sin(a) * r;
+    } else if (Math.random() < P.aim) {
+      const lead = Math.min(1.3, hyp(me.x - o.x, me.y - o.y) / P.spd + 0.25), a = rnd(0, 6.283), r = Math.sqrt(Math.random()) * P.noise;
       x = me.x + me.vx * lead + Math.cos(a) * r; y = me.y + me.vy * lead + Math.sin(a) * r;
     } else {
       x = rnd(-4.4, 4.4);
@@ -523,7 +528,9 @@ setTimeout(finish,10000);tick();})();</script>
   const contactOf = (s) => ({ x: s.sx + s.side * 0.55, y: s.sy - 0.2, z: s.type === 'smash' ? 2.6 : s.type === 'volley' ? 1.15 : 0.95 });
   function aimShot(s) {
     const o = contactOf(s);
-    s.target = pickTarget(s.type, o, G.p, G.lv);
+    let next = null, nd = 4.5;
+    for (const b of G.fb) { const d = hyp(b.x - G.p.x, b.y - G.p.y); if (d < nd) { nd = d; next = b; } }
+    s.target = pickTarget(s.type, o, G.p, G.lv, next);
     s.fl = shotFlight(s.type, o, s.target, G.lv);
     s.landT = s.hitT + s.fl.T;
   }
