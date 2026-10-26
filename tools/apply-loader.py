@@ -3,7 +3,7 @@
 import re
 snip = open('loader.html').read().strip()
 snip += '\n<!--PLAYTIME: daily play limit, copied from playtime.js by tools/apply-loader.py-->\n<script>' + open('playtime.js').read().strip() + '</script>\n<!--/PLAYTIME-->'
-pages = ['index.html', 'tennis/index.html', 'clay/index.html', 'bowling/index.html', 'soccer/index.html', 'basketball/index.html', 'index.src.html']
+pages = ['index.html', 'tennis/index.html', 'clay/index.html', 'bowling/index.html', 'soccer/index.html', 'basketball/index.html', 'ballboy/index.html', 'index.src.html']
 for path in pages:
     s = open(path).read()
     s = re.sub(r'<!--LOADER.*?<!--/LOADER-->\n?', '', s, flags=re.S)
