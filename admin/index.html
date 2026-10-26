@@ -127,7 +127,7 @@
       .catch(function () { show('stats'); $('rows').innerHTML = '<tr><td colspan="6" class="dim">통계를 불러오지 못했습니다. 잠시 후 새로고침해 주세요.</td></tr>'; });
   }
 
-  var NAMES = { all: '전체', hub: '게임 고르기 화면', baseball: '야구', tennis: '테니스', clay: '클레이 사격', bowling: '볼링', soccer: '축구', basketball: '농구', golf: '골프' };
+  var NAMES = { all: '전체', hub: '게임 고르기 화면', baseball: '야구', tennis: '테니스', clay: '클레이 사격', bowling: '볼링', soccer: '축구', basketball: '농구', ballboy: '볼보이', golf: '골프' };
   var name = function (k) { return NAMES[k] || k; };
   var KEYS = ['visits', 'visitors', 'dayVisitors', 'single', 'multi'];
   var games = function (x) { return (x.single || 0) + (x.multi || 0); };

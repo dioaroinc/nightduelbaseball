@@ -1,0 +1,58 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#060b16"/><stop offset="1" stop-color="#16294a"/>
+    </linearGradient>
+    <linearGradient id="court" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#214b80"/><stop offset="1" stop-color="#2e64a3"/>
+    </linearGradient>
+    <radialGradient id="ball" cx="38%" cy="34%" r="70%">
+      <stop offset="0" stop-color="#f6ff8a"/><stop offset=".5" stop-color="#d8ef2a"/><stop offset="1" stop-color="#7d8f08"/>
+    </radialGradient>
+    <radialGradient id="glow" cx="50%" cy="50%" r="50%">
+      <stop offset="0" stop-color="#ff5a3c" stop-opacity=".75"/><stop offset="1" stop-color="#ff5a3c" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="streak" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#ff7a50" stop-opacity="0"/><stop offset="1" stop-color="#ff7a50" stop-opacity=".85"/>
+    </linearGradient>
+    <symbol id="b" viewBox="-10 -10 20 20">
+      <circle r="10" fill="url(#ball)"/>
+      <path d="M-9.5 -4 Q-3 0 -9.5 4 M9.5 -4 Q3 0 9.5 4" stroke="#fffff2" stroke-width="1.6" fill="none" stroke-linecap="round"/>
+    </symbol>
+  </defs>
+  <rect width="512" height="512" fill="url(#bg)"/>
+  <!-- court in perspective -->
+  <path d="M150 150 L362 150 L470 512 L42 512 Z" fill="#2f6b56"/>
+  <path d="M180 160 L332 160 L420 512 L92 512 Z" fill="url(#court)"/>
+  <g stroke="#eef2f6" stroke-width="5" fill="none">
+    <path d="M180 160 L332 160 L420 512 M180 160 L92 512"/>
+    <path d="M200 160 L136 512 M312 160 L376 512"/>
+    <path d="M256 160 L256 330 M168 330 L344 330"/>
+  </g>
+  <!-- net -->
+  <path d="M120 250 L392 250 L392 280 L120 280 Z" fill="#0c141c" fill-opacity=".55"/>
+  <path d="M120 250 L392 250" stroke="#f2f4f6" stroke-width="7"/>
+  <g stroke="#c8d2dc" stroke-opacity=".25" stroke-width="2"><path d="M140 252v28M170 252v28M200 252v28M230 252v28M260 252v28M290 252v28M320 252v28M350 252v28M380 252v28M120 265h272"/></g>
+  <!-- balls on the court -->
+  <use href="#b" x="150" y="350" width="24" height="24"/>
+  <use href="#b" x="196" y="402" width="26" height="26"/>
+  <use href="#b" x="330" y="370" width="25" height="25"/>
+  <use href="#b" x="300" y="440" width="28" height="28"/>
+  <use href="#b" x="120" y="452" width="28" height="28"/>
+  <use href="#b" x="232" y="300" width="20" height="20"/>
+  <use href="#b" x="380" y="456" width="28" height="28"/>
+  <!-- landing warning -->
+  <ellipse cx="270" cy="392" rx="52" ry="20" fill="#ff4a38" fill-opacity=".22" stroke="#ff5a45" stroke-width="5"/>
+  <!-- incoming ball with streak -->
+  <path d="M120 40 L262 196" stroke="url(#streak)" stroke-width="22" stroke-linecap="round"/>
+  <circle cx="270" cy="204" r="48" fill="url(#glow)"/>
+  <use href="#b" x="244" y="178" width="52" height="52"/>
+  <!-- the hopper of balls -->
+  <g transform="translate(372 300)">
+    <path d="M-6 -8 L46 -40 M46 -40 L52 -8" stroke="#c8d0dc" stroke-width="5" fill="none" stroke-linecap="round"/>
+    <use href="#b" x="-6" y="-14" width="24" height="24"/><use href="#b" x="16" y="-16" width="24" height="24"/><use href="#b" x="38" y="-12" width="24" height="24"/>
+    <use href="#b" x="-2" y="4" width="24" height="24"/><use href="#b" x="22" y="4" width="24" height="24"/><use href="#b" x="44" y="6" width="24" height="24"/>
+    <rect x="-10" y="-6" width="80" height="62" rx="4" fill="none" stroke="#dfe5ee" stroke-width="5"/>
+    <path d="M10 -6v62M30 -6v62M50 -6v62M-10 15h80M-10 35h80" stroke="#dfe5ee" stroke-opacity=".6" stroke-width="3"/>
+  </g>
+</svg>
