@@ -1589,6 +1589,7 @@
 
   async function mpOpen(code, host) {
     mpLeave();
+    if (navigator.onLine === false) { mpStatus([elt('div', '', 'You are offline. Friend games need the internet. Everything else still works.')]); return; }
     const api = await getRoomApi();
     if (!api) { mpStatus([elt('div', '', 'Multiplayer is not available here. Check your internet connection and reload.')]); return; }
     let room;
