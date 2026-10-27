@@ -452,7 +452,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         <div class="mpstatus" id="mpStatus" hidden></div>
         <div class="note">The room creator picks the length and starts in the role picked above; the friend starts in the other. You switch sides every three outs. If the game is tied after the last inning it goes to extras. A pitcher who does not throw for 20 seconds forfeits.</div>
       </div>
-      <div class="note">Stats are saved in this browser only. No sign-up needed. <span id="buildTag">Build 2026-10-23 07:57 UTC</span></div>
+      <div class="note">Stats are saved in this browser only. No sign-up needed. <span id="buildTag">Build 2026-10-27 05:42 UTC</span></div>
     </div>
   </div>
 
@@ -1593,7 +1593,8 @@ if (typeof module !== 'undefined') module.exports = Engine;
   }
 
   // ---------------- Pitch flow ----------------
-  function timeScale() { return G.tsLock || (S.role === 'batter' ? S.speed : 1); } // locked per pitch so a settings change waits for the next one
+  // friend games: the pitcher watches the ball at the batter's speed so both phones show the same pitch
+  function timeScale() { return G.tsLock || (S.role === 'batter' ? S.speed : G.mp && G.mp.oppSpeed ? G.mp.oppSpeed : 1); } // locked per pitch so a settings change waits for the next one
   function setPhase(ph) { G.phase = ph; G.t0 = G.now; }
   const statsBucket = () => (G.mp ? save.mpStats : save.stats);
   const logBucket = () => (G.mp ? save.mpLogs : save.logs[S.role]);
@@ -1630,16 +1631,25 @@ if (typeof module !== 'undefined') module.exports = Engine;
     $('throw').disabled = true;
     G.pitch = E.executePitch(G.pitchType, G.target.x, G.target.y, G.pHand, null, power == null ? 0.5 : power);
     G.tsLock = timeScale();
-    if (G.mp) { G.mp.seq++; G.cpuDec = null; mpSend({ t: 'pitch', seq: G.mp.seq, p: G.pitch }); }
-    else G.cpuDec = E.cpuBatter(G.pitch, st(), G.bHand, S.cpuBatLv);
-    setPhase('windup'); banner('');
+    let wind = WINDUP;
+    if (G.mp) {
+      const m = G.mp; m.seq++; G.cpuDec = null;
+      // The pitch is fixed the moment it leaves the hand, so send it now. The batter's phone skips
+      // the part of the windup the message spent in transit, and this phone stretches its own windup
+      // by the same amount, so the ball reaches the plate on both phones at about the same moment
+      // and the batter's result arrives as the ball does, instead of a pause at the plate.
+      m.sentSeq = m.seq; m.sentAt = performance.now();
+      mpSend({ t: 'pitch', seq: m.seq, p: G.pitch, lag: Math.round(m.lag * 1000) });
+      wind = WINDUP + m.lag;
+    } else G.cpuDec = E.cpuBatter(G.pitch, st(), G.bHand, S.cpuBatLv);
+    setPhase('windup'); G.windup = wind; banner('');
   }
 
   function cpuPitch() {
     const c = E.cpuChoosePitch(st(), G.pHand, G.bHand, S.cpuPitchLv);
     G.pitch = E.executePitch(c.type, c.tx, c.ty, G.pHand, S.cpuPitchLv);
     G.tsLock = timeScale();
-    setPhase('windup');
+    setPhase('windup'); G.windup = WINDUP;
   }
   // multiplayer: the friend's pitch arrived
   function takePitch(msg) {
@@ -1648,7 +1658,12 @@ if (typeof module !== 'undefined') module.exports = Engine;
     if (G.phase !== 'waitPitch') { G.mp.pendingPitch = msg; return; }
     G.mp.lastPitchSeq = msg.seq;
     G.pitch = msg.p; banner(''); G.tsLock = timeScale();
-    setPhase('windup');
+    G.mp.pitchAt = msg.at || performance.now();
+    // start the windup partway in: the time the pitch took to get here (plus any wait since) is
+    // already used up, so the release lines up with the pitcher's phone. The batter always sees
+    // at least half the windup, and the flight itself is never shortened.
+    const skip = Math.min(WINDUP * 0.5, Math.max(0, msg.lag || 0) + (performance.now() - G.mp.pitchAt) / 1000);
+    setPhase('windup'); G.windup = WINDUP; G.t0 -= skip * 1000;
   }
 
   const WINDUP = 0.9;
@@ -1663,7 +1678,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
         break;
       case 'waitPitch': if (G.mp && el > REMOTE_SECS) mpEnd(true, 'Your friend stopped playing.'); break;
       case 'windup':
-        if (el >= WINDUP) { setPhase('flight'); if (S.role === 'pitcher') showPitchInfo(); }
+        if (el >= (G.windup || WINDUP)) { setPhase('flight'); if (S.role === 'pitcher') showPitchInfo(); }
         break;
       case 'flight': {
         const fd = flightDur();
@@ -1762,7 +1777,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
       dec: { swing: !!dec.swing, result: dec.result || null, dt: dec.dt, quality: dec.quality || 0.5 },
       label, kind, ev, subl, bb: bbS, hitV, r, cnt,
     };
-    if (G.mp) mpSend({ t: 'result', seq: G.mp.lastPitchSeq, o: O, state: { inning: s.inning, half: s.half, outs: s.outs, balls: s.balls, strikes: s.strikes, bases: s.bases, runs: s.runs, score: { me: s.score.opp, opp: s.score.me } } });
+    if (G.mp) mpSend({ t: 'result', seq: G.mp.lastPitchSeq, pt: G.mp.pitchAt ? Math.round(performance.now() - G.mp.pitchAt) : 0, o: O, state: { inning: s.inning, half: s.half, outs: s.outs, balls: s.balls, strikes: s.strikes, bases: s.bases, runs: s.runs, score: { me: s.score.opp, opp: s.score.me } } });
     present(O);
   }
 
@@ -2170,7 +2185,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
         if (ht > 0.9) ball = null;
       } else if (!pv && G.phase === 'after') ball = null; // batter view: once the location marker is up, the ball is gone
       else if (s <= 1.06) ball = E.pitchPos(p, Math.min(s, 1.06));
-      else if (G.phase === 'after' && el < 0.5) ball = E.pitchPos(p, 1.06);
+      else if ((G.phase === 'after' && el < 0.5) || (pv && G.phase === 'waitResult')) ball = E.pitchPos(p, 1.06); // pitcher view: the catcher holds the ball until the call comes in
     }
 
     if (pv) {
@@ -2183,11 +2198,11 @@ if (typeof module !== 'undefined') module.exports = Engine;
         if (m) { ctx.strokeStyle = 'rgba(255,187,74,.9)'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(m.x, m.y, Math.max(6, m.k * 0.35), 0, 7); ctx.stroke(); }
       }
       if (ball) drawTrail(ball);
-      const w = G.phase === 'windup' ? el / WINDUP : (G.phase === 'flight' || G.phase === 'after' || G.phase === 'contact' || G.phase === 'waitResult') ? 1 + Math.min(0.3, (G.phase === 'flight' ? el : 0.3)) : 0;
+      const w = G.phase === 'windup' ? el / (G.windup || WINDUP) : (G.phase === 'flight' || G.phase === 'after' || G.phase === 'contact' || G.phase === 'waitResult') ? 1 + Math.min(0.3, (G.phase === 'flight' ? el : 0.3)) : 0;
       drawPitcher(cam, G.pHand, w, 'me', true, 0.92);
       if (ball) drawBall3D(cam, ball, true);
     } else {
-      const w = G.phase === 'windup' ? el / WINDUP : (G.phase === 'flight') ? 1 + Math.min(0.3, el) : (G.phase === 'after' || G.phase === 'contact') ? 1.3 : 0;
+      const w = G.phase === 'windup' ? el / (G.windup || WINDUP) : (G.phase === 'flight') ? 1 + Math.min(0.3, el) : (G.phase === 'after' || G.phase === 'contact') ? 1.3 : 0;
       drawFielders(cam, 'cpu', now);
       drawPitcher(cam, G.pHand, w, 'cpu', false, 1);
       if (ball) { drawTrail(ball); drawBall3D(cam, ball, false); }
@@ -2581,7 +2596,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
     try { room = await api.join(`nd-${code}`); } catch (e) { mpStatus([elt('div', '', 'Could not open the room. Check your connection and try again.')]); return; }
     G.mp = {
       code, room, host, myRole: host ? S.role : null, oppPeer: null, oppHand: 'R', seq: 0, lastPitchSeq: 0, resultSeq: 0,
-      pendingPitch: null, pendingResult: null, state: newDuel(), started: false, unsub: null, leftTimer: null, innings: S.mpInn,
+      pendingPitch: null, pendingResult: null, lag: 0.15, state: newDuel(), started: false, unsub: null, leftTimer: null, innings: S.mpInn,
     };
     G.mp.unsub = room.onPeers(mpPeers, () => mpGone('The connection to the room was lost.'));
     mpPresence();
@@ -2589,7 +2604,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
   function mpPresence(msg) {
     const m = G.mp; if (!m) return;
     if (msg !== undefined) m.out = msg;
-    m.room.presence({ app: 'nd', v: 1, host: m.host, role: m.myRole, th: S.myThrow, bh: S.myBat, pl: S.player, inn: m.innings, msg: m.out || null }).catch(() => {});
+    m.room.presence({ app: 'nd', v: 1, host: m.host, role: m.myRole, th: S.myThrow, bh: S.myBat, pl: S.player, inn: m.innings, sp: S.speed, msg: m.out || null }).catch(() => {});
   }
   const mpSend = (msg) => mpPresence(msg);
 
@@ -2606,6 +2621,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
     const opp = others.find((p) => p.peer === m.oppPeer);
     if (!opp) { if (m.started && !m.leftTimer) m.leftTimer = setTimeout(() => mpGone('Your friend left the room.'), 4000); return; }
     clearTimeout(m.leftTimer); m.leftTimer = null;
+    m.oppSpeed = Math.min(1, Math.max(0.4, num(opp.presence.sp, 1)));
     m.oppThrow = opp.presence.th === 'L' ? 'L' : 'R'; m.oppBat = opp.presence.bh === 'L' ? 'L' : 'R';
     const pl = opp.presence.pl;
     m.oppPlayer = pl && pl.name ? { name: cleanName(pl.name, 'FRIEND'), num: cleanNum(pl.num, '0') } : null;
@@ -2615,13 +2631,23 @@ if (typeof module !== 'undefined') module.exports = Engine;
     }
     const msg = opp.presence.msg;
     if (!msg || typeof msg !== 'object') return;
+    const fresh = !m.lastMsg || m.lastMsg.t !== msg.t || m.lastMsg.seq !== msg.seq;
     m.lastMsg = msg;
+    if (fresh) {
+      m.lastMsgAt = performance.now();
+      // one-way delay = (round trip - time the batter spent on the pitch) / 2, smoothed
+      if (msg.t === 'result' && msg.seq === m.sentSeq && m.sentAt) {
+        const d = ((m.lastMsgAt - m.sentAt) - Math.max(0, num(msg.pt))) / 2000;
+        if (d >= 0 && d < 3) m.lag = Math.min(0.6, m.lag * 0.5 + d * 0.5);
+        m.sentSeq = 0;
+      }
+    }
     mpDispatch(msg);
   }
   function mpReplay() { if (G.mp && G.mp.lastMsg) mpDispatch(G.mp.lastMsg); }
   function mpDispatch(msg) {
     const m = G.mp; if (!m || !m.started) return;
-    if (msg.t === 'pitch' && m.myRole === 'batter') { const p = cleanPitch(msg.p); if (p) takePitch({ seq: msg.seq | 0, p }); }
+    if (msg.t === 'pitch' && m.myRole === 'batter') { const p = cleanPitch(msg.p); if (p) takePitch({ seq: msg.seq | 0, p, lag: Math.min(0.6, Math.max(0, num(msg.lag) / 1000)), at: m.lastMsgAt }); }
     else if (msg.t === 'result' && m.myRole === 'pitcher' && msg.o && msg.o.dec) takeResult(cleanResult(msg));
     else if (msg.t === 'forfeit') mpEnd(true, msg.why === 'quit' ? 'Your friend quit the game.' : 'Your friend ran out of time.');
   }
