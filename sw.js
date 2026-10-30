@@ -6,7 +6,7 @@
 // and the admin page still need the internet; the Firebase SDK is never served from the cache,
 // so friend games show an "offline" note instead of hanging.
 // Bump VERSION when the list below changes.
-const VERSION = 'v3';
+const VERSION = 'v4';
 const CACHE = 'wpsg-' + VERSION;
 const FONTS = 'wpsg-fonts';
 const GAMES = ['baseball', 'tennis', 'clay', 'bowling', 'soccer', 'basketball', 'ballboy'];

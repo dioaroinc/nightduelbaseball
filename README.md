@@ -32,7 +32,7 @@ The repository root `index.html` is the game picker for the site; each sport liv
 
 ## Daily play limit
 
-`playtime.js` limits play to 30 minutes a day per device (localStorage, resets at local midnight). It counts time on game pages while the tab is visible and the player touched the screen in the last minute; the hub shows the time left. When time runs out mid-game a note says to finish the game, and after 3 more minutes (or when a new game starts) a "That's all for today" screen covers the page. A device logged in to `admin/` has no limit. Change `LIMIT_MIN` / `GRACE_MIN` at the top of `playtime.js`, then run `python3 tools/apply-loader.py`, `node build.js` and copy `dist/web/index.html` to `baseball/index.html`, since the script is copied inline into every page.
+`playtime.js` limits play to 120 minutes a day per device (localStorage, resets at local midnight). It counts time on game pages while the tab is visible and the player touched the screen in the last minute; the hub shows the time left. When time runs out mid-game a note says to finish the game, and after 3 more minutes (or when a new game starts) a "That's all for today" screen covers the page. A device logged in to `admin/` has no limit. Change `LIMIT_MIN` / `GRACE_MIN` at the top of `playtime.js`, then run `python3 tools/apply-loader.py`, `node build.js` and copy `dist/web/index.html` to `baseball/index.html`, since the script is copied inline into every page.
 
 ## Break Point Tennis
 
