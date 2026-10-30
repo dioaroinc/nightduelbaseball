@@ -155,7 +155,7 @@ setTimeout(finish,10000);tick();})();</script>
 // starting a new game, or opening any page, after that shows the "come back tomorrow" screen.
 // A device logged in to the admin page (admin/) has no limit.
 (function () {
-  var LIMIT_MIN = 30;   // minutes of play per day
+  var LIMIT_MIN = 120;  // minutes of play per day
   var GRACE_MIN = 3;    // extra minutes to finish the game that was running when time ran out
   var WARN_MIN = 5;     // show a "5 min left" note at this point
   var IDLE_SEC = 60;    // no touch for this long = not playing

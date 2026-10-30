@@ -64,7 +64,7 @@ setTimeout(finish,10000);tick();})();</script>
 // starting a new game, or opening any page, after that shows the "come back tomorrow" screen.
 // A device logged in to the admin page (admin/) has no limit.
 (function () {
-  var LIMIT_MIN = 30;   // minutes of play per day
+  var LIMIT_MIN = 120;  // minutes of play per day
   var GRACE_MIN = 3;    // extra minutes to finish the game that was running when time ran out
   var WARN_MIN = 5;     // show a "5 min left" note at this point
   var IDLE_SEC = 60;    // no touch for this long = not playing
@@ -452,7 +452,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         <div class="mpstatus" id="mpStatus" hidden></div>
         <div class="note">The room creator picks the length and starts in the role picked above; the friend starts in the other. You switch sides every three outs. If the game is tied after the last inning it goes to extras. A pitcher who does not throw for 20 seconds forfeits.</div>
       </div>
-      <div class="note">Stats are saved in this browser only. No sign-up needed. <span id="buildTag">Build 2026-10-27 05:42 UTC</span></div>
+      <div class="note">Stats are saved in this browser only. No sign-up needed. <span id="buildTag">Build 2026-10-30 03:18 UTC</span></div>
     </div>
   </div>
 
