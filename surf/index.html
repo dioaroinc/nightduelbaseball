@@ -20,6 +20,7 @@
 <meta property="og:image" content="https://weplaysportsgames.com/icons/og-image.png">
 <script defer src="../firebase-config.js"></script>
 <script defer src="../track.js"></script>
+<script>(function(){var U=["https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js","https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"],P;window.ndLoadFirebase=function(){if(window.firebase)return Promise.resolve();if(P)return P;P=U.reduce(function(c,u){return c.then(function(){return new Promise(function(ok,no){var s=document.createElement("script");s.src=u;s.onload=ok;s.onerror=function(){P=null;no(new Error("load "+u))};document.head.appendChild(s)})})},Promise.resolve());return P};addEventListener("load",function(){setTimeout(function(){U.forEach(function(u){var l=document.createElement("link");l.rel="prefetch";l.as="script";l.href=u;document.head.appendChild(l)})},1500)})})()</script>
 <script>if("serviceWorker" in navigator)addEventListener("load",function(){navigator.serviceWorker.register("../sw.js",{scope:"../"}).catch(function(){})})</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -126,6 +127,9 @@ button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .lvcards button span { font-size: 11px; }
 .lvcards button[aria-pressed="true"] { border-color: var(--accent); background: #2a2412; }
 .lvcards button[aria-pressed="true"] b { color: var(--accent); }
+.lvcards.spots { grid-template-columns: repeat(4, 1fr); }
+.lvcards.spots button b { font-size: 16px; }
+.lvcards.spots button span { font-size: 10px; }
 .rides { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
 .rides div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 6px 2px; text-align: center; font-size: 10px; color: var(--muted); letter-spacing: .04em; }
 .rides b { display: block; font-family: var(--f-board); font-size: 20px; color: var(--chalk); font-variant-numeric: tabular-nums; }
@@ -285,9 +289,21 @@ setTimeout(finish,10000);tick();})();</script>
       <div class="grp"><h3>LEVEL</h3>
         <div class="lvcards" id="lvSeg"><button data-v="0"><b>Easy</b><span>break meter</span></button><button data-v="1"><b>Normal</b><span>read the wave</span></button><button data-v="2"><b>Pro</b><span>big &amp; fast</span></button></div>
         <div class="note" id="lvNote"></div></div>
+      <div class="grp"><h3>SURF SPOT</h3>
+        <div class="lvcards spots" id="spotSeg"><button data-v="0"><b>Bali</b><span>Uluwatu</span></button><button data-v="1"><b>Hawaii</b><span>North Shore</span></button><button data-v="2"><b>Australia</b><span>Gold Coast</span></button><button data-v="3"><b>Pohang</b><span>Yeongildae</span></button></div></div>
       <div class="best" id="bestLine"></div>
       <button class="cta" id="startBtn">PADDLE OUT</button>
       <div class="row2"><button class="ghost" id="startStats">My stats</button><button class="ghost" id="soundBtn">Sound: on</button></div>
+      <div class="grp mp" id="mpGrp">
+        <h3>SURF WITH A FRIEND</h3>
+        <div class="row2"><button class="ghost" id="mpCreate">Create room</button><button class="ghost" id="mpJoinShow">Join with code</button></div>
+        <div class="joinrow" id="mpJoinRow" hidden>
+          <input id="mpCode" inputmode="numeric" pattern="[0-9]*" maxlength="4" placeholder="4-digit code" autocomplete="off" aria-label="Room code">
+          <button class="cta" id="mpJoin">Join</button>
+        </div>
+        <div class="mpstatus" id="mpStatus" hidden></div>
+        <div class="note">Two phones, the same 5 waves at the same time. Your friend surfs just behind you, so you see every catch and wipeout. Longest total distance wins. The room creator picks the level and the spot.</div>
+      </div>
       <div class="note">Stats are saved in this browser only. No sign-up needed.</div>
     </div>
   </div>
@@ -299,7 +315,7 @@ setTimeout(finish,10000);tick();})();</script>
       <button class="ghost" id="menuStats">My stats</button>
       <div class="grp"><h3>LEAVE</h3>
         <div class="row2"><button class="ghost" id="menuHome">Surf menu</button><button class="ghost" id="menuSite">All games</button></div>
-        <div class="note">Leaving ends this session.</div></div>
+        <div class="note" id="menuNote">Leaving ends this session.</div></div>
     </div>
   </div>
 
@@ -336,7 +352,7 @@ setTimeout(finish,10000);tick();})();</script>
   // CORE-START (levels, waves, timing and ride distance; no DOM)
   // Meters and seconds. x points to the beach (right), y is up, the still water line is y = 0.
   // You wait in the lineup at x = 0; the beach starts at x = BEACH.
-  const BEACH = 150, N_WAVES = 5, COMMIT = 0.8;
+  const BEACH = 150, N_WAVES = 5, COMMIT = 0.8, PERIOD = 16; // PERIOD: seconds between waves in a friend game
   // win: timing window (s) for a medium wave; off: how much the break point moves around (m);
   // hMin/hMax: wave heights (m); spd: wave speed multiplier; meter: show the break meter
   const LV = [
@@ -364,6 +380,9 @@ setTimeout(finish,10000);tick();})();</script>
     hs[big] = Math.round(rnd(P.hMax - 0.5, P.hMax) * 10) / 10;
     return hs;
   }
+  // the 5 waves of a session (shared with the friend in a friend game)
+  const planWaves = (lv) => planHeights(lv).map((h) => { const w = makeWave(lv, h); return [w.h, Math.round(w.tb * 1000) / 1000, Math.round(w.dxb * 1000) / 1000]; });
+  const waveFrom = (lv, a) => ({ h: a[0], tb: a[1], c: (4.2 + 0.75 * a[0]) * LV[lv].spd, dxb: a[2], t: 0 });
   // one wave: tb = seconds until it breaks, c = how fast it comes in, dxb = where the crest is (relative to you) when it breaks
   function makeWave(lv, h) {
     const P = LV[lv];
@@ -393,7 +412,7 @@ setTimeout(finish,10000);tick();})();</script>
 
   // ---------------- Save ----------------
   const KEY = 'crestrider_v1';
-  const newStats = () => ({ games: 0, waves: 0, caught: 0, perfect: 0, beach: 0, wipe: 0, meters: 0, best: [0, 0, 0], longest: [0, 0, 0] });
+  const newStats = () => ({ games: 0, waves: 0, caught: 0, perfect: 0, beach: 0, wipe: 0, meters: 0, best: [0, 0, 0], longest: [0, 0, 0], mpGames: 0, mpWins: 0 });
   let save = (() => { try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.settings && s.stats) return s; } catch (e) { /* ignore */ } return { settings: {}, stats: newStats() }; })();
   for (const k of ['best', 'longest']) if (!Array.isArray(save.stats[k])) save.stats[k] = [0, 0, 0];
   const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) { /* ignore */ } };
@@ -408,30 +427,39 @@ setTimeout(finish,10000);tick();})();</script>
   }
   if (![0, 1, 2].includes(S.lv)) S.lv = 1;
   if (S.sound == null) S.sound = true;
+  if (![0, 1, 2, 3].includes(S.spot)) S.spot = 0;
 
   // ---------------- Game state ----------------
   // phase: menu, wait (lull before the wave), wave (it is coming), ride, wipe, miss, done (short beat showing the result), end
   // t: game clock. G.w: the current wave (w.t counts from when it starts coming in).
   const G = { phase: 'menu', paused: false, t: 0, lv: 1, hs: [], idx: 0, rides: [], total: 0,
     w: null, hold: false, held: 0, ps: 0, res: null, ride: null, sx: 0, pose: 'sit', popT: -9, phT: 0, lull: 0,
-    camX: 0, parts: [], strokes: 0, fade: 0, beachDone: false };
+    camX: 0, parts: [], strokes: 0, fade: 0, beachDone: false, spot: S.spot, plan: [], mp: null, overAt: 0 };
+  // your friend in a friend game: drawn surfing a little further along the wave, behind you
+  const O = { sx: 0, ride: null, pose: 'sit', popT: -9, hold: false, res: null, resI: -1, tot: 0, rides: [], done: false };
 
-  function startGame() {
+  function startGame(mp) {
     ['startOv', 'endOv', 'menuOv', 'statsOv'].forEach((i) => ($(i).hidden = true));
-    G.lv = S.lv; G.hs = planHeights(G.lv); G.idx = 0; G.rides = []; G.total = 0; G.paused = false;
+    if (mp) { G.lv = mp.lv; G.plan = mp.plan; setSpot(mp.spot); }
+    else { G.lv = S.lv; G.plan = planWaves(G.lv); setSpot(S.spot); }
+    G.hs = G.plan.map((a) => a[0]); G.done = false; G.idx = 0; G.rides = []; G.total = 0; G.paused = false;
+    Object.assign(O, { tot: 0, rides: [], done: false, resI: -1 });
     nextWave(true);
     save.stats.games++; persist();
-    if (window.ndTrack) ndTrack('single');
+    if (!mp && window.ndTrack) ndTrack('single');
     renderHud();
   }
+  function setSpot(i) { if (G.spot !== i) { G.spot = i; buildBg(); } }
+  const waveStart = (i) => G.mp.t0 + i * PERIOD * 1000; // server time when wave i starts coming in
   function nextWave(first) {
-    G.w = makeWave(G.lv, G.hs[G.idx]); G.w.t = 0;
+    G.w = waveFrom(G.lv, G.plan[G.idx]);
+    Object.assign(O, { sx: 0, ride: null, pose: 'sit', popT: -9, hold: false, res: null });
     G.phase = 'wait'; G.lull = first ? 1.8 : 1.2; G.phT = 0;
     G.hold = false; G.held = 0; G.ps = 0; G.res = null; G.ride = null; G.sx = 0; G.pose = 'sit'; G.popT = -9;
     G.camX = camTarget(); G.parts = []; G.fade = 1;
     $('hint').hidden = G.idx > 0;
     banner(`Wave ${G.idx + 1} of ${N_WAVES} · ${G.w.h.toFixed(1)} m`);
-    renderHud();
+    renderHud(); mpPresence();
   }
 
   // the wave's crest position and current height/steepness at time t (relative to the wave start)
@@ -443,15 +471,15 @@ setTimeout(finish,10000);tick();})();</script>
     return { xc, h: hh, s, b };
   }
   // the wave used for drawing: during a ride it travels with you
-  function curWave() {
+  function curWave(r = G) {
     const w = G.w; if (!w) return null;
     const st = waveState(w, w.t);
-    if (G.ride) {
-      const R = G.ride, tau = clamp(R.t / R.T, 0, 1), L = waveLen(st.h);
+    if (r.ride) {
+      const R = r.ride, tau = clamp(R.t / R.T, 0, 1), L = waveLen(st.h);
       st.s = lerp(st.s, 0.45, ease(R.t / 0.9)); // the broken wave turns into a rolling wall of white water
       const Lf = L * (1.15 - 0.78 * st.s);
       const gap = lerp(R.gap0, lerp(0.3, 0.7, tau) * Lf, ease(R.t / 0.35)) + Math.sin(R.t * 4.2) * 0.12 * Lf * (1 - tau);
-      st.xc = G.sx - gap;
+      st.xc = r.sx - gap;
       st.h *= (1 - 0.6 * Math.pow(tau, 1.6)) * clamp((BEACH - st.xc) / 18, 0.12, 1);
     }
     return st;
@@ -476,16 +504,21 @@ setTimeout(finish,10000);tick();})();</script>
   // ---------------- Update ----------------
   function update(dt) {
     if (G.phase === 'menu' || G.phase === 'end') { G.t += dt; menuDrift(dt); updParts(dt); return; }
+    if (G.mp) mpTick();
+    if (G.phase === 'over') { G.t += dt; if (!G.mp || O.done || G.t - G.overAt > 8) endGame(); return; }
     if (G.paused) return;
     G.t += dt; G.phT += dt; G.fade = Math.max(0, G.fade - dt * 2.5);
     const w = G.w;
+    // friend game: both phones follow the room's clock, so the waves arrive at the same moment
+    const mpT = G.mp && G.mp.started ? (G.mp.now() - waveStart(G.idx)) / 1000 : null;
+    if (mpT !== null) { if (G.phase === 'wait') { G.lull = -mpT; banner(`Wave ${G.idx + 1} of ${N_WAVES} · ${w.h.toFixed(1)} m · ${Math.max(1, Math.ceil(-mpT))}`); } else w.t = mpT - dt; }
     G.ps = paddleStep(G.ps, G.hold, G.held, dt);
     if (G.hold) { G.held += dt; const k = Math.floor(G.held * 2.6); if (k !== G.strokes) { G.strokes = k; splash(); } }
     if (G.phase === 'wait') {
       G.lull -= dt;
-      if (G.lull <= 0) { G.phase = 'wave'; setTimeout(() => { if (G.phase === 'wave') banner(''); }, 900); }
+      if (G.lull <= 0) { G.phase = 'wave'; if (mpT !== null) w.t = mpT; setTimeout(() => { if (G.phase === 'wave') banner(''); }, 900); }
     } else if (G.phase === 'wave') {
-      w.t += dt;
+      w.t = mpT !== null ? mpT : w.t + dt;
       const toB = w.tb - w.t;
       if (toB < 0.65 && !w.feather) { w.feather = true; }
       if (toB <= 0 && !w.broke) { w.broke = true; crashSound(w.h); }
@@ -494,9 +527,10 @@ setTimeout(finish,10000);tick();})();</script>
         else resolve({ grade: 'NOPADDLE', tq: 0, d: 0 });
       }
     } else {
-      w.t += dt;
+      w.t = mpT !== null ? mpT : w.t + dt;
       if (!w.broke && w.t >= w.tb) { w.broke = true; crashSound(w.h); }
     }
+    if (G.mp) oppTick(dt);
     if (G.phase === 'ride') rideTick(dt);
     else if (G.phase === 'wipe' || G.phase === 'miss') { if (G.phT > (G.phase === 'wipe' ? 2.2 : 1.5)) finishWave(); }
     else if (G.phase === 'done') { if (G.phT > 1.3) advance(); }
@@ -532,13 +566,21 @@ setTimeout(finish,10000);tick();})();</script>
     if (G.phase !== 'wave' || w.tb - w.t > COMMIT) { G.pose = 'sit'; if (G.phase === 'wave' && w.tb - w.t < 2.2) banner('Too soon! Paddle again'); return; }
     resolve(judge(G.lv, w.h, w.t - w.tb, G.ps));
   }
+  // a ride that starts when you let go (wt: the wave's clock at that moment)
+  function makeRide(r, w, wt) { const st = waveState(w, wt); return { t: 0, T: 1.6 + Math.max(r.d, 6) / 34, d: r.beach ? BEACH + 4 : r.d, gap0: Math.max(0.4, -st.xc) }; }
+  function rideStep(r, dt) {
+    const R = r.ride; R.t += dt;
+    const tau = clamp(R.t / R.T, 0, 1);
+    r.sx = R.d * (1 - Math.pow(1 - tau, 1.6));
+    if (r.pose === 'pop' && G.t - r.popT > 0.3) r.pose = 'ride';
+    return tau;
+  }
   function resolve(r) {
     const w = G.w; G.res = r; G.phT = 0; G.hold = false;
-    r.h = w.h; r.ps = G.ps;
+    r.h = w.h; r.ps = G.ps; r.rt = w.t;
+    mpPresence();
     if (r.d > 0) {
-      const st = waveState(w, w.t);
-      const T = 1.6 + Math.max(r.d, 6) / 34;
-      G.ride = { t: 0, T, d: r.beach ? BEACH + 4 : r.d, gap0: Math.max(0.4, -st.xc) };
+      G.ride = makeRide(r, w, w.t);
       G.phase = 'ride'; G.pose = 'pop'; G.popT = G.t; whoosh();
       banner('');
       if (r.grade === 'PERFECT') { toast('PERFECT', timingText(r.e), '#4fd88a', 1100); chime(); }
@@ -557,14 +599,10 @@ setTimeout(finish,10000);tick();})();</script>
   }
   const timingText = (e) => (Math.abs(e) < 0.005 ? 'Right on the break' : `${Math.round(Math.abs(e) * 1000)} ms ${e < 0 ? 'early' : 'late'}`);
   function rideTick(dt) {
-    const R = G.ride;
-    R.t += dt;
-    const tau = clamp(R.t / R.T, 0, 1);
-    G.sx = R.d * (1 - Math.pow(1 - tau, 1.6));
-    if (G.pose === 'pop' && G.t - G.popT > 0.3) G.pose = 'ride';
+    const R = G.ride, tau = rideStep(G, dt);
     // spray off the board
     if (tau < 0.95 && Math.random() < dt * 30) {
-      const y = rideY();
+      const y = rideY(G);
       G.parts.push({ x: G.sx - 1, y: y + 0.05, vx: rnd(-3, -1), vy: rnd(1, 2.5), g: 9, life: 0.45, sz: rnd(0.04, 0.08), col: 'rgba(230,248,255,.85)' });
     }
     if (tau >= 1 && !R.over) { R.over = true; R.overT = G.t; G.pose = G.res.beach ? 'beach' : 'sit'; if (G.res.beach) { fanfare(); toast('BEACH!', `${G.res.d} m · all the way in`, '#ffbb4a', 1600); } else toast(`${G.res.d} m`, '', '#f1ecdc', 1200); }
@@ -581,22 +619,31 @@ setTimeout(finish,10000);tick();})();</script>
     if (r.grade === 'LATE') s.wipe++;
     if (r.d > s.longest[G.lv]) s.longest[G.lv] = r.d;
     persist();
-    G.phase = 'done'; G.phT = 0; renderHud(true);
+    G.phase = 'done'; G.phT = 0; renderHud(true); mpPresence();
   }
   function advance() {
     G.idx++;
-    if (G.idx >= N_WAVES) { endGame(); return; }
+    if (G.idx >= N_WAVES) {
+      if (G.mp) { G.phase = 'over'; G.overAt = G.t; G.ride = null; G.done = true; mpPresence(); banner(O.done ? '' : 'Waiting for your friend…'); return; }
+      endGame(); return;
+    }
     nextWave(false);
   }
   function endGame() {
     G.phase = 'end'; G.ride = null; G.sx = 0; G.w = null; banner('');
-    const s = save.stats, lv = G.lv, rec = G.total > (s.best[lv] || 0);
+    const s = save.stats, lv = G.lv, rec = G.total > (s.best[lv] || 0), mp = G.mp, opp = mp ? mp.opp : null;
     if (rec) s.best[lv] = G.total;
+    const win = mp && G.total > O.tot, tie = mp && G.total === O.tot;
+    if (mp) { s.mpGames = (s.mpGames || 0) + 1; if (win) s.mpWins = (s.mpWins || 0) + 1; mpLeave(); }
     persist();
     const longest = Math.max(...G.rides.map((r) => r.d));
-    $('endTitle').innerHTML = rec ? 'NEW<br><em>RECORD</em>' : 'SESSION<br><em>OVER</em>';
-    $('endSub').textContent = `${LV[lv].name} · best total ${s.best[lv]} m · longest ride ever ${s.longest[lv]} m`;
-    $('endScore').textContent = `${G.total} m total`;
+    const et = $('endTitle'); et.textContent = '';
+    const t2 = (a, b) => { et.append(a, document.createElement('br')); const em = document.createElement('em'); em.textContent = b; et.append(em); };
+    if (mp) { if (tie) t2('DEAD', 'EVEN'); else if (win) t2('YOU', 'WIN!'); else t2(opp.name, 'WINS'); }
+    else if (rec) t2('NEW', 'RECORD'); else t2('SESSION', 'OVER');
+    $('endSub').textContent = mp ? (G.mpReason || `${LV[lv].name} at ${SPOTS[G.spot].name} · ${O.rides.filter((r) => r.b).length} beach rides for ${opp.name}`) : `${LV[lv].name} · best total ${s.best[lv]} m · longest ride ever ${s.longest[lv]} m`;
+    $('endScore').textContent = mp ? `${S.player.name} ${G.total} m - ${O.tot} m ${opp.name}` : `${G.total} m total`;
+    $('endAgain').hidden = !!mp; G.mpReason = '';
     const rd = $('endRides'); rd.textContent = '';
     G.rides.forEach((r, i) => {
       const d = document.createElement('div'); d.className = r.beach ? 'beach' : r.grade === 'LATE' ? 'wipe' : '';
@@ -644,7 +691,9 @@ setTimeout(finish,10000);tick();})();</script>
     $('lvTxt').innerHTML = ''; $('lvTxt').append('LEVEL '); const b = document.createElement('b'); b.textContent = LV[lv].key; $('lvTxt').append(b);
     $('nextH').textContent = inG && G.w ? `WAVE ${G.w.h.toFixed(1)} m` : '';
     const longest = G.rides.length ? Math.max(...G.rides.map((r) => r.d)) : 0;
-    $('bestTxt').innerHTML = ''; $('bestTxt').append('LONGEST '); const lb = document.createElement('b'); lb.textContent = (inG || G.phase === 'end' ? longest : save.stats.longest[lv] || 0) + ' m'; $('bestTxt').append(lb);
+    $('bestTxt').innerHTML = '';
+    if (G.mp && G.mp.started && inG) { $('bestTxt').append(G.mp.opp.name + ' '); const ob = document.createElement('b'); ob.textContent = O.tot + ' m'; $('bestTxt').append(ob); return; }
+    $('bestTxt').append('LONGEST '); const lb = document.createElement('b'); lb.textContent = (inG || G.phase === 'end' ? longest : save.stats.longest[lv] || 0) + ' m'; $('bestTxt').append(lb);
   }
   let toastTimer = 0;
   function toast(big, small, color, ms) {
@@ -692,61 +741,118 @@ setTimeout(finish,10000);tick();})();</script>
   const fanfare = () => { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.22, 0.08, 'square', 0, i * 0.11)); };
 
   // ---------------- View ----------------
-  let W = 1, H = 1, DPR = 1, VIEW_W = 17, K = 20, KY = 25, Y0 = 300;
+  let W = 1, H = 1, DPR = 1, VIEW_W = 17, K = 20, KY = 25, Y0 = 300, HZ = 240;
   const stage = $('stage'), cv = $('cv'), ctx = cv.getContext('2d');
-  const SX = (x) => W / 2 + (x - G.camX) * K;
-  const SY = (y) => Y0 - y * KY;
+  // V: the view being drawn (your lane, or your friend's lane further back)
+  const mainView = () => ({ k: K, ky: KY, y0: Y0, cx: W / 2 });
+  const laneView = () => ({ k: K * 0.6, ky: KY * 0.6, y0: Math.round(HZ + (Y0 - HZ) * 0.58), cx: W / 2, opp: true });
+  let V = { k: 20, ky: 25, y0: 300, cx: 200 };
+  const SX = (x) => V.cx + (x - G.camX) * V.k;
+  const SY = (y) => V.y0 - y * V.ky;
   let bg = null;
   function resize() {
     const r = stage.getBoundingClientRect(); DPR = Math.min(2, window.devicePixelRatio || 1);
     W = Math.max(1, r.width); H = Math.max(1, r.height); cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
     VIEW_W = clamp(W / 32, 11.5, 17); K = W / VIEW_W; KY = K * 1.4;
     Y0 = Math.round(clamp(H * 0.64, 150 + 4.8 * KY, H - 80));
+    HZ = Y0 - Math.max(80, H * 0.19);
+    V = mainView();
     buildBg();
   }
-  // sky, sun and the far sea, drawn once
+  // ---------------- Surf spots (backgrounds) ----------------
+  // sky: gradient stops; sun: x (share of the width), height above the horizon (px), radius, color, glow, moon;
+  // far: far sea; water: [crest, face, below, deep]; land: what sits on the horizon; deco: what stands on the beach
+  const SPOTS = [
+    { key: 'bali', name: 'Bali', place: 'Uluwatu', sky: [[0, '#0b1430'], [0.45, '#2b2d5c'], [0.8, '#a4506a'], [1, '#f39a55']], stars: 0.6,
+      sun: { x: 0.78, y: 0, r: 0.08, col: '#ffd38a', glow: '255,200,120' }, cloud: 'rgba(255,170,140,.18)',
+      far: ['#5a4a6e', '#1f4f6e', '#0d4a63'], water: ['#7fe0e0', '#1f9bb0', '#0f6e8a', '#04233a'], glit: 'rgba(255,210,140,.35)',
+      land: 'temple', landCol: '#3a2848', sand: '#e6c88c', shallow: 'rgba(40,170,190,.55)', deco: 'palms' },
+    { key: 'hawaii', name: 'Hawaii', place: 'North Shore', sky: [[0, '#1d5fa8'], [0.55, '#5aa5dc'], [0.9, '#bfe0ee'], [1, '#f6e2b0']], stars: 0,
+      sun: { x: 0.22, y: 0.55, r: 0.05, col: '#fff3c4', glow: '255,245,200' }, cloud: 'rgba(255,255,255,.55)',
+      far: ['#4d7fb0', '#1b6fa6', '#0d5a8e'], water: ['#78e2f2', '#1590c8', '#0b5b98', '#04264a'], glit: 'rgba(255,255,230,.45)',
+      land: 'volcano', landCol: '#2e5a48', sand: '#f0dca8', shallow: 'rgba(60,190,220,.55)', deco: 'tower' },
+    { key: 'australia', name: 'Australia', place: 'Gold Coast', sky: [[0, '#4f8fcf'], [0.6, '#9cc9e8'], [0.92, '#e9eef0'], [1, '#ffd9a8']], stars: 0,
+      sun: { x: 0.12, y: 0.12, r: 0.065, col: '#fff0c8', glow: '255,225,170' }, cloud: 'rgba(255,255,255,.45)',
+      far: ['#6a8fa6', '#2a8a98', '#14707f'], water: ['#86ecd9', '#1fa9a6', '#0d6f86', '#053347'], glit: 'rgba(255,235,190,.45)',
+      land: 'city', landCol: '#5f7488', sand: '#f3e2b5', shallow: 'rgba(60,200,200,.5)', deco: 'flags' },
+    { key: 'pohang', name: 'Pohang', place: 'Yeongildae', sky: [[0, '#04081a'], [0.5, '#101a3c'], [0.9, '#2c2d55'], [1, '#4a3a5e']], stars: 0.9,
+      sun: { x: 0.2, y: 0.62, r: 0.035, col: '#f4f2e6', glow: '200,210,255', moon: 1 }, cloud: 'rgba(150,160,210,.12)',
+      far: ['#2a2a48', '#14304a', '#0c3048'], water: ['#5fb3c4', '#17667f', '#0b3d57', '#021522'], glit: 'rgba(255,170,80,.4)',
+      land: 'mill', landCol: '#1a1f33', sand: '#cdb88e', shallow: 'rgba(40,120,150,.55)', deco: 'pohang' },
+  ];
+  const spot = () => SPOTS[G.spot] || SPOTS[0];
+  // sky, sun and the far sea for the current spot, drawn once
   function buildBg() {
+    const T = spot();
     bg = document.createElement('canvas'); bg.width = cv.width; bg.height = cv.height;
     const c = bg.getContext('2d'); c.setTransform(DPR, 0, 0, DPR, 0, 0);
-    const hz = Y0 - Math.max(40, H * 0.1);
+    const hz = HZ;
     let g = c.createLinearGradient(0, 0, 0, hz);
-    g.addColorStop(0, '#0b1430'); g.addColorStop(0.45, '#2b2d5c'); g.addColorStop(0.8, '#a4506a'); g.addColorStop(1, '#f39a55');
+    for (const [o, col] of T.sky) g.addColorStop(o, col);
     c.fillStyle = g; c.fillRect(0, 0, W, hz + 1);
-    // stars up top
-    c.fillStyle = 'rgba(255,255,255,.6)';
-    for (let i = 0; i < 40; i++) { const x = (i * 97.3) % W, y = (i * 53.7) % (hz * 0.45); c.fillRect(x, y, 1.2, 1.2); }
-    // sun on the horizon, over the beach side
-    const sx = W * 0.78, sr = Math.max(26, W * 0.08);
-    g = c.createRadialGradient(sx, hz, sr * 0.2, sx, hz, sr * 3.2); g.addColorStop(0, 'rgba(255,200,120,.75)'); g.addColorStop(1, 'rgba(255,140,80,0)');
-    c.fillStyle = g; c.fillRect(0, hz - sr * 3.2, W, sr * 3.2);
-    c.fillStyle = '#ffd38a'; c.beginPath(); c.arc(sx, hz, sr, Math.PI, 0); c.fill();
-    // far headland
-    c.fillStyle = '#3a2848'; c.beginPath(); c.moveTo(W * 0.52, hz);
-    c.bezierCurveTo(W * 0.6, hz - 22, W * 0.68, hz - 12, W * 0.72, hz - 16); c.bezierCurveTo(W * 0.85, hz - 30, W * 0.95, hz - 18, W + 2, hz - 26); c.lineTo(W + 2, hz); c.fill();
+    if (T.stars) { c.fillStyle = `rgba(255,255,255,${T.stars})`; for (let i = 0; i < 50; i++) { const x = (i * 97.3) % W, y = (i * 53.7) % (hz * 0.55); c.fillRect(x, y, 1.2, 1.2); } }
+    // sun (or moon)
+    const S0 = T.sun, sx = W * S0.x, sr = Math.max(14, W * S0.r), sy = hz - S0.y * hz;
+    g = c.createRadialGradient(sx, sy, sr * 0.2, sx, sy, sr * 4); g.addColorStop(0, `rgba(${S0.glow},.7)`); g.addColorStop(1, `rgba(${S0.glow},0)`);
+    c.fillStyle = g; c.fillRect(sx - sr * 4, sy - sr * 4, sr * 8, sr * 8);
+    c.fillStyle = S0.col; c.beginPath(); c.arc(sx, sy, sr, 0, 7); c.fill();
     // clouds
-    c.fillStyle = 'rgba(255,170,140,.18)';
-    for (const [x, y, w] of [[0.15, 0.55, 0.3], [0.55, 0.42, 0.22], [0.85, 0.62, 0.26]]) { c.beginPath(); c.ellipse(W * x, hz * y, W * w, 7, 0, 0, 7); c.fill(); }
+    c.fillStyle = T.cloud;
+    for (const [x, y, w] of [[0.15, 0.55, 0.3], [0.55, 0.42, 0.22], [0.85, 0.62, 0.26], [0.4, 0.75, 0.18]]) { c.beginPath(); c.ellipse(W * x, hz * y, W * w, 7, 0, 0, 7); c.fill(); }
+    drawLand(c, T, hz);
     // far sea between the horizon and the water line
-    g = c.createLinearGradient(0, hz, 0, Y0); g.addColorStop(0, '#5a4a6e'); g.addColorStop(0.25, '#1f4f6e'); g.addColorStop(1, '#0d4a63');
+    g = c.createLinearGradient(0, hz, 0, Y0); g.addColorStop(0, T.far[0]); g.addColorStop(0.25, T.far[1]); g.addColorStop(1, T.far[2]);
     c.fillStyle = g; c.fillRect(0, hz, W, Y0 - hz + 2);
-    // sun glitter
-    c.fillStyle = 'rgba(255,210,140,.35)';
-    for (let i = 0; i < 26; i++) { const y = hz + 3 + (i / 26) ** 1.5 * (Y0 - hz - 6), w = 6 + (i % 5) * 4 + i; c.fillRect(sx - w / 2 + Math.sin(i * 7) * i * 0.8, y, w, 1.4); }
-    // far swell lines
+    // glitter on the water under the sun, or the lights across the bay
+    c.fillStyle = T.glit;
+    const gx = T.land === 'mill' ? W * 0.72 : sx;
+    for (let i = 0; i < 26; i++) { const y = hz + 3 + (i / 26) ** 1.5 * (Y0 - hz - 6), w = 6 + (i % 5) * 4 + i; c.fillRect(gx - w / 2 + Math.sin(i * 7) * i * 0.8, y, w, 1.4); }
     c.strokeStyle = 'rgba(160,220,240,.12)'; c.lineWidth = 1;
     for (let i = 1; i < 6; i++) { const y = hz + (i / 6) ** 1.6 * (Y0 - hz); c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); }
+  }
+  // the skyline on the horizon for each spot
+  function drawLand(c, T, hz) {
+    c.fillStyle = T.landCol;
+    if (T.land === 'temple') { // Uluwatu: a cliff with a temple on top
+      c.beginPath(); c.moveTo(W * 0.5, hz);
+      c.bezierCurveTo(W * 0.6, hz - 22, W * 0.66, hz - 26, W * 0.7, hz - 30); c.lineTo(W * 0.95, hz - 34); c.lineTo(W + 2, hz - 30); c.lineTo(W + 2, hz); c.fill();
+      const tx = W * 0.84, ty = hz - 34;
+      for (let i = 0; i < 5; i++) { const w = 22 - i * 4; c.fillRect(tx - w / 2, ty - 6 - i * 5, w, 4); }
+      c.fillRect(tx - 1, ty - 36, 2, 8);
+    } else if (T.land === 'volcano') { // green mountains
+      c.beginPath(); c.moveTo(-2, hz);
+      c.bezierCurveTo(W * 0.1, hz - 40, W * 0.22, hz - 62, W * 0.3, hz - 48); c.bezierCurveTo(W * 0.4, hz - 30, W * 0.48, hz - 10, W * 0.55, hz);
+      c.moveTo(W * 0.6, hz); c.bezierCurveTo(W * 0.7, hz - 30, W * 0.78, hz - 44, W * 0.84, hz - 40); c.lineTo(W * 0.9, hz - 46); c.bezierCurveTo(W * 0.95, hz - 30, W, hz - 24, W + 2, hz - 22); c.lineTo(W + 2, hz); c.fill();
+    } else if (T.land === 'city') { // Gold Coast towers
+      let x = W * 0.42; let i = 0;
+      while (x < W) { const w = 8 + ((i * 7) % 9), h = 14 + ((i * 37) % 50) * (x > W * 0.7 ? 1 : 0.6); c.fillRect(x, hz - h, w, h); x += w + 2 + (i % 3); i++; }
+      c.fillStyle = 'rgba(255,240,200,.35)'; x = W * 0.42; i = 0;
+      while (x < W) { const w = 8 + ((i * 7) % 9); for (let k = 0; k < 4; k++) c.fillRect(x + 2, hz - 8 - k * 7, 2, 2); x += w + 2 + (i % 3); i++; }
+    } else if (T.land === 'mill') { // Pohang: the steel works across the bay, lit up at night
+      c.fillRect(W * 0.45, hz - 12, W * 0.55, 12);
+      const stacks = [[0.52, 34], [0.58, 46], [0.63, 30], [0.74, 52], [0.8, 40], [0.9, 36]];
+      for (const [x, h] of stacks) c.fillRect(W * x, hz - h, 5, h);
+      for (const [x, w, h] of [[0.66, 22, 22], [0.84, 30, 18], [0.48, 16, 18]]) c.fillRect(W * x, hz - h, w, h);
+      c.fillStyle = 'rgba(255,160,60,.9)';
+      for (let i = 0; i < 46; i++) c.fillRect(W * 0.45 + ((i * 37.7) % (W * 0.55)), hz - 3 - ((i * 13) % 20), 1.6, 1.6);
+      for (const [x, h] of stacks) { c.fillStyle = '#ff4a3a'; c.fillRect(W * x + 1.5, hz - h - 2, 2, 2); }
+      c.fillStyle = 'rgba(200,200,220,.12)';
+      for (const [x, h] of stacks.slice(0, 4)) { c.beginPath(); c.ellipse(W * x + 10, hz - h - 10, 14, 6, -0.3, 0, 7); c.fill(); }
+    }
   }
 
   // ---------------- Draw ----------------
   function draw() {
     ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
     if (bg) ctx.drawImage(bg, 0, 0, W, H); else { ctx.fillStyle = '#0b1430'; ctx.fillRect(0, 0, W, H); }
+    V = mainView();
+    if (G.mp && G.mp.started && G.w && G.phase !== 'end') drawLane();
     const ws = curWave();
     const x0 = G.camX - VIEW_W / 2 - 1, x1 = G.camX + VIEW_W / 2 + 1;
     // water body
     const top = SY(5.5);
     const g = ctx.createLinearGradient(0, top, 0, H);
-    g.addColorStop(0, '#7fe0e0'); g.addColorStop((Y0 - top) / (H - top) * 0.75, '#1f9bb0'); g.addColorStop((Y0 - top) / (H - top) + 0.02, '#0f6e8a'); g.addColorStop(1, '#04233a');
+    const WC = spot().water; g.addColorStop(0, WC[0]); g.addColorStop((Y0 - top) / (H - top) * 0.75, WC[1]); g.addColorStop((Y0 - top) / (H - top) + 0.02, WC[2]); g.addColorStop(1, WC[3]);
     ctx.fillStyle = g;
     ctx.beginPath(); ctx.moveTo(SX(x0), H);
     const step = 3 / K;
@@ -763,7 +869,7 @@ setTimeout(finish,10000);tick();})();</script>
     if (ws) drawBreak(ws);
     drawMarkers(ws, x0, x1);
     drawBeach(x0, x1);
-    drawSurfer(ws);
+    drawSurfer(ws, G);
     // particles
     for (const p of G.parts) {
       ctx.globalAlpha = clamp(p.life * 2.2, 0, 1); ctx.fillStyle = p.col;
@@ -774,6 +880,33 @@ setTimeout(finish,10000);tick();})();</script>
     if (LV[G.lv].meter && (G.phase === 'wave' || G.phase === 'wait')) drawMeter();
     if (G.hold || (G.ps > 0.02 && (G.phase === 'wave' || G.phase === 'wait'))) drawPaddleBar(ws);
     if (G.fade > 0) { ctx.fillStyle = `rgba(6,10,18,${G.fade})`; ctx.fillRect(0, 0, W, H); }
+  }
+  // your friend, a little further down the line of the same wave (smaller, further back)
+  function drawLane() {
+    V = laneView();
+    const ws = curWave(O), T = spot();
+    const x0 = G.camX - V.cx / V.k - 1, x1 = G.camX + (W - V.cx) / V.k + 1, step = 3 / V.k;
+    ctx.fillStyle = T.water[1]; ctx.globalAlpha = 0.9;
+    ctx.beginPath(); ctx.moveTo(SX(x0), Y0 + 4);
+    for (let x = x0; x <= x1; x += step) ctx.lineTo(SX(x), SY(surfY(x, ws)));
+    ctx.lineTo(SX(x1), Y0 + 4); ctx.closePath(); ctx.fill(); ctx.globalAlpha = 1;
+    ctx.strokeStyle = 'rgba(210,250,255,.45)'; ctx.lineWidth = 1.2; ctx.beginPath();
+    for (let x = x0; x <= x1; x += step) { const y = SY(surfY(x, ws)); x === x0 ? ctx.moveTo(SX(x), y) : ctx.lineTo(SX(x), y); }
+    ctx.stroke();
+    if (ws && ws.b > 0.2) { // white water on top once it has broken
+      ctx.fillStyle = 'rgba(245,252,255,.75)'; const L = waveLen(ws.h);
+      for (let i = 0; i < 10; i++) { const u = -L * 0.4 + (i / 9) * L * 0.6; ctx.beginPath(); ctx.arc(SX(ws.xc + u), SY(surfY(ws.xc + u, ws)), (0.14 + 0.06 * Math.sin(i * 2 + G.t * 6)) * V.k * Math.min(1.5, ws.h / 1.6 + 0.4), 0, 7); ctx.fill(); }
+    }
+    drawSurfer(ws, O);
+    // name tag
+    const m = G.mp, tx = SX(O.sx), ty = SY(rideY(O)) - 2.4 * V.ky;
+    if (tx > -40 && tx < W + 40) {
+      ctx.font = '700 11px "Saira Condensed", sans-serif'; ctx.textAlign = 'center';
+      const lab = `${m.opp.name}${m.opp.num ? ' #' + m.opp.num : ''}`, tw = ctx.measureText(lab).width + 10;
+      ctx.fillStyle = 'rgba(8,14,26,.7)'; ctx.fillRect(tx - tw / 2, ty - 11, tw, 15);
+      ctx.fillStyle = '#5aa9ff'; ctx.fillText(lab, tx, ty);
+    } else if (tx > W + 40) { ctx.font = '700 11px "Saira Condensed", sans-serif'; ctx.textAlign = 'right'; ctx.fillStyle = '#5aa9ff'; ctx.fillText(`${m.opp.name} ${Math.round(O.sx)} m ›`, W - 8, V.y0 - 6); }
+    V = mainView();
   }
   // the lip pitching forward after the break, and the white water
   function drawBreak(ws) {
@@ -827,31 +960,69 @@ setTimeout(finish,10000);tick();})();</script>
   }
   function drawBeach(x0, x1) {
     if (x1 < BEACH - 16) return;
-    ctx.fillStyle = '#e6c88c';
+    const T = spot();
+    ctx.fillStyle = T.sand;
     ctx.beginPath(); ctx.moveTo(SX(BEACH - 16), SY(sandY(BEACH - 16)));
     for (let x = BEACH - 16; x <= x1 + 2; x += 0.5) ctx.lineTo(SX(x), SY(Math.min(sandY(x), 1.6) + 0.04 * Math.sin(x * 1.7)));
     ctx.lineTo(SX(x1 + 2), H); ctx.lineTo(SX(BEACH - 16), H); ctx.fill();
     // the shallows: water over the sand
-    ctx.fillStyle = 'rgba(40,170,190,.55)';
+    ctx.fillStyle = T.shallow;
     ctx.beginPath(); ctx.moveTo(SX(BEACH - 16), SY(sandY(BEACH - 16)));
     for (let x = BEACH - 16; x <= BEACH; x += 0.5) ctx.lineTo(SX(x), SY(sandY(x)));
     for (let x = BEACH; x >= BEACH - 16; x -= 0.5) ctx.lineTo(SX(x), SY(Math.max(sandY(x), surfY(x, null))));
     ctx.fill();
     // wet sand edge
     ctx.fillStyle = 'rgba(150,120,80,.45)'; ctx.fillRect(SX(BEACH - 1.5), SY(0.05), (4 + 0.6 * Math.sin(G.t)) * K, 3);
-    // palms and a flag
-    for (const [px, ph] of [[BEACH + 7, 5.2], [BEACH + 11, 6.4], [BEACH + 16, 5.6]]) {
-      const bx = SX(px), by = SY(Math.min(sandY(px), 1.6)), tx = bx + 0.9 * K, ty = by - ph * KY * 0.8;
-      ctx.strokeStyle = '#6b4a2e'; ctx.lineWidth = 0.28 * K; ctx.lineCap = 'round';
-      ctx.beginPath(); ctx.moveTo(bx, by); ctx.quadraticCurveTo(bx - 0.4 * K, (by + ty) / 2, tx, ty); ctx.stroke();
-      ctx.strokeStyle = '#2f7a4a'; ctx.lineWidth = 0.22 * K;
-      for (let i = 0; i < 6; i++) { const a = -Math.PI / 2 + (i - 2.5) * 0.6 + Math.sin(G.t * 1.3 + i) * 0.05; ctx.beginPath(); ctx.moveTo(tx, ty); ctx.quadraticCurveTo(tx + Math.cos(a) * 1.4 * K, ty + Math.sin(a) * 1.1 * K - 0.4 * K, tx + Math.cos(a) * 2.2 * K, ty + Math.sin(a) * 1.2 * K + 0.6 * K); ctx.stroke(); }
-    }
+    drawDeco(T.deco);
     const fx = SX(BEACH + 3), fy = SY(sandY(BEACH + 3));
     ctx.strokeStyle = '#f1ecdc'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx, fy - 2.6 * KY); ctx.stroke();
     ctx.fillStyle = '#ffbb4a'; ctx.beginPath(); ctx.moveTo(fx, fy - 2.6 * KY); ctx.lineTo(fx + 1.2 * K, fy - 2.35 * KY + Math.sin(G.t * 4) * 2); ctx.lineTo(fx, fy - 2.1 * KY); ctx.fill();
     ctx.fillStyle = '#1a1205'; ctx.font = `700 ${Math.round(clamp(K * 0.5, 9, 12))}px sans-serif`; ctx.textAlign = 'left';
     ctx.fillStyle = '#f1ecdc'; ctx.fillText('BEACH ' + BEACH + ' m', fx + 4, fy - 2.7 * KY);
+  }
+  // what stands on the beach at each spot
+  const sandAt = (x) => SY(Math.min(sandY(x), 1.6));
+  function palm(px, ph) {
+    const bx = SX(px), by = sandAt(px), tx = bx + 0.9 * K, ty = by - ph * KY * 0.8;
+    ctx.strokeStyle = '#6b4a2e'; ctx.lineWidth = 0.28 * K; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(bx, by); ctx.quadraticCurveTo(bx - 0.4 * K, (by + ty) / 2, tx, ty); ctx.stroke();
+    ctx.strokeStyle = '#2f7a4a'; ctx.lineWidth = 0.22 * K;
+    for (let i = 0; i < 6; i++) { const a = -Math.PI / 2 + (i - 2.5) * 0.6 + Math.sin(G.t * 1.3 + i) * 0.05; ctx.beginPath(); ctx.moveTo(tx, ty); ctx.quadraticCurveTo(tx + Math.cos(a) * 1.4 * K, ty + Math.sin(a) * 1.1 * K - 0.4 * K, tx + Math.cos(a) * 2.2 * K, ty + Math.sin(a) * 1.2 * K + 0.6 * K); ctx.stroke(); }
+  }
+  function pine(px, ph, col) {
+    const bx = SX(px), by = sandAt(px), h = ph * KY * 0.8;
+    ctx.fillStyle = '#5a3f2a'; ctx.fillRect(bx - 0.12 * K, by - h * 0.4, 0.24 * K, h * 0.4);
+    ctx.fillStyle = col;
+    for (let i = 0; i < 4; i++) { const y = by - h * (0.3 + i * 0.18), w = (1.5 - i * 0.3) * K; ctx.beginPath(); ctx.moveTo(bx - w, y); ctx.lineTo(bx + w, y); ctx.lineTo(bx, y - h * 0.3); ctx.fill(); }
+  }
+  function drawDeco(kind) {
+    if (kind === 'palms') { palm(BEACH + 7, 5.2); palm(BEACH + 11, 6.4); palm(BEACH + 16, 5.6); return; }
+    if (kind === 'tower') { // a lifeguard tower and palms
+      palm(BEACH + 13, 6.6); palm(BEACH + 17, 5.4);
+      const bx = SX(BEACH + 8), by = sandAt(BEACH + 8), h = 2.6 * KY;
+      ctx.strokeStyle = '#e8e2d0'; ctx.lineWidth = 0.12 * K;
+      ctx.beginPath(); ctx.moveTo(bx - 0.8 * K, by); ctx.lineTo(bx - 0.6 * K, by - h); ctx.moveTo(bx + 0.8 * K, by); ctx.lineTo(bx + 0.6 * K, by - h); ctx.stroke();
+      ctx.fillStyle = '#e8e2d0'; ctx.fillRect(bx - 1.1 * K, by - h - 1.2 * K, 2.2 * K, 1.2 * K);
+      ctx.fillStyle = '#d9453a'; ctx.beginPath(); ctx.moveTo(bx - 1.4 * K, by - h - 1.2 * K); ctx.lineTo(bx, by - h - 2 * K); ctx.lineTo(bx + 1.4 * K, by - h - 1.2 * K); ctx.fill();
+      return;
+    }
+    if (kind === 'flags') { // surf lifesaving flags and a Norfolk pine
+      pine(BEACH + 14, 7, '#2f5a3a'); pine(BEACH + 18, 6, '#2f5a3a');
+      for (const fx0 of [BEACH + 7, BEACH + 10]) {
+        const fx = SX(fx0), fy = sandAt(fx0);
+        ctx.strokeStyle = '#ddd'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx, fy - 2.2 * KY); ctx.stroke();
+        ctx.fillStyle = '#e53a2f'; ctx.fillRect(fx, fy - 2.2 * KY, 0.9 * K, 0.3 * KY);
+        ctx.fillStyle = '#ffd23a'; ctx.fillRect(fx, fy - 1.9 * KY, 0.9 * K, 0.3 * KY);
+      }
+      return;
+    }
+    if (kind === 'pohang') { // beach pines and a red lighthouse on the breakwater
+      pine(BEACH + 12, 6, '#1f3d34'); pine(BEACH + 15, 7.4, '#1f3d34'); pine(BEACH + 19, 6.2, '#1f3d34');
+      const bx = SX(BEACH + 7), by = sandAt(BEACH + 7), h = 4.2 * KY;
+      ctx.fillStyle = '#d23b33'; ctx.beginPath(); ctx.moveTo(bx - 0.6 * K, by); ctx.lineTo(bx - 0.4 * K, by - h); ctx.lineTo(bx + 0.4 * K, by - h); ctx.lineTo(bx + 0.6 * K, by); ctx.fill();
+      ctx.fillStyle = '#f1ecdc'; ctx.fillRect(bx - 0.5 * K, by - h * 0.55, 1 * K, 0.25 * KY);
+      ctx.fillStyle = `rgba(255,230,150,${0.6 + 0.4 * Math.sin(G.t * 3)})`; ctx.beginPath(); ctx.arc(bx, by - h - 0.3 * K, 0.35 * K, 0, 7); ctx.fill();
+    }
   }
   // the off-screen wave arrow, and the height label over the crest
   function drawIncoming(ws) {
@@ -906,45 +1077,45 @@ setTimeout(finish,10000);tick();})();</script>
     return p;
   }
   const mixPose = (a, b, t) => { const o = {}; for (const k in a) o[k] = [lerp(a[k][0], b[k][0], t), lerp(a[k][1], b[k][1], t)]; return o; };
-  function rideY() { return Math.max(surfY(G.sx, curWave()), G.sx > BEACH - 16 ? sandY(G.sx) : -9); }
-  function drawSurfer(ws) {
-    const x = G.sx, y = rideY();
+  function rideY(r) { return Math.max(surfY(r.sx, curWave(r)), r.sx > BEACH - 16 ? sandY(r.sx) : -9); }
+  function drawSurfer(ws, r) {
+    const x = r.sx, y = rideY(r), K = V.k, KY = V.ky;
     const d = 0.35, yl = surfY(x - d, ws), yr = surfY(x + d, ws);
     let ang = Math.atan2(yr - yl, 2 * d) * 1.25 / 1.0; // tilt with the water (drawn with the vertical stretch)
-    if (G.sx > BEACH - 1) ang = Math.atan(0.1);
-    const R = G.ride, tau = R ? clamp(R.t / R.T, 0, 1) : 0;
+    if (r.sx > BEACH - 1) ang = Math.atan(0.1);
+    const R = r.ride, tau = R ? clamp(R.t / R.T, 0, 1) : 0;
     let pose, boardOff = 0;
-    if (G.pose === 'paddle') pose = paddlePose(G.t, G.hold);
-    else if (G.pose === 'pop') pose = mixPose(paddlePose(G.t, false), POSE.ride, ease((G.t - G.popT) / 0.3));
-    else if (G.pose === 'ride') { pose = POSE.ride; const crouch = 0.08 * Math.sin(G.t * 4.2); pose = mixPose(POSE.ride, POSE.sit, Math.max(0, crouch)); }
-    else if (G.pose === 'beach') pose = POSE.beach;
-    else if (G.pose === 'wipe') pose = POSE.ride;
+    if (r.pose === 'paddle') pose = paddlePose(G.t, r.hold);
+    else if (r.pose === 'pop') pose = mixPose(paddlePose(G.t, false), POSE.ride, ease((G.t - r.popT) / 0.3));
+    else if (r.pose === 'ride') { pose = POSE.ride; const crouch = 0.08 * Math.sin(G.t * 4.2); pose = mixPose(POSE.ride, POSE.sit, Math.max(0, crouch)); }
+    else if (r.pose === 'beach') pose = POSE.beach;
+    else if (r.pose === 'wipe') pose = POSE.ride;
     else pose = POSE.sit;
-    const bob = G.pose === 'sit' ? Math.sin(G.t * 2.1) * 0.03 : 0;
+    const bob = r.pose === 'sit' ? Math.sin(G.t * 2.1) * 0.03 : 0;
     ctx.save();
     ctx.translate(SX(x), SY(y + bob));
-    if (G.pose === 'wipe') {
+    if (r.pose === 'wipe') {
       // over the falls: thrown forward and down, board flying
-      const k = clamp((G.t - G.popT) / 1.2, 0, 1), sink = Math.max(0, (G.t - G.popT - 0.9) * 0.9);
+      const k = clamp((G.t - r.popT) / 1.2, 0, 1), sink = Math.max(0, (G.t - r.popT - 0.9) * 0.9);
       ctx.save(); ctx.translate((0.5 + k * 1.2) * K, (-k * 1.6 + k * k * 2.6 + sink) * KY * 0.6); ctx.rotate(-k * 3.6);
       ctx.globalAlpha = clamp(1 - sink * 0.9, 0, 1);
-      drawBoard(0); ctx.restore();
+      drawBoard(); ctx.restore();
       ctx.translate((k * 2.2) * K, (-1.4 * k + 2.6 * k * k + sink) * KY * 0.5); ctx.rotate(k * 4.4); ctx.globalAlpha = clamp(1 - sink, 0, 1);
       drawBody(pose);
       ctx.restore(); ctx.globalAlpha = 1;
       return;
     }
     ctx.rotate(-ang);
-    if (G.pose !== 'beach') drawBoard(boardOff);
-    else { ctx.save(); ctx.translate(-0.7 * K, -0.02 * K); ctx.rotate(-0.08); drawBoard(0); ctx.restore(); }
+    if (r.pose !== 'beach') drawBoard();
+    else { ctx.save(); ctx.translate(-0.7 * K, -0.02 * K); ctx.rotate(-0.08); drawBoard(); ctx.restore(); }
     // legs below the board while sitting are in the water: dim them
-    drawBody(pose, G.pose === 'sit');
+    drawBody(pose, r.pose === 'sit');
     ctx.restore();
     void tau;
   }
   function drawBoard() {
-    const k = K;
-    ctx.fillStyle = '#ffbb4a';
+    const k = V.k;
+    ctx.fillStyle = V.opp ? '#5aa9ff' : '#ffbb4a';
     ctx.beginPath();
     ctx.moveTo(-1.05 * k, 0); ctx.quadraticCurveTo(-1.08 * k, 0.1 * k, -0.9 * k, 0.11 * k);
     ctx.lineTo(0.75 * k, 0.11 * k); ctx.quadraticCurveTo(1.1 * k, 0.08 * k, 1.18 * k, -0.12 * k);
@@ -953,7 +1124,7 @@ setTimeout(finish,10000);tick();})();</script>
     ctx.fillStyle = '#1d2a3f'; ctx.beginPath(); ctx.moveTo(-0.85 * k, 0.11 * k); ctx.lineTo(-0.7 * k, 0.11 * k); ctx.lineTo(-0.9 * k, 0.28 * k); ctx.fill();
   }
   function drawBody(p, dimLegs) {
-    const k = K, P = (j) => [p[j][0] * k, -p[j][1] * k - 0.1 * k];
+    const k = V.k, P = (j) => [p[j][0] * k, -p[j][1] * k - 0.1 * k];
     const limb = (a, b, c, col, w) => { ctx.strokeStyle = col; ctx.lineWidth = w * k; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(...P(a)); ctx.lineTo(...P(b)); ctx.lineTo(...P(c)); ctx.stroke(); };
     const suit = '#16233a', suit2 = '#22406a', skin = '#e2b289';
     ctx.globalAlpha = dimLegs ? 0.45 : 1;
@@ -1010,6 +1181,7 @@ setTimeout(finish,10000);tick();})();</script>
   // ---------------- Menus ----------------
   function renderStart() {
     document.querySelectorAll('#lvSeg [data-v]').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.v) === S.lv)));
+    document.querySelectorAll('#spotSeg [data-v]').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.v) === S.spot)));
     $('lvNote').textContent = LV[S.lv].note;
     $('soundBtn').textContent = 'Sound: ' + (S.sound ? 'on' : 'off');
     const b = save.stats.best[S.lv] || 0, bl = $('bestLine'); bl.textContent = '';
@@ -1017,15 +1189,17 @@ setTimeout(finish,10000);tick();})();</script>
     renderHud();
   }
   $('lvSeg').addEventListener('click', (e) => { const v = e.target.closest('[data-v]')?.dataset.v; if (v) { S.lv = Number(v); persist(); renderStart(); } });
+  $('spotSeg').addEventListener('click', (e) => { const v = e.target.closest('[data-v]')?.dataset.v; if (v) { S.spot = Number(v); persist(); setSpot(S.spot); renderStart(); } });
   $('soundBtn').addEventListener('click', () => { S.sound = !S.sound; persist(); if (SEA) SEA.gain.value = S.sound ? 0.035 : 0; renderStart(); });
   { const nm = $('nameP'), nu = $('numP'); nm.value = S.player.name; nu.value = S.player.num;
     nm.addEventListener('change', () => { S.player.name = cleanName(nm.value, DEF_PLAYER.name); nm.value = S.player.name; persist(); renderHud(); });
     nu.addEventListener('change', () => { S.player.num = cleanNum(nu.value, DEF_PLAYER.num); nu.value = S.player.num; persist(); renderHud(); }); }
-  $('startBtn').addEventListener('click', () => { audio(); startGame(); });
+  $('startBtn').addEventListener('click', () => { audio(); mpLeave(); mpStatus(null); startGame(); });
   $('endBack').addEventListener('click', () => { $('endOv').hidden = true; toMenu(); });
   $('endAgain').addEventListener('click', () => { audio(); startGame(); });
   function toMenu() {
-    G.phase = 'menu'; G.paused = false; G.hold = false; G.ride = null; G.sx = 0; G.w = null; G.rides = []; G.total = 0; G.idx = 0;
+    if (G.mp) mpLeave();
+    G.phase = 'menu'; G.paused = false; G.hold = false; G.ride = null; G.sx = 0; G.w = null; G.rides = []; G.total = 0; G.idx = 0; setSpot(S.spot);
     banner(''); $('hint').hidden = true;
     ['menuOv', 'statsOv', 'endOv'].forEach((i) => ($(i).hidden = true)); $('startOv').hidden = false; renderStart();
   }
@@ -1034,7 +1208,7 @@ setTimeout(finish,10000);tick();})();</script>
     statsFrom = from; const s = save.stats;
     fillStats($('statBody'), [['Best Easy', s.best[0] ? s.best[0] + ' m' : '-'], ['Best Normal', s.best[1] ? s.best[1] + ' m' : '-', 1], ['Best Pro', s.best[2] ? s.best[2] + ' m' : '-'],
       ['Longest ride', Math.max(...s.longest) + ' m', 1], ['To the beach', s.beach], ['Perfect', s.perfect],
-      ['Sessions', s.games], ['Waves caught', `${s.caught}/${s.waves}`], ['Wipeouts', s.wipe]]);
+      ['Sessions', s.games], ['Waves caught', `${s.caught}/${s.waves}`], ['Wipeouts', s.wipe], ['Friend games', s.mpGames || 0], ['Friend wins', s.mpWins || 0], ['', '']]);
     $('statsOv').hidden = false;
     const ra = $('resetArea'); ra.textContent = '';
     const r = document.createElement('button'); r.className = 'ghost'; r.textContent = 'Reset stats'; r.style.width = '100%';
@@ -1048,16 +1222,196 @@ setTimeout(finish,10000);tick();})();</script>
     if (ov.id === 'menuOv') G.paused = false;
   }));
   const inGame = () => !['menu', 'end'].includes(G.phase);
-  function pauseNow() { if (G.hold) { G.hold = false; G.pose = 'sit'; } pid = null; G.paused = true; $('menuOv').hidden = false; }
+  const leaveFriend = () => { if (G.mp) { G.mp.quit = true; mpPresence(); const m = G.mp; setTimeout(() => { if (G.mp === m) mpLeave(); }, 600); } };
+  function pauseNow() { if (G.hold) release(); pid = null; if (!G.mp) G.paused = true; $('menuNote').textContent = G.mp ? 'The waves keep coming while this menu is open. Leaving ends the game for both of you.' : 'Leaving ends this session.'; $('menuOv').hidden = false; }
   $('menuBtn').addEventListener('click', () => { if (inGame()) pauseNow(); });
   $('menuResume').addEventListener('click', () => { $('menuOv').hidden = true; G.paused = false; });
-  $('menuHome').addEventListener('click', () => toMenu());
-  $('menuSite').addEventListener('click', () => { location.href = '../'; });
-  document.addEventListener('visibilitychange', () => { if (document.hidden && inGame() && !G.paused) pauseNow(); });
+  $('menuHome').addEventListener('click', () => { leaveFriend(); toMenu(); });
+  $('menuSite').addEventListener('click', () => { const w = !!G.mp; leaveFriend(); setTimeout(() => { location.href = '../'; }, w ? 700 : 0); });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && inGame() && !G.paused && !G.mp) pauseNow(); });
+
+  // ---------------- Friend game (room code) ----------------
+  // Same rooms as the other games (rooms/nd-<code>). The room creator picks the level, the spot and the 5 waves,
+  // and a start time on the server clock; wave i starts PERIOD seconds after wave i-1 on both phones.
+  // Each phone puts what its surfer is doing in its presence (paddling, when it let go and the result),
+  // and draws the friend from that on the same wave.
+  let roomApi = null, roomApiTried = false;
+  async function getRoomApi() {
+    if (roomApi || roomApiTried) return roomApi;
+    roomApiTried = true;
+    try {
+      if (location.protocol === 'file:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1') roomApi = mockRoom();
+      else if (window.FIREBASE_CONFIG && (window.firebase || window.ndLoadFirebase)) {
+        if (!window.firebase) await window.ndLoadFirebase();
+        roomApi = firebaseRoom();
+      }
+    } catch (e) { roomApi = null; }
+    if (!roomApi) roomApiTried = false;
+    return roomApi;
+  }
+  function firebaseRoom() { // rooms/<name>/peers/<peerId>, see database.rules.json
+    if (!firebase.apps.length) firebase.initializeApp(window.FIREBASE_CONFIG);
+    const db = firebase.database();
+    const me = db.ref().push().key;
+    let off = 0; db.ref('.info/serverTimeOffset').on('value', (v) => { off = Number(v.val()) || 0; });
+    return {
+      now: () => Date.now() + off,
+      join: async (name) => {
+        const base = db.ref('rooms/' + name + '/peers'), mineRef = base.child(me);
+        let mine = {}, list = [], prev = new Map();
+        const hs = [];
+        await mineRef.onDisconnect().remove();
+        await mineRef.set({ p: JSON.stringify(mine), t: firebase.database.ServerValue.TIMESTAMP });
+        const conRef = db.ref('.info/connected');
+        const onCon = conRef.on('value', (v) => { if (v.val()) { mineRef.onDisconnect().remove(); mineRef.set({ p: JSON.stringify(mine), t: firebase.database.ServerValue.TIMESTAMP }); } });
+        const onVal = base.on('value', (snap) => {
+          const val = snap.val() || {}, next = new Map();
+          for (const id in val) { let pr = {}; try { pr = JSON.parse(val[id].p || '{}'); } catch (e) { pr = {}; } next.set(id, { peer: id, isMe: id === me, presence: pr }); }
+          const left = [...prev.values()].filter((p) => !next.has(p.peer));
+          prev = next; list = [...next.values()];
+          hs.forEach((h) => h({ peers: list, left }));
+        });
+        return {
+          presence: async (patch) => { mine = { ...mine, ...patch }; await mineRef.set({ p: JSON.stringify(mine), t: firebase.database.ServerValue.TIMESTAMP }); },
+          onPeers: (h) => { hs.push(h); if (list.length) setTimeout(() => h({ peers: list, left: [] }), 0); return () => { const i = hs.indexOf(h); if (i >= 0) hs.splice(i, 1); }; },
+          leave: async () => { base.off('value', onVal); conRef.off('value', onCon); hs.length = 0; await mineRef.remove(); },
+        };
+      },
+    };
+  }
+  function mockRoom() { // local testing only: tabs of one browser talk over BroadcastChannel
+    const me = Math.random().toString(36).slice(2, 10);
+    return {
+      now: () => Date.now(),
+      join: async (name) => {
+        const bc = new BroadcastChannel('mock-' + name); let mine = {}; const others = new Map(); const hs = [];
+        const snap = () => [{ peer: me, isMe: true, presence: mine }, ...[...others].map(([peer, v]) => ({ peer, isMe: false, presence: v }))];
+        const fire = (left = []) => { const peers = snap(); hs.forEach((h) => h({ peers, left })); };
+        bc.onmessage = (e) => {
+          const d = e.data;
+          if (d.type === 'bye') { if (others.delete(d.peer)) fire([{ peer: d.peer }]); return; }
+          others.set(d.peer, d.presence);
+          if (d.type === 'hello') bc.postMessage({ type: 'state', peer: me, presence: mine });
+          fire();
+        };
+        bc.postMessage({ type: 'hello', peer: me, presence: mine });
+        window.addEventListener('beforeunload', () => bc.postMessage({ type: 'bye', peer: me }));
+        return {
+          presence: async (patch) => { mine = { ...mine, ...patch }; bc.postMessage({ type: 'state', peer: me, presence: mine }); fire(); },
+          onPeers: (h) => { hs.push(h); setTimeout(() => h({ peers: snap(), left: [] }), 0); return () => {}; },
+          leave: async () => { bc.postMessage({ type: 'bye', peer: me }); bc.close(); hs.length = 0; },
+        };
+      },
+    };
+  }
+  const elt = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  function mpStatus(nodes) { const el = $('mpStatus'); el.textContent = ''; el.hidden = !nodes; if (nodes) nodes.forEach((n) => el.append(n)); }
+  function cancelBtn() { const b = elt('button', '', 'Cancel'); b.addEventListener('click', () => { mpLeave(); mpStatus(null); }); return b; }
+  const fin = (v, d = 0) => (Number.isFinite(Number(v)) ? Number(v) : d);
+
+  async function mpOpen(code, host) {
+    mpLeave();
+    if (navigator.onLine === false) { mpStatus([elt('div', '', 'You are offline. Friend games need the internet. Everything else still works.')]); return; }
+    const api = await getRoomApi();
+    if (!api) { mpStatus([elt('div', '', 'Friend games are not available here. Check your internet connection and reload.')]); return; }
+    let room;
+    try { room = await api.join(`nd-${code}`); } catch (e) { mpStatus([elt('div', '', 'Could not open the room. Check your connection and try again.')]); return; }
+    G.mp = { code, room, host, now: api.now, oppPeer: null, started: false, t0: 0, lv: S.lv, spot: S.spot, plan: host ? planWaves(S.lv) : null, quit: false, leftTimer: null, opp: { name: 'FRIEND', num: '' } };
+    G.mp.unsub = room.onPeers(mpPeers);
+    mpPresence();
+  }
+  function mpPresence() {
+    const m = G.mp; if (!m) return;
+    const r = G.res, play = m.started && G.phase !== 'menu';
+    m.room.presence({ app: 'surf', v: 1, host: m.host, pl: S.player, lv: m.lv, sp: m.spot, t0: m.t0 || 0, plan: m.host ? m.plan : 0,
+      wi: play ? G.idx : -1, hd: play && G.hold ? 1 : 0,
+      rel: play && r ? { i: G.idx, rt: Math.round((r.rt || 0) * 1000) / 1000, g: r.grade, d: r.d, b: r.beach ? 1 : 0 } : 0,
+      tot: play ? G.total : 0, rides: play ? G.rides.map((x) => ({ d: x.d, b: x.beach ? 1 : 0 })) : [], done: G.done && play ? 1 : 0, q: m.quit ? 1 : 0 }).catch(() => {});
+  }
+  function mpPeers(change) {
+    const m = G.mp; if (!m) return;
+    const others = change.peers.filter((p) => !p.isMe && p.presence && p.presence.app === 'surf');
+    if (!m.oppPeer) { const c = others.find((p) => !!p.presence.host !== m.host); if (!c) return; m.oppPeer = c.peer; }
+    const opp = others.find((p) => p.peer === m.oppPeer);
+    if (!opp) { if (!m.leftTimer) m.leftTimer = setTimeout(() => mpGone('Your friend left the room.'), 4000); return; }
+    clearTimeout(m.leftTimer); m.leftTimer = null;
+    const pr = opp.presence, pl = pr.pl;
+    m.opp = { name: cleanName(pl && pl.name, 'FRIEND'), num: cleanNum(pl && pl.num, '') };
+    if (pr.q) { mpGone('Your friend left the game.'); return; }
+    if (!m.host && !m.started) {
+      m.lv = [0, 1, 2].includes(pr.lv) ? pr.lv : 1; m.spot = [0, 1, 2, 3].includes(pr.sp) ? pr.sp : 0;
+      if (Array.isArray(pr.plan) && pr.plan.length === N_WAVES) m.plan = pr.plan.map((a) => [clamp(fin(a[0], 1.5), 0.5, 5), clamp(fin(a[1], 4), 2, 6), clamp(fin(a[2], -1), -3, 1)]);
+      const t0 = fin(pr.t0); if (t0 > 0) m.t0 = t0;
+    }
+    if (m.host && !m.t0) { m.t0 = m.now() + 5000; mpPresence(); }
+    if (m.started) {
+      O.hold = !!pr.hd && fin(pr.wi, -1) === G.idx;
+      const rel = pr.rel;
+      if (rel && fin(rel.i, -1) === G.idx && O.resI !== G.idx) O.pending = { rt: fin(rel.rt), g: String(rel.g || ''), d: clamp(Math.floor(fin(rel.d)), 0, BEACH), b: !!rel.b };
+      const tot = clamp(Math.floor(fin(pr.tot)), 0, BEACH * N_WAVES);
+      if (tot !== O.tot) { O.tot = tot; renderHud(); }
+      O.rides = Array.isArray(pr.rides) ? pr.rides.slice(0, N_WAVES).map((x) => ({ d: clamp(Math.floor(fin(x && x.d)), 0, BEACH), b: !!(x && x.b) })) : [];
+      O.done = !!pr.done;
+    } else if (m.t0 && m.plan) mpStart();
+  }
+  function mpStart() {
+    const m = G.mp; m.started = true;
+    if (m.host && window.ndTrack) ndTrack('multi');
+    mpStatus(null); G.done = false;
+    startGame({ lv: m.lv, plan: m.plan, spot: m.spot });
+    toast('VS ' + m.opp.name, `${LV[m.lv].name} · ${SPOTS[m.spot].name}`, '#5aa9ff', 1800);
+  }
+  function mpTick() {}
+  // the friend's surfer: paddling, then riding (or wiping out) from the moment they let go
+  function oppTick(dt) {
+    if (!G.w) return;
+    const pd = O.pending;
+    if (pd && O.resI !== G.idx) {
+      O.resI = G.idx; O.pending = null; O.res = pd; O.hold = false;
+      if (pd.d > 0) { O.ride = makeRide({ d: pd.d, beach: pd.b }, G.w, pd.rt); O.ride.t = Math.max(0, G.w.t - pd.rt); O.pose = 'pop'; O.popT = G.t - O.ride.t; }
+      else if (pd.g === 'LATE') { O.pose = 'wipe'; O.popT = G.t - Math.max(0, G.w.t - pd.rt); }
+      else O.pose = 'sit';
+    }
+    if (O.ride) { const tau = rideStep(O, dt); if (tau >= 1) O.pose = O.res && O.res.b ? 'beach' : 'sit'; }
+    else if (O.pose !== 'wipe') O.pose = O.hold ? 'paddle' : 'sit';
+  }
+  function mpGone(text) {
+    const m = G.mp; if (!m) return;
+    if (m.started && inGame()) { G.mpReason = 'Your friend left the game.'; O.done = true; if (G.phase !== 'over') endGame(); else endGame(); return; }
+    mpLeave(); if (G.phase === 'menu') mpStatus([elt('div', '', text)]);
+  }
+  function mpLeave() {
+    const m = G.mp; if (!m) return;
+    G.mp = null; clearTimeout(m.leftTimer);
+    try { m.unsub && m.unsub(); } catch (e) { /* ignore */ }
+    m.room.leave().catch(() => {});
+  }
+  $('mpCreate').addEventListener('click', async () => {
+    audio(); $('mpJoinRow').hidden = true;
+    const code = String(Math.floor(1000 + Math.random() * 9000));
+    mpStatus([elt('div', '', 'Opening a room…')]);
+    await mpOpen(code, true);
+    if (!G.mp) return;
+    mpStatus([elt('div', '', `5 waves on ${LV[S.lv].name} at ${SPOTS[S.spot].name}. Ask your friend to tap Join with code and enter:`), elt('div', 'code', code), elt('div', '', 'Waiting for your friend…'), cancelBtn()]);
+  });
+  $('mpJoinShow').addEventListener('click', () => { $('mpJoinRow').hidden = false; mpStatus(null); $('mpCode').focus(); });
+  $('mpCode').addEventListener('input', (e) => { e.target.value = e.target.value.replace(/\D/g, '').slice(0, 4); });
+  async function joinByCode() {
+    audio();
+    const code = $('mpCode').value.trim();
+    if (!/^\d{4}$/.test(code)) { mpStatus([elt('div', '', 'Enter the 4-digit code from your friend’s screen.')]); return; }
+    mpStatus([elt('div', '', `Joining room ${code}…`)]);
+    await mpOpen(code, false);
+    if (!G.mp) return;
+    mpStatus([elt('div', '', `In room ${code}. Waiting for the room creator…`), elt('div', '', 'If nothing happens, check the code with your friend.'), cancelBtn()]);
+  }
+  $('mpJoin').addEventListener('click', joinByCode);
+  $('mpCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') joinByCode(); });
+  window.addEventListener('pagehide', () => mpLeave());
 
   renderStart(); resize(); requestAnimationFrame(frame);
   // test hook
-  window.__surf = { step: (n) => { for (let i = 0; i < n; i++) update(1 / 60); draw(); }, G, S, LV, judge, winOf, maxRide, planHeights, makeWave, press, release, startGame, waveState };
+  window.__surf = { O, SPOTS, step: (n) => { for (let i = 0; i < n; i++) update(1 / 60); draw(); }, G, S, LV, judge, winOf, maxRide, planHeights, makeWave, press, release, startGame, waveState };
 })();
 </script>
 </body>
