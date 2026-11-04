@@ -1,0 +1,1064 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a111d">
+<title>Crest Rider Surf</title>
+<meta name="description" content="Waves roll in from the left. Hold to paddle, let go right as the wave breaks, and ride it to the beach. The longest ride wins.">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Sports Games">
+<meta property="og:type" content="website">
+<meta property="og:title" content="Crest Rider Surf">
+<meta property="og:description" content="Hold to paddle, let go as the wave breaks, ride it all the way to the beach.">
+<meta property="og:url" content="https://weplaysportsgames.com/surf/">
+<meta property="og:image" content="https://weplaysportsgames.com/icons/og-image.png">
+<script defer src="../firebase-config.js"></script>
+<script defer src="../track.js"></script>
+<script>if("serviceWorker" in navigator)addEventListener("load",function(){navigator.serviceWorker.register("../sw.js",{scope:"../"}).catch(function(){})})</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700;800&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700;800&family=IBM+Plex+Sans+KR:wght@400;600;700&display=swap"></noscript>
+<style>
+:root {
+  --night: #0a111d; --panel: #111b2b; --panel-2: #192740; --line: #26385a; --chalk: #f1ecdc; --muted: #8f9cb6;
+  --accent: #ffbb4a; --green: #4fd88a; --red: #ff5d52; --blue: #5aa9ff;
+  --f-board: "Saira Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --f-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { height: 100%; margin: 0; }
+body { background: var(--night); color: var(--chalk); font: 14px var(--f-body); overflow: hidden; -webkit-tap-highlight-color: transparent; user-select: none; -webkit-user-select: none; touch-action: manipulation; }
+[hidden] { display: none !important; }
+button { font: inherit; color: inherit; cursor: pointer; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+#app { height: 100%; display: flex; flex-direction: column; max-width: 560px; margin: 0 auto; position: relative; padding-top: env(safe-area-inset-top, 0px); }
+
+/* Scoreboard */
+#hud { padding: 6px max(12px, env(safe-area-inset-right, 0px)) 7px max(12px, env(safe-area-inset-left, 0px)); background: linear-gradient(#0d1626, #0a1220); border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 5px; }
+.hrow { display: grid; grid-template-columns: 1fr auto auto auto 1fr auto; align-items: center; gap: 8px; font-family: var(--f-board); line-height: 1; font-variant-numeric: tabular-nums; }
+.hrow .nm { font-size: 16px; font-weight: 700; letter-spacing: .04em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.hrow .nm small { font-size: 12px; color: var(--muted); margin-left: 3px; font-weight: 500; }
+.hrow .nm.me { color: var(--accent); }
+.hrow .nm.op { color: var(--blue); text-align: right; }
+.hrow .sc { font-size: 28px; font-weight: 800; min-width: 34px; text-align: center; transition: transform .15s; }
+.hrow .sc.a { color: var(--accent); } .hrow .sc.b { color: var(--blue); }
+.hrow .sc.pop { transform: scale(1.3); }
+#clock { font-size: 24px; font-weight: 800; background: #070c16; border-radius: 6px; padding: 4px 9px; min-width: 62px; text-align: center; color: var(--chalk); }
+#clock.low { color: var(--red); }
+.iconbtn { width: 36px; height: 36px; border-radius: 9px; background: var(--panel-2); border: 1px solid var(--line); display: grid; place-items: center; flex: none; }
+.sub2 { display: grid; grid-template-columns: 1fr auto 1fr; gap: 10px; font-size: 12px; color: var(--muted); letter-spacing: .04em; white-space: nowrap; }
+.sub2 .r { text-align: right; }
+.sub2 b { color: var(--chalk); font-weight: 600; }
+#streak { color: var(--accent); font-weight: 700; text-align: center; min-width: 0; }
+#streak.fire { color: #ff7a2e; }
+
+/* Stage */
+#stage { position: relative; flex: 1; min-height: 0; overflow: hidden; background: #070c16; touch-action: none; }
+#cv { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+#toast { position: absolute; left: 50%; top: 15%; transform: translate(-50%, -50%) scale(.9); opacity: 0; font-family: var(--f-board); font-weight: 800; font-size: 48px; letter-spacing: .04em; text-align: center; text-shadow: 0 2px 0 #000, 0 0 24px rgba(0,0,0,.8); pointer-events: none; transition: opacity .18s, transform .18s; white-space: nowrap; }
+#toast small { display: block; font-family: var(--f-body); font-size: 14px; font-weight: 600; letter-spacing: 0; opacity: .92; margin-top: 4px; }
+#toast.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+#banner { position: absolute; left: 0; right: 0; top: 12px; text-align: center; pointer-events: none; font-size: 13px; padding: 0 16px; }
+#banner span { display: inline-block; background: rgba(8,14,26,.8); padding: 6px 12px; border-radius: 14px; line-height: 1.4; }
+
+/* Overlays */
+.ov { position: absolute; inset: 0; z-index: 20; background: rgba(6,10,18,.94); overflow-y: auto; padding: 18px max(16px, env(safe-area-inset-right, 0px)) 28px max(16px, env(safe-area-inset-left, 0px)); backdrop-filter: blur(4px); }
+.ov .inner { max-width: 440px; margin: 0 auto; display: flex; flex-direction: column; gap: 16px; }
+.logo { font-family: var(--f-board); font-weight: 800; font-size: 46px; line-height: .9; letter-spacing: .01em; }
+.logo em { font-style: normal; color: var(--accent); }
+.sub { color: var(--muted); font-size: 13px; line-height: 1.55; }
+.sub b { color: var(--chalk); }
+.grp { display: flex; flex-direction: column; gap: 8px; }
+.grp h3 { margin: 0; font-size: 12px; letter-spacing: .12em; color: var(--muted); font-weight: 600; }
+.seg { display: flex; background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px; padding: 2px; }
+.seg button { flex: 1; border: 0; background: transparent; padding: 10px 4px; border-radius: 8px; font-size: 13px; color: var(--muted); }
+.seg button[aria-pressed="true"] { background: var(--chalk); color: #10192a; font-weight: 700; }
+.prow { display: flex; gap: 8px; }
+.prow input { flex: 1; min-width: 0; height: 44px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--chalk); font-family: var(--f-board); font-size: 20px; padding: 0 10px; text-transform: uppercase; }
+.prow input.num { flex: 0 0 64px; text-align: center; }
+.cta { height: 52px; border: 0; border-radius: 14px; background: var(--accent); color: #1a1205; font-weight: 700; font-size: 17px; }
+.ghost { height: 44px; border-radius: 12px; background: transparent; border: 1px solid var(--line); color: var(--chalk); font-size: 14px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.topbar { display: flex; align-items: center; gap: 12px; }
+.backbtn { display: inline-flex; align-items: center; text-decoration: none; height: 36px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--panel); color: var(--chalk); font-size: 14px; font-weight: 600; flex: none; }
+.note { font-size: 11px; color: var(--muted); line-height: 1.5; }
+.how { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 12px 14px; font-size: 13px; line-height: 1.6; color: var(--chalk); }
+.how ol { margin: 0; padding-left: 18px; }
+.how b { color: var(--accent); }
+.best { font-family: var(--f-board); font-size: 18px; color: var(--muted); letter-spacing: .04em; }
+.best b { color: var(--accent); font-size: 22px; }
+.statgrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px; min-width: 0; }
+.stat span { display: block; font-size: 11px; color: var(--muted); letter-spacing: .04em; }
+.stat b { font-family: var(--f-board); font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; }
+.stat.key b { color: var(--accent); }
+.line { font-family: var(--f-board); font-size: 26px; text-align: center; background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-variant-numeric: tabular-nums; }
+.confirm { display: flex; gap: 8px; align-items: center; font-size: 13px; flex-wrap: wrap; }
+.confirm button { height: 34px; padding: 0 12px; border-radius: 8px; border: 1px solid var(--red); background: transparent; color: var(--red); }
+.mp { border-top: 1px solid var(--line); padding-top: 14px; }
+.joinrow { display: grid; grid-template-columns: 1fr auto; gap: 8px; }
+.joinrow input { height: 48px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel); color: var(--chalk); font-family: var(--f-board); font-size: 26px; letter-spacing: .3em; text-align: center; min-width: 0; }
+.joinrow .cta { height: 48px; padding: 0 22px; }
+.mpstatus { background: var(--panel); border: 1px solid var(--line); border-radius: 14px; padding: 14px; display: flex; flex-direction: column; gap: 8px; align-items: center; text-align: center; font-size: 13px; color: var(--muted); }
+.mpstatus .code { font-family: var(--f-board); font-weight: 800; font-size: 56px; line-height: 1; letter-spacing: .12em; color: var(--accent); }
+.mpstatus button { height: 34px; padding: 0 14px; border-radius: 9px; border: 1px solid var(--line); background: transparent; color: var(--chalk); font-size: 13px; }
+@media (prefers-reduced-motion: reduce) { #toast, .hrow .sc { transition: none; } }
+</style>
+<style>
+/* Crest Rider Surf: extra pieces on top of the shared game styles */
+.hrow { grid-template-columns: 1fr auto auto auto; }
+.hrow .dist { font-size: 30px; font-weight: 800; color: var(--accent); min-width: 64px; text-align: right; transition: transform .15s; }
+.hrow .dist small { font-size: 14px; color: var(--muted); font-weight: 600; margin-left: 2px; }
+.hrow .dist.pop { transform: scale(1.18); }
+#clock { min-width: 58px; position: relative; padding-top: 9px; font-size: 22px; }
+#clock::before { content: 'WAVE'; position: absolute; left: 0; right: 0; top: 2px; font-size: 8px; letter-spacing: .14em; color: var(--muted); font-weight: 600; }
+#nextH { color: var(--accent); font-weight: 700; text-align: center; min-width: 0; letter-spacing: .06em; }
+.lvcards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+.lvcards button { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 6px 9px; display: flex; flex-direction: column; align-items: center; gap: 2px; color: var(--muted); }
+.lvcards button b { font-family: var(--f-board); font-size: 18px; letter-spacing: .03em; color: var(--chalk); }
+.lvcards button span { font-size: 11px; }
+.lvcards button[aria-pressed="true"] { border-color: var(--accent); background: #2a2412; }
+.lvcards button[aria-pressed="true"] b { color: var(--accent); }
+.rides { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; }
+.rides div { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 6px 2px; text-align: center; font-size: 10px; color: var(--muted); letter-spacing: .04em; }
+.rides b { display: block; font-family: var(--f-board); font-size: 20px; color: var(--chalk); font-variant-numeric: tabular-nums; }
+.rides div.beach { border-color: var(--accent); }
+.rides div.beach b { color: var(--accent); }
+.rides div.wipe b { color: var(--red); }
+.hint { position: absolute; left: 0; right: 0; bottom: 18px; text-align: center; pointer-events: none; font-size: 13px; color: var(--chalk); }
+.hint span { display: inline-block; background: rgba(8,14,26,.72); border: 1px solid var(--line); padding: 7px 14px; border-radius: 16px; }
+</style>
+</head>
+<body>
+<!--LOADER: shared loading bar, copied into each page by tools/apply-loader.py-->
+<style>#ldr{position:fixed;inset:0;z-index:2147483647;display:flex;align-items:center;justify-content:center;background:#0a111d;color:#f1ecdc;font:700 12px/1 system-ui,-apple-system,sans-serif;letter-spacing:.2em;transition:opacity .25s}#ldr.out{opacity:0;pointer-events:none}#ldr .lb{width:min(240px,64vw);text-align:center}#ldr .lt{display:flex;justify-content:space-between;margin-bottom:10px;color:#8f9cb6}#ldr .lt b{color:#ffbb4a;font-variant-numeric:tabular-nums;letter-spacing:.04em}#ldr .lr{height:6px;border-radius:3px;background:#1f2b40;overflow:hidden}#ldr .lr i{display:block;height:100%;background:#ffbb4a;box-shadow:0 0 10px #ffbb4a;transform-origin:left;transform:scaleX(0)}</style>
+<div id="ldr" role="progressbar" aria-label="Loading" aria-valuemin="0" aria-valuemax="100"><div class="lb"><div class="lt"><span>LOADING</span><b id="ldrPct">0%</b></div><div class="lr"><i id="ldrFill"></i></div></div></div>
+<script>(function(){var el=document.getElementById('ldr'),fi=document.getElementById('ldrFill'),pc=document.getElementById('ldrPct'),p=0,goal=45,end=false,t0=Date.now();
+function set(v){p=v;fi.style.transform='scaleX('+v/100+')';pc.textContent=Math.round(v)+'%';el.setAttribute('aria-valuenow',Math.round(v));}
+function tick(){if(end)return;set(p+(goal-p)*.07);setTimeout(tick,30);}
+function finish(){if(end)return;end=true;set(100);var fast=Date.now()-t0<300;setTimeout(function(){el.className='out';setTimeout(function(){el.remove();},300);},fast?0:150);}
+document.addEventListener('DOMContentLoaded',function(){goal=80;setTimeout(finish,4000);});
+addEventListener('load',function(){goal=95;var f=document.fonts&&document.fonts.ready;if(f)Promise.race([f,new Promise(function(r){setTimeout(r,800);})]).then(finish);else finish();});
+setTimeout(finish,10000);tick();})();</script>
+<!--/LOADER-->
+<!--PLAYTIME: daily play limit, copied from playtime.js by tools/apply-loader.py-->
+<script>// Daily play limit, shared by every page (copied inline by tools/apply-loader.py).
+// Counts time on game pages while the tab is visible and the player touched it in the last minute.
+// The total is per device (localStorage) and resets at local midnight.
+// When it runs out mid-game, the player gets GRACE_MIN more minutes to finish that game;
+// starting a new game, or opening any page, after that shows the "come back tomorrow" screen.
+// A device logged in to the admin page (admin/) has no limit.
+(function () {
+  var LIMIT_MIN = 120;  // minutes of play per day
+  var GRACE_MIN = 3;    // extra minutes to finish the game that was running when time ran out
+  var WARN_MIN = 5;     // show a "5 min left" note at this point
+  var IDLE_SEC = 60;    // no touch for this long = not playing
+
+  var KEY = 'nd-playtime', ADMIN = 'f8e68e8d44bfb5314974a97f787d017ff6ac9d0046083f28665fcf96f0cef80c';
+  var LIMIT = LIMIT_MIN * 60e3, GRACE = GRACE_MIN * 60e3;
+  function get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }
+  function put(k, v) { try { localStorage.setItem(k, v); } catch (e) { /* ignore */ } }
+  if (get('nd-admin') === ADMIN) return;
+
+  var sec = (location.pathname.split('/')[1] || '').toLowerCase();
+  var hub = !sec || sec === 'index.html';
+  function today() { var d = new Date(); return d.getFullYear() + '-' + (d.getMonth() + 1) + '-' + d.getDate(); }
+  function used() { var s; try { s = JSON.parse(get(KEY)); } catch (e) { s = null; } return s && s.d === today() ? s.ms || 0 : 0; }
+  function add(ms) { put(KEY, JSON.stringify({ d: today(), ms: used() + ms })); }
+  function mmss(ms) { var s = Math.max(0, Math.ceil(ms / 1000)); return Math.floor(s / 60) + ':' + ('0' + s % 60).slice(-2); }
+  function untilMidnight() {
+    var n = new Date(), m = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1), min = Math.ceil((m - n) / 60e3);
+    return (min >= 60 ? Math.floor(min / 60) + 'h ' : '') + min % 60 + 'm';
+  }
+
+  var css = '#ptOver{position:fixed;inset:0;z-index:2147483646;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(10,17,29,.985);color:#f1ecdc;font:15px/1.5 system-ui,-apple-system,sans-serif;text-align:center;touch-action:none}' +
+    '#ptOver .b{max-width:320px}#ptOver .i{font-size:54px;line-height:1}#ptOver h2{margin:14px 0 8px;font:800 34px/1 "Saira Condensed",system-ui,sans-serif;text-transform:uppercase;color:#ffbb4a}' +
+    '#ptOver p{margin:0 0 6px;color:#9aa3b5}#ptOver b{color:#f1ecdc}' +
+    '#ptToast{position:fixed;left:50%;top:calc(env(safe-area-inset-top,0px) + 12px);transform:translateX(-50%);z-index:2147483645;max-width:90vw;padding:8px 14px;border-radius:999px;background:#121c2e;border:1px solid #ffbb4a;color:#f1ecdc;font:600 13px/1.3 system-ui,-apple-system,sans-serif;text-align:center;pointer-events:none;transition:opacity .4s}' +
+    '#ptLeft{display:inline-block;margin:0 0 18px;padding:5px 12px;border-radius:999px;background:#121c2e;border:1px solid #2a3a58;color:#9aa3b5;font-size:13px}#ptLeft b{color:#ffbb4a;font-variant-numeric:tabular-nums}';
+  var st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
+
+  var over = null, overDay = '';
+  function block() {
+    if (over) return;
+    overDay = today();
+    over = document.createElement('div'); over.id = 'ptOver'; over.setAttribute('role', 'dialog');
+    over.innerHTML = '<div class="b"><div class="i">🌙</div><h2>That\'s all for today</h2>' +
+      '<p>You played <b>' + LIMIT_MIN + ' minutes</b> today.</p><p>Come back tomorrow for more games!</p>' +
+      '<p style="margin-top:14px;font-size:13px">New time in <b id="ptReset">' + untilMidnight() + '</b></p></div>';
+    // keep taps from reaching the game underneath
+    ['pointerdown', 'pointerup', 'touchstart', 'touchend', 'mousedown', 'click'].forEach(function (t) {
+      over.addEventListener(t, function (e) { e.stopPropagation(); e.preventDefault(); }, { passive: false });
+    });
+    document.body.appendChild(over);
+  }
+  var toastT;
+  function toast(html, ms) {
+    var t = document.getElementById('ptToast');
+    if (!t) { t = document.createElement('div'); t.id = 'ptToast'; document.body.appendChild(t); }
+    t.innerHTML = html; t.style.opacity = '1';
+    clearTimeout(toastT); toastT = setTimeout(function () { t.style.opacity = '0'; }, ms || 4000);
+  }
+
+  // over the limit already: show the screen right away, on any page
+  if (used() >= LIMIT) block();
+
+  // a new game started after time ran out (the game pages call ndTrack when a game starts)
+  function hookTrack() {
+    var f = window.ndTrack;
+    if (typeof f !== 'function' || f.pt) return;
+    var w = function (k) { if ((k === 'single' || k === 'multi') && used() >= LIMIT) block(); return f.apply(this, arguments); };
+    w.pt = 1; window.ndTrack = w;
+  }
+  hookTrack();
+  document.addEventListener('DOMContentLoaded', hookTrack);
+  addEventListener('load', hookTrack);
+
+  // remaining time chip on the game picker
+  var chip = null;
+  function showChip() {
+    if (!hub || chip) return;
+    var games = document.querySelector('.games'); if (!games) return;
+    chip = document.createElement('div'); chip.id = 'ptLeft';
+    games.parentNode.insertBefore(chip, games);
+  }
+  if (hub) document.addEventListener('DOMContentLoaded', showChip);
+
+  var lastInput = Date.now(), last = Date.now();
+  ['pointerdown', 'touchstart', 'keydown', 'wheel'].forEach(function (t) {
+    addEventListener(t, function () { lastInput = Date.now(); }, { capture: true, passive: true });
+  });
+  var warned = used() >= LIMIT - WARN_MIN * 60e3, ended = used() >= LIMIT;
+  setInterval(function () {
+    var now = Date.now(), dt = Math.min(now - last, 5000); last = now;
+    if (over && today() !== overDay) { over.remove(); over = null; warned = ended = false; } // a new day
+    var playing = !hub && !over && document.visibilityState === 'visible' && now - lastInput < IDLE_SEC * 1000;
+    if (playing) add(dt);
+    var u = used();
+    if (chip) chip.innerHTML = u >= LIMIT ? 'No play time left today' : 'Play time left today <b>' + mmss(LIMIT - u) + '</b>';
+    if (over) { var r = document.getElementById('ptReset'); if (r) r.textContent = untilMidnight(); return; }
+    if (hub) { if (u >= LIMIT) block(); return; }
+    if (!warned && u >= LIMIT - WARN_MIN * 60e3) { warned = true; toast('⏱ ' + WARN_MIN + ' minutes of play left today'); }
+    if (!ended && u >= LIMIT) { ended = true; toast('⏱ Time\'s up for today. Finish this game!', 6000); }
+    if (u >= LIMIT + GRACE) block();
+  }, 1000);
+})();</script>
+<!--/PLAYTIME-->
+<div id="app">
+  <header id="hud">
+    <div class="hrow">
+      <div class="nm me" id="nmMe">SUN <small>#36</small></div>
+      <div class="dist" id="scMe">0<small>m</small></div>
+      <div id="clock">1/5</div>
+      <button class="iconbtn" id="menuBtn" aria-label="Menu"><svg width="18" height="18" viewBox="0 0 18 18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M3 5h12M3 9h12M3 13h12"/></svg></button>
+    </div>
+    <div class="sub2"><div id="lvTxt">LEVEL <b>NORMAL</b></div><div id="nextH"></div><div class="r" id="bestTxt">LONGEST <b>0 m</b></div></div>
+  </header>
+
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="toast"></div>
+    <div id="banner"></div>
+    <div class="hint" id="hint" hidden><span>Hold to paddle · let go as it breaks</span></div>
+  </div>
+
+  <div class="ov" id="startOv">
+    <div class="inner">
+      <div class="topbar"><a class="backbtn" href="../">‹ All games</a></div>
+      <div class="logo">CREST RIDER<br><em>SURF</em></div>
+      <div class="sub"><b>Waves roll in from the left.</b> Paddle into one, pop up right as it breaks, and ride it as far toward the beach as you can.</div>
+      <div class="how"><ol>
+        <li><b>Hold anywhere</b> to paddle. Start early: it takes a moment to get up to speed.</li>
+        <li><b>Let go right as the wave breaks</b> (the top starts to spray, then curls over). Too early and it rolls under you. Too late and you go over the falls.</li>
+        <li>Every wave is a different height. <b>Bigger waves go further</b>, but the timing is tighter. A perfect catch on a big one takes you <b>all the way to the beach</b>.</li>
+        <li><b>5 waves.</b> Your score is the total distance. Your longest ride is saved too.</li>
+      </ol></div>
+      <div class="grp"><h3>YOUR PLAYER</h3>
+        <div class="prow"><input id="nameP" maxlength="10" placeholder="Name" autocomplete="off" autocapitalize="characters" aria-label="Player name"><input id="numP" class="num" inputmode="numeric" maxlength="2" placeholder="#" aria-label="Number"></div></div>
+      <div class="grp"><h3>LEVEL</h3>
+        <div class="lvcards" id="lvSeg"><button data-v="0"><b>Easy</b><span>break meter</span></button><button data-v="1"><b>Normal</b><span>read the wave</span></button><button data-v="2"><b>Pro</b><span>big &amp; fast</span></button></div>
+        <div class="note" id="lvNote"></div></div>
+      <div class="best" id="bestLine"></div>
+      <button class="cta" id="startBtn">PADDLE OUT</button>
+      <div class="row2"><button class="ghost" id="startStats">My stats</button><button class="ghost" id="soundBtn">Sound: on</button></div>
+      <div class="note">Stats are saved in this browser only. No sign-up needed.</div>
+    </div>
+  </div>
+
+  <div class="ov" id="menuOv" hidden>
+    <div class="inner">
+      <div class="topbar"><button class="backbtn" data-back>‹ Back</button><div class="logo" style="font-size:34px">GAME <em>MENU</em></div></div>
+      <button class="cta" id="menuResume">Resume</button>
+      <button class="ghost" id="menuStats">My stats</button>
+      <div class="grp"><h3>LEAVE</h3>
+        <div class="row2"><button class="ghost" id="menuHome">Surf menu</button><button class="ghost" id="menuSite">All games</button></div>
+        <div class="note">Leaving ends this session.</div></div>
+    </div>
+  </div>
+
+  <div class="ov" id="endOv" hidden>
+    <div class="inner">
+      <div class="logo" id="endTitle">SESSION<br><em>OVER</em></div>
+      <div class="sub" id="endSub"></div>
+      <div class="line" id="endScore"></div>
+      <div class="rides" id="endRides"></div>
+      <div class="statgrid" id="endStats"></div>
+      <button class="cta" id="endAgain">Paddle out again</button>
+      <button class="ghost" id="endBack">Back to menu</button>
+    </div>
+  </div>
+
+  <div class="ov" id="statsOv" hidden>
+    <div class="inner">
+      <div class="topbar"><button class="backbtn" data-back>‹ Back</button><div class="logo" style="font-size:34px">MY <em>STATS</em></div></div>
+      <div class="statgrid" id="statBody"></div>
+      <div id="resetArea"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+(() => {
+  'use strict';
+  const $ = (id) => document.getElementById(id);
+  const clamp = (v, a, b) => (v < a ? a : v > b ? b : v);
+  const rnd = (a, b) => a + Math.random() * (b - a);
+  const lerp = (a, b, t) => a + (b - a) * t;
+  const ease = (t) => { t = clamp(t, 0, 1); return t * t * (3 - 2 * t); };
+
+  // CORE-START (levels, waves, timing and ride distance; no DOM)
+  // Meters and seconds. x points to the beach (right), y is up, the still water line is y = 0.
+  // You wait in the lineup at x = 0; the beach starts at x = BEACH.
+  const BEACH = 150, N_WAVES = 5, COMMIT = 0.8;
+  // win: timing window (s) for a medium wave; off: how much the break point moves around (m);
+  // hMin/hMax: wave heights (m); spd: wave speed multiplier; meter: show the break meter
+  const LV = [
+    { key: 'EASY', name: 'Easy', win: 0.24, off: 0.4, hMin: 0.8, hMax: 3.2, spd: 0.9, meter: true,
+      note: 'Smaller, slower waves and a wide timing window. A break meter at the top shows when the wave will break.' },
+    { key: 'NORMAL', name: 'Normal', win: 0.16, off: 0.9, hMin: 0.8, hMax: 3.8, spd: 1, meter: false,
+      note: 'No meter. Watch the top of the wave: it sprays, stands up straight, then breaks.' },
+    { key: 'PRO', name: 'Pro', win: 0.11, off: 1.4, hMin: 1.2, hMax: 4.4, spd: 1.15, meter: false,
+      note: 'Big, fast waves and a tight window. The break point moves around more.' },
+  ];
+  // half-width of the timing window for a wave of height h (bigger waves are less forgiving)
+  const winOf = (lv, h) => LV[lv].win * clamp(1.25 - 0.13 * h, 0.7, 1.1);
+  // the furthest a wave of height h can carry you
+  const maxRide = (h) => 30 + 42 * h;
+  // heights for one session: they keep changing, and there is always at least one big one
+  function planHeights(lv) {
+    const P = LV[lv], hs = [];
+    let prev = 0;
+    for (let i = 0; i < N_WAVES; i++) {
+      let h;
+      do h = rnd(P.hMin, P.hMax); while (Math.abs(h - prev) < 0.5);
+      hs.push(Math.round(h * 10) / 10); prev = h;
+    }
+    const big = Math.floor(rnd(1, N_WAVES));
+    hs[big] = Math.round(rnd(P.hMax - 0.5, P.hMax) * 10) / 10;
+    return hs;
+  }
+  // one wave: tb = seconds until it breaks, c = how fast it comes in, dxb = where the crest is (relative to you) when it breaks
+  function makeWave(lv, h) {
+    const P = LV[lv];
+    return { h, tb: rnd(3.3, 4.6) / P.spd, c: (4.2 + 0.75 * h) * P.spd, dxb: -1.1 + rnd(-P.off, P.off) * 0.5, t: 0 };
+  }
+  // the result of letting go e seconds after the break (negative = early), with paddle speed ps (0..1)
+  // late side gets a little more room because you see the break before you react
+  function judge(lv, h, e, ps) {
+    const w = winOf(lv, h), pf = 0.55 + 0.45 * ps;
+    let tq, grade;
+    if (e > w * 1.5) return { grade: 'LATE', tq: 0, d: 0, e, w };
+    if (e >= -w) {
+      const a = e < 0 ? -e / w : e / (w * 1.5);
+      if (a <= 0.38) { tq = 1; grade = 'PERFECT'; } else { tq = 1 - 0.4 * (a - 0.38) / 0.62; grade = 'GOOD'; }
+    } else if (e >= -w * 2.4) { tq = 0.36 - 0.26 * (-e - w) / (w * 1.4); grade = 'EARLY'; }
+    else return { grade: 'MISS', tq: 0, d: 0, e, w };
+    const d = Math.round(Math.min(BEACH, maxRide(h) * tq * pf));
+    return { grade, tq, d, e, w, beach: d >= BEACH };
+  }
+  // paddle speed: builds while you hold, tires after a few seconds, drops when you stop
+  function paddleStep(ps, holding, held, dt) {
+    if (!holding) return Math.max(0, ps - dt * 1.3);
+    const top = held > 3.2 ? Math.max(0.6, 1 - (held - 3.2) * 0.2) : 1;
+    return ps + (top - ps) * Math.min(1, dt / 0.5);
+  }
+  // CORE-END
+
+  // ---------------- Save ----------------
+  const KEY = 'crestrider_v1';
+  const newStats = () => ({ games: 0, waves: 0, caught: 0, perfect: 0, beach: 0, wipe: 0, meters: 0, best: [0, 0, 0], longest: [0, 0, 0] });
+  let save = (() => { try { const s = JSON.parse(localStorage.getItem(KEY)); if (s && s.settings && s.stats) return s; } catch (e) { /* ignore */ } return { settings: {}, stats: newStats() }; })();
+  for (const k of ['best', 'longest']) if (!Array.isArray(save.stats[k])) save.stats[k] = [0, 0, 0];
+  const persist = () => { try { localStorage.setItem(KEY, JSON.stringify(save)); } catch (e) { /* ignore */ } };
+  const S = save.settings;
+  const DEF_PLAYER = { name: 'SUN', num: '36' };
+  const cleanName = (v, d) => { const t = String(v == null ? '' : v).toUpperCase().replace(/[^A-Z0-9 .'-]/g, '').trim().slice(0, 10); return t || d; };
+  const cleanNum = (v, d) => { const t = String(v == null ? '' : v).replace(/\D/g, '').slice(0, 2); return t === '' ? d : t; };
+  if (!S.player) { // start from another game's player if this browser has one
+    let bp = null;
+    for (const k of ['ballboy_v1', 'swishshot_v1', 'spotkick_v1', 'skyclay_v1', 'bowling_v1', 'bptennis_v1', 'nightduel_v1']) { if (bp) break; try { bp = JSON.parse(localStorage.getItem(k)).settings.player; } catch (e) { /* none */ } }
+    S.player = { name: cleanName(bp && bp.name, DEF_PLAYER.name), num: cleanNum(bp && bp.num, DEF_PLAYER.num) };
+  }
+  if (![0, 1, 2].includes(S.lv)) S.lv = 1;
+  if (S.sound == null) S.sound = true;
+
+  // ---------------- Game state ----------------
+  // phase: menu, wait (lull before the wave), wave (it is coming), ride, wipe, miss, done (short beat showing the result), end
+  // t: game clock. G.w: the current wave (w.t counts from when it starts coming in).
+  const G = { phase: 'menu', paused: false, t: 0, lv: 1, hs: [], idx: 0, rides: [], total: 0,
+    w: null, hold: false, held: 0, ps: 0, res: null, ride: null, sx: 0, pose: 'sit', popT: -9, phT: 0, lull: 0,
+    camX: 0, parts: [], strokes: 0, fade: 0, beachDone: false };
+
+  function startGame() {
+    ['startOv', 'endOv', 'menuOv', 'statsOv'].forEach((i) => ($(i).hidden = true));
+    G.lv = S.lv; G.hs = planHeights(G.lv); G.idx = 0; G.rides = []; G.total = 0; G.paused = false;
+    nextWave(true);
+    save.stats.games++; persist();
+    if (window.ndTrack) ndTrack('single');
+    renderHud();
+  }
+  function nextWave(first) {
+    G.w = makeWave(G.lv, G.hs[G.idx]); G.w.t = 0;
+    G.phase = 'wait'; G.lull = first ? 1.8 : 1.2; G.phT = 0;
+    G.hold = false; G.held = 0; G.ps = 0; G.res = null; G.ride = null; G.sx = 0; G.pose = 'sit'; G.popT = -9;
+    G.camX = camTarget(); G.parts = []; G.fade = 1;
+    $('hint').hidden = G.idx > 0;
+    banner(`Wave ${G.idx + 1} of ${N_WAVES} · ${G.w.h.toFixed(1)} m`);
+    renderHud();
+  }
+
+  // the wave's crest position and current height/steepness at time t (relative to the wave start)
+  function waveState(w, t) {
+    const toB = w.tb - t, h = w.h;
+    let xc = w.dxb - w.c * toB, hh, s, b = t - w.tb;
+    if (toB > 0) { hh = h * (0.5 + 0.5 * ease(1 - toB / 3.2)); s = Math.pow(clamp(1 - toB / 2.2, 0, 1), 1.6); b = -1; }
+    else { hh = h * (1 - 0.45 * clamp((b - 0.35) / 1.6, 0, 1)); s = 1; }
+    return { xc, h: hh, s, b };
+  }
+  // the wave used for drawing: during a ride it travels with you
+  function curWave() {
+    const w = G.w; if (!w) return null;
+    const st = waveState(w, w.t);
+    if (G.ride) {
+      const R = G.ride, tau = clamp(R.t / R.T, 0, 1), L = waveLen(st.h);
+      st.s = lerp(st.s, 0.45, ease(R.t / 0.9)); // the broken wave turns into a rolling wall of white water
+      const Lf = L * (1.15 - 0.78 * st.s);
+      const gap = lerp(R.gap0, lerp(0.3, 0.7, tau) * Lf, ease(R.t / 0.35)) + Math.sin(R.t * 4.2) * 0.12 * Lf * (1 - tau);
+      st.xc = G.sx - gap;
+      st.h *= (1 - 0.6 * Math.pow(tau, 1.6)) * clamp((BEACH - st.xc) / 18, 0.12, 1);
+    }
+    return st;
+  }
+  const waveLen = (h) => 2.8 + 1.5 * h;
+  // water height at x
+  function surfY(x, ws) {
+    const t = G.t, near = clamp((BEACH - x) / 14, 0, 1);
+    let y = (0.09 * Math.sin(0.85 * x - 1.7 * t) + 0.05 * Math.sin(2.3 * x + 1.2 * t)) * near;
+    if (ws && ws.h > 0.02) {
+      const u = x - ws.xc, L = waveLen(ws.h);
+      if (u < 0) y += ws.h * Math.exp(-(u * u) / ((L * 1.8) ** 2));
+      else { // the face: concave, and steeper as the wave gets ready to break, with a trough in front
+        const Lf = L * (1.15 - 0.78 * ws.s), q = u / Lf, p = 1.5 + 1.3 * ws.s;
+        y += ws.h * (q < 1 ? Math.pow(1 - q, p) * (1 - 0.35 * (1 - ws.s) * q) : 0) - ws.h * 0.12 * Math.exp(-(((u - Lf) / (0.6 * L)) ** 2));
+      }
+    }
+    return y;
+  }
+  const sandY = (x) => (x - BEACH) * 0.1;
+
+  // ---------------- Update ----------------
+  function update(dt) {
+    if (G.phase === 'menu' || G.phase === 'end') { G.t += dt; menuDrift(dt); updParts(dt); return; }
+    if (G.paused) return;
+    G.t += dt; G.phT += dt; G.fade = Math.max(0, G.fade - dt * 2.5);
+    const w = G.w;
+    G.ps = paddleStep(G.ps, G.hold, G.held, dt);
+    if (G.hold) { G.held += dt; const k = Math.floor(G.held * 2.6); if (k !== G.strokes) { G.strokes = k; splash(); } }
+    if (G.phase === 'wait') {
+      G.lull -= dt;
+      if (G.lull <= 0) { G.phase = 'wave'; setTimeout(() => { if (G.phase === 'wave') banner(''); }, 900); }
+    } else if (G.phase === 'wave') {
+      w.t += dt;
+      const toB = w.tb - w.t;
+      if (toB < 0.65 && !w.feather) { w.feather = true; }
+      if (toB <= 0 && !w.broke) { w.broke = true; crashSound(w.h); }
+      if (toB < -winOf(G.lv, w.h) * 1.5) {
+        if (G.hold) resolve(judge(G.lv, w.h, -toB, G.ps)); // held too long: over the falls
+        else resolve({ grade: 'NOPADDLE', tq: 0, d: 0 });
+      }
+    } else {
+      w.t += dt;
+      if (!w.broke && w.t >= w.tb) { w.broke = true; crashSound(w.h); }
+    }
+    if (G.phase === 'ride') rideTick(dt);
+    else if (G.phase === 'wipe' || G.phase === 'miss') { if (G.phT > (G.phase === 'wipe' ? 2.2 : 1.5)) finishWave(); }
+    else if (G.phase === 'done') { if (G.phT > 1.3) advance(); }
+    // spray off the top as the wave gets ready to break (offshore wind blows it back)
+    if (G.w && G.phase !== 'wait' && G.phase !== 'end') {
+      const st = curWave();
+      if (st.b < 0 && st.s > 0.55 && Math.random() < dt * 40 * st.s) {
+        G.parts.push({ x: st.xc + rnd(-0.2, 0.3), y: st.h + 0.05, vx: rnd(-3.5, -1.5), vy: rnd(0.6, 1.8), g: 3, life: rnd(0.4, 0.8), sz: rnd(0.04, 0.09), col: 'rgba(235,250,255,.8)' });
+      }
+      if (st.b >= 0 && st.b < 3 && G.phase !== 'done') foamTick(st, dt);
+    }
+    G.camX = G.ride ? camTarget() : G.camX + (camTarget() - G.camX) * Math.min(1, dt * 5);
+    updParts(dt);
+  }
+  function camTarget() { return G.sx - VIEW_W * (G.ride ? 0.1 + 0.06 * ease(G.ride.t / 0.6) : 0.1); }
+  function menuDrift(dt) {
+    // the menu shows the lineup with gentle waves rolling through
+    if (!G.w || G.w.t > G.w.tb + 4) { G.w = makeWave(1, rnd(1.4, 2.8)); G.w.t = 0; }
+    G.w.t += dt; G.sx = 0; G.pose = 'sit'; G.ride = null; G.camX = camTarget();
+    const st = waveState(G.w, G.w.t);
+    if (st.b > 0 && st.b < 2.5) foamTick(st, dt);
+  }
+
+  function press() {
+    if (G.paused || !['wait', 'wave'].includes(G.phase)) return;
+    if (G.hold) return;
+    G.hold = true; G.held = 0; G.strokes = 0; G.pose = 'paddle'; $('hint').hidden = true; audio();
+  }
+  function release() {
+    if (!G.hold) return;
+    G.hold = false;
+    const w = G.w;
+    if (G.phase !== 'wave' || w.tb - w.t > COMMIT) { G.pose = 'sit'; if (G.phase === 'wave' && w.tb - w.t < 2.2) banner('Too soon! Paddle again'); return; }
+    resolve(judge(G.lv, w.h, w.t - w.tb, G.ps));
+  }
+  function resolve(r) {
+    const w = G.w; G.res = r; G.phT = 0; G.hold = false;
+    r.h = w.h; r.ps = G.ps;
+    if (r.d > 0) {
+      const st = waveState(w, w.t);
+      const T = 1.6 + Math.max(r.d, 6) / 34;
+      G.ride = { t: 0, T, d: r.beach ? BEACH + 4 : r.d, gap0: Math.max(0.4, -st.xc) };
+      G.phase = 'ride'; G.pose = 'pop'; G.popT = G.t; whoosh();
+      banner('');
+      if (r.grade === 'PERFECT') { toast('PERFECT', timingText(r.e), '#4fd88a', 1100); chime(); }
+      else if (r.grade === 'GOOD') toast('GOOD', timingText(r.e), '#ffbb4a', 1000);
+      else toast('TOO EARLY', 'Only caught the back of it', '#f1ecdc', 1100);
+    } else if (r.grade === 'LATE') {
+      G.phase = 'wipe'; G.pose = 'wipe'; G.popT = G.t; wipeSound();
+      toast('WIPEOUT', 'Over the falls. Let go a bit sooner.', '#ff5d52', 1800);
+      banner('');
+    } else {
+      G.phase = 'miss'; G.pose = 'sit';
+      if (r.grade === 'MISS') toast('MISSED', 'Too early. It rolled under you.', '#8f9cb6', 1800);
+      else toast('MISSED', 'Hold to paddle, let go as it breaks', '#8f9cb6', 1800);
+      banner('');
+    }
+  }
+  const timingText = (e) => (Math.abs(e) < 0.005 ? 'Right on the break' : `${Math.round(Math.abs(e) * 1000)} ms ${e < 0 ? 'early' : 'late'}`);
+  function rideTick(dt) {
+    const R = G.ride;
+    R.t += dt;
+    const tau = clamp(R.t / R.T, 0, 1);
+    G.sx = R.d * (1 - Math.pow(1 - tau, 1.6));
+    if (G.pose === 'pop' && G.t - G.popT > 0.3) G.pose = 'ride';
+    // spray off the board
+    if (tau < 0.95 && Math.random() < dt * 30) {
+      const y = rideY();
+      G.parts.push({ x: G.sx - 1, y: y + 0.05, vx: rnd(-3, -1), vy: rnd(1, 2.5), g: 9, life: 0.45, sz: rnd(0.04, 0.08), col: 'rgba(230,248,255,.85)' });
+    }
+    if (tau >= 1 && !R.over) { R.over = true; R.overT = G.t; G.pose = G.res.beach ? 'beach' : 'sit'; if (G.res.beach) { fanfare(); toast('BEACH!', `${G.res.d} m · all the way in`, '#ffbb4a', 1600); } else toast(`${G.res.d} m`, '', '#f1ecdc', 1200); }
+    if (R.over && G.t - R.overT > 1.3) finishWave();
+  }
+  function finishWave() {
+    const r = G.res;
+    G.rides.push({ d: r.d, grade: r.grade, h: r.h, beach: !!r.beach });
+    G.total += r.d;
+    const s = save.stats; s.waves++; s.meters += r.d;
+    if (r.d > 0) s.caught++;
+    if (r.grade === 'PERFECT') s.perfect++;
+    if (r.beach) s.beach++;
+    if (r.grade === 'LATE') s.wipe++;
+    if (r.d > s.longest[G.lv]) s.longest[G.lv] = r.d;
+    persist();
+    G.phase = 'done'; G.phT = 0; renderHud(true);
+  }
+  function advance() {
+    G.idx++;
+    if (G.idx >= N_WAVES) { endGame(); return; }
+    nextWave(false);
+  }
+  function endGame() {
+    G.phase = 'end'; G.ride = null; G.sx = 0; G.w = null; banner('');
+    const s = save.stats, lv = G.lv, rec = G.total > (s.best[lv] || 0);
+    if (rec) s.best[lv] = G.total;
+    persist();
+    const longest = Math.max(...G.rides.map((r) => r.d));
+    $('endTitle').innerHTML = rec ? 'NEW<br><em>RECORD</em>' : 'SESSION<br><em>OVER</em>';
+    $('endSub').textContent = `${LV[lv].name} · best total ${s.best[lv]} m · longest ride ever ${s.longest[lv]} m`;
+    $('endScore').textContent = `${G.total} m total`;
+    const rd = $('endRides'); rd.textContent = '';
+    G.rides.forEach((r, i) => {
+      const d = document.createElement('div'); d.className = r.beach ? 'beach' : r.grade === 'LATE' ? 'wipe' : '';
+      const b = document.createElement('b'); b.textContent = r.d;
+      d.append(`#${i + 1} · ${r.h.toFixed(1)}m`, b, r.beach ? 'BEACH' : r.grade === 'LATE' ? 'WIPEOUT' : r.grade === 'NOPADDLE' || r.grade === 'MISS' ? 'MISSED' : r.grade);
+      rd.append(d);
+    });
+    fillStats($('endStats'), [['Longest ride', longest + ' m', 1], ['Perfect', G.rides.filter((r) => r.grade === 'PERFECT').length], ['To the beach', G.rides.filter((r) => r.beach).length]]);
+    $('endOv').hidden = false;
+    renderHud();
+  }
+
+  // ---------------- Effects ----------------
+  function updParts(dt) {
+    for (const p of G.parts) { p.life -= dt; p.vy -= (p.g || 0) * dt; p.x += p.vx * dt; p.y += p.vy * dt; }
+    G.parts = G.parts.filter((p) => p.life > 0);
+    if (G.parts.length > 500) G.parts.splice(0, G.parts.length - 500);
+  }
+  function foamTick(st, dt) {
+    const L = waveLen(st.h), reach = st.h * 0.85 * ease(st.b / 0.45);
+    if (Math.random() < dt * 60 * Math.min(1, st.h)) {
+      const x = st.xc + reach * rnd(0.6, 1.05);
+      G.parts.push({ x, y: rnd(0, st.h * 0.4), vx: rnd(-0.5, 2.5) + (G.ride ? 0 : 0), vy: rnd(1.5, 4) * Math.min(1.4, st.h / 2), g: 7, life: rnd(0.5, 0.9), sz: rnd(0.08, 0.2) * Math.min(1.5, st.h / 2 + 0.4), col: 'rgba(245,252,255,.9)', foam: 1 });
+    }
+    if (st.b > 0.35 && Math.random() < dt * 30) G.parts.push({ x: st.xc + rnd(-L * 0.3, reach), y: rnd(0, st.h * 0.6), vx: rnd(0, 2), vy: rnd(0.3, 1.2), g: 1, life: rnd(0.6, 1.1), sz: rnd(0.15, 0.3), col: 'rgba(240,250,255,.55)', foam: 1 });
+  }
+  function splash() {
+    if (!G.w) return;
+    for (let j = 0; j < 4; j++) G.parts.push({ x: G.sx + rnd(0.1, 0.5), y: surfY(G.sx, curWave()) + 0.05, vx: rnd(-1.6, -0.4), vy: rnd(0.8, 1.8), g: 9, life: 0.4, sz: rnd(0.03, 0.06), col: 'rgba(220,245,255,.85)' });
+    paddleSound();
+  }
+
+  // ---------------- HUD ----------------
+  function fillStats(el, items) {
+    el.textContent = '';
+    for (const [k, v, key] of items) { const d = document.createElement('div'); d.className = 'stat' + (key ? ' key' : ''); const a = document.createElement('span'); a.textContent = k; const b = document.createElement('b'); b.textContent = v; d.append(a, b); el.append(d); }
+  }
+  function renderHud(pop) {
+    const nm = $('nmMe'); nm.textContent = S.player.name + ' '; const sm = document.createElement('small'); sm.textContent = '#' + S.player.num; nm.append(sm);
+    const sc = $('scMe'); sc.textContent = G.total; const u = document.createElement('small'); u.textContent = 'm'; sc.append(u);
+    if (pop) { sc.classList.add('pop'); setTimeout(() => sc.classList.remove('pop'), 180); }
+    const inG = G.phase !== 'menu' && G.phase !== 'end';
+    $('clock').textContent = `${Math.min(G.idx + 1, N_WAVES)}/${N_WAVES}`;
+    const lv = inG || G.phase === 'end' ? G.lv : S.lv;
+    $('lvTxt').innerHTML = ''; $('lvTxt').append('LEVEL '); const b = document.createElement('b'); b.textContent = LV[lv].key; $('lvTxt').append(b);
+    $('nextH').textContent = inG && G.w ? `WAVE ${G.w.h.toFixed(1)} m` : '';
+    const longest = G.rides.length ? Math.max(...G.rides.map((r) => r.d)) : 0;
+    $('bestTxt').innerHTML = ''; $('bestTxt').append('LONGEST '); const lb = document.createElement('b'); lb.textContent = (inG || G.phase === 'end' ? longest : save.stats.longest[lv] || 0) + ' m'; $('bestTxt').append(lb);
+  }
+  let toastTimer = 0;
+  function toast(big, small, color, ms) {
+    const t = $('toast'); t.textContent = big; t.style.color = color || '#f1ecdc';
+    if (small) { const s = document.createElement('small'); s.textContent = small; t.append(s); }
+    t.classList.add('show'); clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.remove('show'), ms || 1000);
+  }
+  let bannerText = null;
+  function banner(txt) { if (txt === bannerText) return; bannerText = txt; const b = $('banner'); b.textContent = ''; if (txt) { const s = document.createElement('span'); s.textContent = txt; b.append(s); } }
+
+  // ---------------- Sound ----------------
+  let AC = null, NOISE = null, SEA = null;
+  function audio() {
+    if (!S.sound) return null;
+    try { if (!AC) AC = new (window.AudioContext || window.webkitAudioContext)(); if (AC.state === 'suspended') AC.resume(); } catch (e) { AC = null; }
+    if (AC && !SEA) { // the sea: soft filtered noise in the background
+      const s = AC.createBufferSource(); s.buffer = noise(); s.loop = true;
+      const f = AC.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 520;
+      SEA = AC.createGain(); SEA.gain.value = 0.035; s.connect(f); f.connect(SEA); SEA.connect(AC.destination); s.start();
+    }
+    return AC;
+  }
+  function noise() { if (NOISE) return NOISE; const a = AC, b = a.createBuffer(1, a.sampleRate * 2, a.sampleRate), d = b.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1; NOISE = b; return b; }
+  function burst(dur, freq, q, gain, attack, type) {
+    const a = audio(); if (!a) return;
+    const s = a.createBufferSource(); s.buffer = noise(); s.loop = true;
+    const f = a.createBiquadFilter(); f.type = type || 'lowpass'; f.frequency.value = freq; f.Q.value = q;
+    const g = a.createGain(), t = a.currentTime;
+    if (attack) { g.gain.setValueAtTime(0.001, t); g.gain.exponentialRampToValueAtTime(gain, t + attack); } else g.gain.setValueAtTime(gain, t);
+    g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    s.connect(f); f.connect(g); g.connect(a.destination); s.start(t); s.stop(t + dur + 0.02);
+  }
+  function tone(freq, dur, gain, type, slide, delay) {
+    const a = audio(); if (!a) return;
+    const o = a.createOscillator(), g = a.createGain(), t = a.currentTime + (delay || 0); o.type = type || 'sine'; o.frequency.setValueAtTime(freq, t);
+    if (slide) o.frequency.exponentialRampToValueAtTime(slide, t + dur);
+    g.gain.setValueAtTime(0.0001, a.currentTime); g.gain.setValueAtTime(gain, t); g.gain.setValueAtTime(gain, t + dur * 0.7); g.gain.exponentialRampToValueAtTime(0.001, t + dur);
+    o.connect(g); g.connect(a.destination); o.start(a.currentTime); o.stop(t + dur + 0.02);
+  }
+  const paddleSound = () => burst(0.12, 1400, 0.9, 0.06, 0.02, 'bandpass');
+  const crashSound = (h) => { if (G.phase === 'menu' || G.phase === 'end') return; burst(1.3, 700, 0.6, 0.12 + 0.05 * h, 0.06); burst(0.5, 2600, 0.5, 0.05, 0.02, 'bandpass'); };
+  const whoosh = () => burst(0.4, 1800, 0.8, 0.12, 0.08, 'bandpass');
+  const chime = () => { tone(880, 0.12, 0.07, 'triangle'); tone(1320, 0.18, 0.07, 'triangle', 0, 0.09); };
+  const wipeSound = () => { burst(0.9, 500, 0.7, 0.3, 0.02); tone(300, 0.4, 0.1, 'sawtooth', 90); };
+  const fanfare = () => { [523, 659, 784, 1046].forEach((f, i) => tone(f, 0.22, 0.08, 'square', 0, i * 0.11)); };
+
+  // ---------------- View ----------------
+  let W = 1, H = 1, DPR = 1, VIEW_W = 17, K = 20, KY = 25, Y0 = 300;
+  const stage = $('stage'), cv = $('cv'), ctx = cv.getContext('2d');
+  const SX = (x) => W / 2 + (x - G.camX) * K;
+  const SY = (y) => Y0 - y * KY;
+  let bg = null;
+  function resize() {
+    const r = stage.getBoundingClientRect(); DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = Math.max(1, r.width); H = Math.max(1, r.height); cv.width = Math.round(W * DPR); cv.height = Math.round(H * DPR);
+    VIEW_W = clamp(W / 32, 11.5, 17); K = W / VIEW_W; KY = K * 1.4;
+    Y0 = Math.round(clamp(H * 0.64, 150 + 4.8 * KY, H - 80));
+    buildBg();
+  }
+  // sky, sun and the far sea, drawn once
+  function buildBg() {
+    bg = document.createElement('canvas'); bg.width = cv.width; bg.height = cv.height;
+    const c = bg.getContext('2d'); c.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const hz = Y0 - Math.max(40, H * 0.1);
+    let g = c.createLinearGradient(0, 0, 0, hz);
+    g.addColorStop(0, '#0b1430'); g.addColorStop(0.45, '#2b2d5c'); g.addColorStop(0.8, '#a4506a'); g.addColorStop(1, '#f39a55');
+    c.fillStyle = g; c.fillRect(0, 0, W, hz + 1);
+    // stars up top
+    c.fillStyle = 'rgba(255,255,255,.6)';
+    for (let i = 0; i < 40; i++) { const x = (i * 97.3) % W, y = (i * 53.7) % (hz * 0.45); c.fillRect(x, y, 1.2, 1.2); }
+    // sun on the horizon, over the beach side
+    const sx = W * 0.78, sr = Math.max(26, W * 0.08);
+    g = c.createRadialGradient(sx, hz, sr * 0.2, sx, hz, sr * 3.2); g.addColorStop(0, 'rgba(255,200,120,.75)'); g.addColorStop(1, 'rgba(255,140,80,0)');
+    c.fillStyle = g; c.fillRect(0, hz - sr * 3.2, W, sr * 3.2);
+    c.fillStyle = '#ffd38a'; c.beginPath(); c.arc(sx, hz, sr, Math.PI, 0); c.fill();
+    // far headland
+    c.fillStyle = '#3a2848'; c.beginPath(); c.moveTo(W * 0.52, hz);
+    c.bezierCurveTo(W * 0.6, hz - 22, W * 0.68, hz - 12, W * 0.72, hz - 16); c.bezierCurveTo(W * 0.85, hz - 30, W * 0.95, hz - 18, W + 2, hz - 26); c.lineTo(W + 2, hz); c.fill();
+    // clouds
+    c.fillStyle = 'rgba(255,170,140,.18)';
+    for (const [x, y, w] of [[0.15, 0.55, 0.3], [0.55, 0.42, 0.22], [0.85, 0.62, 0.26]]) { c.beginPath(); c.ellipse(W * x, hz * y, W * w, 7, 0, 0, 7); c.fill(); }
+    // far sea between the horizon and the water line
+    g = c.createLinearGradient(0, hz, 0, Y0); g.addColorStop(0, '#5a4a6e'); g.addColorStop(0.25, '#1f4f6e'); g.addColorStop(1, '#0d4a63');
+    c.fillStyle = g; c.fillRect(0, hz, W, Y0 - hz + 2);
+    // sun glitter
+    c.fillStyle = 'rgba(255,210,140,.35)';
+    for (let i = 0; i < 26; i++) { const y = hz + 3 + (i / 26) ** 1.5 * (Y0 - hz - 6), w = 6 + (i % 5) * 4 + i; c.fillRect(sx - w / 2 + Math.sin(i * 7) * i * 0.8, y, w, 1.4); }
+    // far swell lines
+    c.strokeStyle = 'rgba(160,220,240,.12)'; c.lineWidth = 1;
+    for (let i = 1; i < 6; i++) { const y = hz + (i / 6) ** 1.6 * (Y0 - hz); c.beginPath(); c.moveTo(0, y); c.lineTo(W, y); c.stroke(); }
+  }
+
+  // ---------------- Draw ----------------
+  function draw() {
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    if (bg) ctx.drawImage(bg, 0, 0, W, H); else { ctx.fillStyle = '#0b1430'; ctx.fillRect(0, 0, W, H); }
+    const ws = curWave();
+    const x0 = G.camX - VIEW_W / 2 - 1, x1 = G.camX + VIEW_W / 2 + 1;
+    // water body
+    const top = SY(5.5);
+    const g = ctx.createLinearGradient(0, top, 0, H);
+    g.addColorStop(0, '#7fe0e0'); g.addColorStop((Y0 - top) / (H - top) * 0.75, '#1f9bb0'); g.addColorStop((Y0 - top) / (H - top) + 0.02, '#0f6e8a'); g.addColorStop(1, '#04233a');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.moveTo(SX(x0), H);
+    const step = 3 / K;
+    for (let x = x0; x <= x1; x += step) ctx.lineTo(SX(x), SY(surfY(x, ws)));
+    ctx.lineTo(SX(x1), H); ctx.closePath(); ctx.fill();
+    // light rays under water
+    ctx.save(); ctx.globalAlpha = 0.045; ctx.fillStyle = '#bff';
+    for (let i = 0; i < 5; i++) { const bx = ((i * 233 - G.camX * K * 0.6) % (W + 200) + W + 200) % (W + 200) - 100; ctx.beginPath(); ctx.moveTo(bx, Y0 + 8); ctx.lineTo(bx + 30, Y0 + 8); ctx.lineTo(bx - 40, H); ctx.lineTo(bx - 110, H); ctx.fill(); }
+    ctx.restore();
+    // surface highlight line
+    ctx.strokeStyle = 'rgba(210,250,255,.55)'; ctx.lineWidth = 1.5; ctx.beginPath();
+    for (let x = x0; x <= x1; x += step) { const y = SY(surfY(x, ws)); x === x0 ? ctx.moveTo(SX(x), y) : ctx.lineTo(SX(x), y); }
+    ctx.stroke();
+    if (ws) drawBreak(ws);
+    drawMarkers(ws, x0, x1);
+    drawBeach(x0, x1);
+    drawSurfer(ws);
+    // particles
+    for (const p of G.parts) {
+      ctx.globalAlpha = clamp(p.life * 2.2, 0, 1); ctx.fillStyle = p.col;
+      ctx.beginPath(); ctx.arc(SX(p.x), SY(p.y), Math.max(1, p.sz * K), 0, 7); ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+    if (G.phase === 'wave' || G.phase === 'wait') drawIncoming(ws);
+    if (LV[G.lv].meter && (G.phase === 'wave' || G.phase === 'wait')) drawMeter();
+    if (G.hold || (G.ps > 0.02 && (G.phase === 'wave' || G.phase === 'wait'))) drawPaddleBar(ws);
+    if (G.fade > 0) { ctx.fillStyle = `rgba(6,10,18,${G.fade})`; ctx.fillRect(0, 0, W, H); }
+  }
+  // the lip pitching forward after the break, and the white water
+  function drawBreak(ws) {
+    if (ws.b < 0) {
+      // the face standing up: a lighter, see-through band near the top
+      if (ws.s > 0.4) {
+        ctx.strokeStyle = `rgba(200,255,250,${(ws.s - 0.4) * 0.9})`; ctx.lineWidth = 2.5; ctx.beginPath();
+        const L = waveLen(ws.h);
+        for (let u = -L * 0.3; u <= L * 0.25; u += 0.08) { const y = SY(surfY(ws.xc + u, ws)); u === -L * 0.3 ? ctx.moveTo(SX(ws.xc + u), y) : ctx.lineTo(SX(ws.xc + u), y); }
+        ctx.stroke();
+      }
+      return;
+    }
+    const h = ws.h, a = ease(ws.b / 0.45), L = waveLen(h);
+    let reach = h * 0.85 * a;
+    if (G.ride) reach = Math.min(reach, G.sx - ws.xc - 0.7);
+    reach = Math.max(0.05, reach);
+    const drop = a * a * 0.95;
+    const tx = ws.xc + reach, ty = h * (1 - drop) + 0.1;
+    // the tongue of water
+    ctx.fillStyle = 'rgba(120,225,230,.95)';
+    ctx.beginPath();
+    ctx.moveTo(SX(ws.xc - L * 0.15), SY(h * 0.97));
+    ctx.bezierCurveTo(SX(ws.xc + reach * 0.4), SY(h * 1.12), SX(tx + 0.15), SY(h * 0.95 - drop * h * 0.2), SX(tx), SY(ty));
+    ctx.bezierCurveTo(SX(tx - reach * 0.25), SY(h * 0.75), SX(ws.xc + reach * 0.2), SY(h * 0.8), SX(ws.xc + 0.1), SY(h * 0.82));
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(SX(ws.xc - L * 0.15), SY(h * 0.97));
+    ctx.bezierCurveTo(SX(ws.xc + reach * 0.4), SY(h * 1.12), SX(tx + 0.15), SY(h * 0.95 - drop * h * 0.2), SX(tx), SY(ty)); ctx.stroke();
+    // white water on the top and the back of the wave once it has landed
+    if (ws.b > 0.3) {
+      const f = clamp((ws.b - 0.3) / 0.4, 0, 1);
+      ctx.fillStyle = `rgba(245,252,255,${0.85 * f})`;
+      for (let i = 0; i < 16; i++) {
+        const u = -L * 0.5 + (i / 15) * (reach + L * 0.5), y = surfY(ws.xc + u, ws);
+        const r = (0.17 + 0.09 * Math.sin(i * 2.3 + G.t * 6)) * Math.min(1.6, h / 1.6 + 0.3);
+        ctx.beginPath(); ctx.arc(SX(ws.xc + u), SY(y), r * K, 0, 7); ctx.fill();
+      }
+    }
+  }
+  function drawMarkers(ws, x0, x1) {
+    ctx.font = `600 ${Math.round(clamp(K * 0.55, 10, 13))}px ${getComputedStyle(document.body).getPropertyValue('--f-body') || 'sans-serif'}`;
+    ctx.textAlign = 'center';
+    for (let m = 25; m < BEACH; m += 25) {
+      if (m < x0 || m > x1) continue;
+      const y = surfY(m, ws) + 0.1, sx = SX(m), sy = SY(y);
+      ctx.fillStyle = '#ff7a3c'; ctx.beginPath(); ctx.ellipse(sx, sy - 0.25 * K, 0.22 * K, 0.32 * K, 0, 0, 7); ctx.fill();
+      ctx.fillStyle = '#f1ecdc'; ctx.fillRect(sx - 0.22 * K, sy - 0.3 * K, 0.44 * K, 0.08 * K);
+      ctx.fillStyle = 'rgba(241,236,220,.9)'; ctx.fillText(m + ' m', sx, sy - 0.75 * K);
+    }
+  }
+  function drawBeach(x0, x1) {
+    if (x1 < BEACH - 16) return;
+    ctx.fillStyle = '#e6c88c';
+    ctx.beginPath(); ctx.moveTo(SX(BEACH - 16), SY(sandY(BEACH - 16)));
+    for (let x = BEACH - 16; x <= x1 + 2; x += 0.5) ctx.lineTo(SX(x), SY(Math.min(sandY(x), 1.6) + 0.04 * Math.sin(x * 1.7)));
+    ctx.lineTo(SX(x1 + 2), H); ctx.lineTo(SX(BEACH - 16), H); ctx.fill();
+    // the shallows: water over the sand
+    ctx.fillStyle = 'rgba(40,170,190,.55)';
+    ctx.beginPath(); ctx.moveTo(SX(BEACH - 16), SY(sandY(BEACH - 16)));
+    for (let x = BEACH - 16; x <= BEACH; x += 0.5) ctx.lineTo(SX(x), SY(sandY(x)));
+    for (let x = BEACH; x >= BEACH - 16; x -= 0.5) ctx.lineTo(SX(x), SY(Math.max(sandY(x), surfY(x, null))));
+    ctx.fill();
+    // wet sand edge
+    ctx.fillStyle = 'rgba(150,120,80,.45)'; ctx.fillRect(SX(BEACH - 1.5), SY(0.05), (4 + 0.6 * Math.sin(G.t)) * K, 3);
+    // palms and a flag
+    for (const [px, ph] of [[BEACH + 7, 5.2], [BEACH + 11, 6.4], [BEACH + 16, 5.6]]) {
+      const bx = SX(px), by = SY(Math.min(sandY(px), 1.6)), tx = bx + 0.9 * K, ty = by - ph * KY * 0.8;
+      ctx.strokeStyle = '#6b4a2e'; ctx.lineWidth = 0.28 * K; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.moveTo(bx, by); ctx.quadraticCurveTo(bx - 0.4 * K, (by + ty) / 2, tx, ty); ctx.stroke();
+      ctx.strokeStyle = '#2f7a4a'; ctx.lineWidth = 0.22 * K;
+      for (let i = 0; i < 6; i++) { const a = -Math.PI / 2 + (i - 2.5) * 0.6 + Math.sin(G.t * 1.3 + i) * 0.05; ctx.beginPath(); ctx.moveTo(tx, ty); ctx.quadraticCurveTo(tx + Math.cos(a) * 1.4 * K, ty + Math.sin(a) * 1.1 * K - 0.4 * K, tx + Math.cos(a) * 2.2 * K, ty + Math.sin(a) * 1.2 * K + 0.6 * K); ctx.stroke(); }
+    }
+    const fx = SX(BEACH + 3), fy = SY(sandY(BEACH + 3));
+    ctx.strokeStyle = '#f1ecdc'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(fx, fy); ctx.lineTo(fx, fy - 2.6 * KY); ctx.stroke();
+    ctx.fillStyle = '#ffbb4a'; ctx.beginPath(); ctx.moveTo(fx, fy - 2.6 * KY); ctx.lineTo(fx + 1.2 * K, fy - 2.35 * KY + Math.sin(G.t * 4) * 2); ctx.lineTo(fx, fy - 2.1 * KY); ctx.fill();
+    ctx.fillStyle = '#1a1205'; ctx.font = `700 ${Math.round(clamp(K * 0.5, 9, 12))}px sans-serif`; ctx.textAlign = 'left';
+    ctx.fillStyle = '#f1ecdc'; ctx.fillText('BEACH ' + BEACH + ' m', fx + 4, fy - 2.7 * KY);
+  }
+  // the off-screen wave arrow, and the height label over the crest
+  function drawIncoming(ws) {
+    if (G.phase === 'wait' || !ws) {
+      return;
+    }
+    const sx = SX(ws.xc), lab = G.w.h.toFixed(1) + ' m';
+    ctx.font = `700 ${Math.round(clamp(K * 0.75, 12, 16))}px "Saira Condensed", sans-serif`;
+    if (sx < 8) {
+      const y = SY(0.9), pulse = 0.6 + 0.4 * Math.sin(G.t * 8);
+      ctx.fillStyle = `rgba(255,187,74,${pulse})`;
+      ctx.beginPath(); ctx.moveTo(8, y); ctx.lineTo(22, y - 9); ctx.lineTo(22, y + 9); ctx.fill();
+      ctx.fillStyle = '#ffbb4a'; ctx.textAlign = 'left'; ctx.fillText(lab + ' wave', 27, y + 5);
+    } else if (ws.b < 0) {
+      ctx.fillStyle = 'rgba(255,255,255,.85)'; ctx.textAlign = 'center';
+      ctx.fillText(lab, sx, SY(ws.h) - 0.9 * K);
+    }
+  }
+  function drawMeter() {
+    const w = G.w, wl = winOf(G.lv, w.h), span = 2.4;
+    const bw = Math.min(260, W * 0.62), bx = (W - bw) / 2, by = 66, bh = 10;
+    const f = G.phase === 'wait' ? 0 : clamp((w.t - (w.tb - span)) / span, 0, 1.15);
+    ctx.fillStyle = 'rgba(8,14,26,.75)'; ctx.fillRect(bx - 6, by - 18, bw + 12, bh + 26);
+    ctx.fillStyle = '#1f2b40'; ctx.fillRect(bx, by, bw, bh);
+    const zx = bx + bw * (1 - wl / span), zw = bw * (wl * 2.5) / span;
+    ctx.fillStyle = 'rgba(79,216,138,.55)'; ctx.fillRect(zx, by - 2, zw, bh + 4);
+    ctx.fillStyle = f > 1 + wl * 1.5 / span ? '#ff5d52' : '#ffbb4a'; ctx.fillRect(bx, by, bw * Math.min(f, 1.15), bh);
+    ctx.fillStyle = '#f1ecdc'; ctx.fillRect(bx + bw - 1, by - 4, 2, bh + 8);
+    ctx.font = '600 10px sans-serif'; ctx.textAlign = 'center'; ctx.fillStyle = '#8f9cb6'; ctx.fillText('BREAK METER · LET GO ON THE LINE', W / 2, by - 6);
+  }
+  function drawPaddleBar(ws) {
+    const x = SX(G.sx) - 22, y = SY(surfY(G.sx, ws)) - 2.6 * KY;
+    ctx.fillStyle = 'rgba(8,14,26,.75)'; ctx.fillRect(x - 3, y - 13, 50, 21);
+    ctx.fillStyle = '#26385a'; ctx.fillRect(x, y, 44, 5);
+    ctx.fillStyle = G.ps > 0.85 ? '#4fd88a' : '#ffbb4a'; ctx.fillRect(x, y, 44 * G.ps, 5);
+    ctx.font = '600 8px sans-serif'; ctx.textAlign = 'left'; ctx.fillStyle = '#c9d3e6'; ctx.fillText('PADDLE', x, y - 3);
+  }
+
+  // ---------------- The surfer ----------------
+  // joints in meters, relative to the middle of the board's top (x forward, y up)
+  const POSE = {
+    sit: { hip: [-0.2, 0.1], kf: [0.18, 0.02], ff: [0.26, -0.35], kb: [0.12, 0.0], fb: [0.18, -0.38], sh: [-0.14, 0.68], hd: [-0.1, 0.86], ef: [0.08, 0.38], hf: [0.2, 0.18], eb: [0.0, 0.36], hb: [0.12, 0.16] },
+    ride: { hip: [-0.08, 0.78], kf: [0.3, 0.42], ff: [0.28, 0.02], kb: [-0.32, 0.42], fb: [-0.45, 0.02], sh: [0.06, 1.3], hd: [0.13, 1.48], ef: [0.38, 1.25], hf: [0.68, 1.14], eb: [-0.26, 1.22], hb: [-0.58, 1.08] },
+    beach: { hip: [0, 0.92], kf: [0.08, 0.48], ff: [0.1, 0.02], kb: [-0.08, 0.48], fb: [-0.12, 0.02], sh: [0, 1.48], hd: [0.02, 1.68], ef: [0.22, 1.72], hf: [0.3, 2.0], eb: [-0.22, 1.72], hb: [-0.3, 2.0] },
+  };
+  function paddlePose(t, on) {
+    const p = { hip: [-0.5, 0.16], kf: [-0.85, 0.15], ff: [-1.0, 0.2], kb: [-0.85, 0.12], fb: [-1.02, 0.16], sh: [0.18, 0.24], hd: [0.38, 0.36] };
+    const ph = t * (on ? 8.2 : 0), r = 0.6;
+    const arm = (o) => { const a = on ? ph + o : -1.2; return [0.18 + Math.cos(a) * r * 0.9, 0.2 + Math.sin(a) * r * 0.5 - 0.1]; };
+    p.hf = arm(0); p.hb = arm(Math.PI);
+    p.ef = [(p.sh[0] + p.hf[0]) / 2, (p.sh[1] + p.hf[1]) / 2 + 0.06]; p.eb = [(p.sh[0] + p.hb[0]) / 2, (p.sh[1] + p.hb[1]) / 2 + 0.06];
+    return p;
+  }
+  const mixPose = (a, b, t) => { const o = {}; for (const k in a) o[k] = [lerp(a[k][0], b[k][0], t), lerp(a[k][1], b[k][1], t)]; return o; };
+  function rideY() { return Math.max(surfY(G.sx, curWave()), G.sx > BEACH - 16 ? sandY(G.sx) : -9); }
+  function drawSurfer(ws) {
+    const x = G.sx, y = rideY();
+    const d = 0.35, yl = surfY(x - d, ws), yr = surfY(x + d, ws);
+    let ang = Math.atan2(yr - yl, 2 * d) * 1.25 / 1.0; // tilt with the water (drawn with the vertical stretch)
+    if (G.sx > BEACH - 1) ang = Math.atan(0.1);
+    const R = G.ride, tau = R ? clamp(R.t / R.T, 0, 1) : 0;
+    let pose, boardOff = 0;
+    if (G.pose === 'paddle') pose = paddlePose(G.t, G.hold);
+    else if (G.pose === 'pop') pose = mixPose(paddlePose(G.t, false), POSE.ride, ease((G.t - G.popT) / 0.3));
+    else if (G.pose === 'ride') { pose = POSE.ride; const crouch = 0.08 * Math.sin(G.t * 4.2); pose = mixPose(POSE.ride, POSE.sit, Math.max(0, crouch)); }
+    else if (G.pose === 'beach') pose = POSE.beach;
+    else if (G.pose === 'wipe') pose = POSE.ride;
+    else pose = POSE.sit;
+    const bob = G.pose === 'sit' ? Math.sin(G.t * 2.1) * 0.03 : 0;
+    ctx.save();
+    ctx.translate(SX(x), SY(y + bob));
+    if (G.pose === 'wipe') {
+      // over the falls: thrown forward and down, board flying
+      const k = clamp((G.t - G.popT) / 1.2, 0, 1), sink = Math.max(0, (G.t - G.popT - 0.9) * 0.9);
+      ctx.save(); ctx.translate((0.5 + k * 1.2) * K, (-k * 1.6 + k * k * 2.6 + sink) * KY * 0.6); ctx.rotate(-k * 3.6);
+      ctx.globalAlpha = clamp(1 - sink * 0.9, 0, 1);
+      drawBoard(0); ctx.restore();
+      ctx.translate((k * 2.2) * K, (-1.4 * k + 2.6 * k * k + sink) * KY * 0.5); ctx.rotate(k * 4.4); ctx.globalAlpha = clamp(1 - sink, 0, 1);
+      drawBody(pose);
+      ctx.restore(); ctx.globalAlpha = 1;
+      return;
+    }
+    ctx.rotate(-ang);
+    if (G.pose !== 'beach') drawBoard(boardOff);
+    else { ctx.save(); ctx.translate(-0.7 * K, -0.02 * K); ctx.rotate(-0.08); drawBoard(0); ctx.restore(); }
+    // legs below the board while sitting are in the water: dim them
+    drawBody(pose, G.pose === 'sit');
+    ctx.restore();
+    void tau;
+  }
+  function drawBoard() {
+    const k = K;
+    ctx.fillStyle = '#ffbb4a';
+    ctx.beginPath();
+    ctx.moveTo(-1.05 * k, 0); ctx.quadraticCurveTo(-1.08 * k, 0.1 * k, -0.9 * k, 0.11 * k);
+    ctx.lineTo(0.75 * k, 0.11 * k); ctx.quadraticCurveTo(1.1 * k, 0.08 * k, 1.18 * k, -0.12 * k);
+    ctx.quadraticCurveTo(1.0 * k, -0.02 * k, 0.75 * k, -0.02 * k); ctx.lineTo(-0.9 * k, -0.02 * k); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = '#e8573a'; ctx.fillRect(-0.92 * k, 0.025 * k, 1.7 * k, 0.04 * k);
+    ctx.fillStyle = '#1d2a3f'; ctx.beginPath(); ctx.moveTo(-0.85 * k, 0.11 * k); ctx.lineTo(-0.7 * k, 0.11 * k); ctx.lineTo(-0.9 * k, 0.28 * k); ctx.fill();
+  }
+  function drawBody(p, dimLegs) {
+    const k = K, P = (j) => [p[j][0] * k, -p[j][1] * k - 0.1 * k];
+    const limb = (a, b, c, col, w) => { ctx.strokeStyle = col; ctx.lineWidth = w * k; ctx.lineCap = 'round'; ctx.lineJoin = 'round'; ctx.beginPath(); ctx.moveTo(...P(a)); ctx.lineTo(...P(b)); ctx.lineTo(...P(c)); ctx.stroke(); };
+    const suit = '#16233a', suit2 = '#22406a', skin = '#e2b289';
+    ctx.globalAlpha = dimLegs ? 0.45 : 1;
+    limb('hip', 'kb', 'fb', suit, 0.15);
+    ctx.globalAlpha = 1;
+    limb('sh', 'eb', 'hb', suit, 0.11);
+    // torso
+    ctx.strokeStyle = suit2; ctx.lineWidth = 0.26 * k; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(...P('hip')); ctx.lineTo(...P('sh')); ctx.stroke();
+    ctx.strokeStyle = '#ffbb4a'; ctx.lineWidth = 0.05 * k;
+    ctx.beginPath(); ctx.moveTo(...P('hip')); ctx.lineTo(...P('sh')); ctx.stroke();
+    ctx.globalAlpha = dimLegs ? 0.45 : 1;
+    limb('hip', 'kf', 'ff', suit2, 0.16);
+    ctx.globalAlpha = 1;
+    limb('sh', 'ef', 'hf', suit2, 0.11);
+    // hands and head
+    ctx.fillStyle = skin;
+    for (const j of ['hf', 'hb']) { const [x, y] = P(j); ctx.beginPath(); ctx.arc(x, y, 0.065 * k, 0, 7); ctx.fill(); }
+    const [hx, hy] = P('hd');
+    ctx.beginPath(); ctx.arc(hx, hy, 0.13 * k, 0, 7); ctx.fill();
+    ctx.fillStyle = '#2a1a10'; ctx.beginPath(); ctx.arc(hx - 0.02 * k, hy - 0.03 * k, 0.135 * k, Math.PI * 0.9, Math.PI * 2.15); ctx.fill();
+  }
+
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000); last = now;
+    if (!window.__surfFreeze) update(dt);
+    draw();
+    requestAnimationFrame(frame);
+  }
+  let last = performance.now();
+  window.addEventListener('resize', resize);
+  if (window.ResizeObserver) new ResizeObserver(resize).observe(stage);
+
+  // ---------------- Input ----------------
+  let pid = null;
+  stage.addEventListener('pointerdown', (e) => {
+    audio();
+    if (G.phase === 'done' || (G.phase === 'ride' && G.ride && G.ride.over)) { if (G.phase === 'ride') finishWave(); advance(); return; }
+    if (pid !== null) return;
+    pid = e.pointerId; try { stage.setPointerCapture(e.pointerId); } catch (er) { /* ignore */ }
+    press();
+  });
+  const up = (e) => { if (e.pointerId === pid) { pid = null; release(); } };
+  stage.addEventListener('pointerup', up); stage.addEventListener('pointercancel', up);
+  stage.addEventListener('contextmenu', (e) => e.preventDefault());
+  addEventListener('keydown', (e) => {
+    if (e.target && e.target.tagName === 'INPUT') return;
+    if (e.code === 'Space' || e.code === 'Enter') { e.preventDefault(); if (!e.repeat) press(); }
+    if (e.code === 'Escape' && inGame()) $('menuBtn').click();
+  });
+  addEventListener('keyup', (e) => { if (e.code === 'Space' || e.code === 'Enter') release(); });
+  addEventListener('blur', () => { if (G.hold) { G.hold = false; G.pose = 'sit'; } pid = null; });
+
+  // ---------------- Menus ----------------
+  function renderStart() {
+    document.querySelectorAll('#lvSeg [data-v]').forEach((b) => b.setAttribute('aria-pressed', String(Number(b.dataset.v) === S.lv)));
+    $('lvNote').textContent = LV[S.lv].note;
+    $('soundBtn').textContent = 'Sound: ' + (S.sound ? 'on' : 'off');
+    const b = save.stats.best[S.lv] || 0, bl = $('bestLine'); bl.textContent = '';
+    if (b) { bl.append(`Your best on ${LV[S.lv].name}: `); const x = document.createElement('b'); x.textContent = b + ' m'; bl.append(x, ` · longest ride ${save.stats.longest[S.lv]} m`); }
+    renderHud();
+  }
+  $('lvSeg').addEventListener('click', (e) => { const v = e.target.closest('[data-v]')?.dataset.v; if (v) { S.lv = Number(v); persist(); renderStart(); } });
+  $('soundBtn').addEventListener('click', () => { S.sound = !S.sound; persist(); if (SEA) SEA.gain.value = S.sound ? 0.035 : 0; renderStart(); });
+  { const nm = $('nameP'), nu = $('numP'); nm.value = S.player.name; nu.value = S.player.num;
+    nm.addEventListener('change', () => { S.player.name = cleanName(nm.value, DEF_PLAYER.name); nm.value = S.player.name; persist(); renderHud(); });
+    nu.addEventListener('change', () => { S.player.num = cleanNum(nu.value, DEF_PLAYER.num); nu.value = S.player.num; persist(); renderHud(); }); }
+  $('startBtn').addEventListener('click', () => { audio(); startGame(); });
+  $('endBack').addEventListener('click', () => { $('endOv').hidden = true; toMenu(); });
+  $('endAgain').addEventListener('click', () => { audio(); startGame(); });
+  function toMenu() {
+    G.phase = 'menu'; G.paused = false; G.hold = false; G.ride = null; G.sx = 0; G.w = null; G.rides = []; G.total = 0; G.idx = 0;
+    banner(''); $('hint').hidden = true;
+    ['menuOv', 'statsOv', 'endOv'].forEach((i) => ($(i).hidden = true)); $('startOv').hidden = false; renderStart();
+  }
+  let statsFrom = 'startOv';
+  function openStats(from) {
+    statsFrom = from; const s = save.stats;
+    fillStats($('statBody'), [['Best Easy', s.best[0] ? s.best[0] + ' m' : '-'], ['Best Normal', s.best[1] ? s.best[1] + ' m' : '-', 1], ['Best Pro', s.best[2] ? s.best[2] + ' m' : '-'],
+      ['Longest ride', Math.max(...s.longest) + ' m', 1], ['To the beach', s.beach], ['Perfect', s.perfect],
+      ['Sessions', s.games], ['Waves caught', `${s.caught}/${s.waves}`], ['Wipeouts', s.wipe]]);
+    $('statsOv').hidden = false;
+    const ra = $('resetArea'); ra.textContent = '';
+    const r = document.createElement('button'); r.className = 'ghost'; r.textContent = 'Reset stats'; r.style.width = '100%';
+    r.onclick = () => { ra.textContent = ''; const w = document.createElement('div'); w.className = 'confirm'; w.append('Erase all Crest Rider stats?'); const y = document.createElement('button'); y.textContent = 'Erase'; y.onclick = () => { save.stats = newStats(); persist(); openStats(statsFrom); renderStart(); }; w.append(y); ra.append(w); };
+    ra.append(r);
+  }
+  $('startStats').addEventListener('click', () => openStats('startOv'));
+  $('menuStats').addEventListener('click', () => openStats('menuOv'));
+  document.querySelectorAll('[data-back]').forEach((b) => b.addEventListener('click', () => {
+    const ov = b.closest('.ov'); ov.hidden = true;
+    if (ov.id === 'menuOv') G.paused = false;
+  }));
+  const inGame = () => !['menu', 'end'].includes(G.phase);
+  function pauseNow() { if (G.hold) { G.hold = false; G.pose = 'sit'; } pid = null; G.paused = true; $('menuOv').hidden = false; }
+  $('menuBtn').addEventListener('click', () => { if (inGame()) pauseNow(); });
+  $('menuResume').addEventListener('click', () => { $('menuOv').hidden = true; G.paused = false; });
+  $('menuHome').addEventListener('click', () => toMenu());
+  $('menuSite').addEventListener('click', () => { location.href = '../'; });
+  document.addEventListener('visibilitychange', () => { if (document.hidden && inGame() && !G.paused) pauseNow(); });
+
+  renderStart(); resize(); requestAnimationFrame(frame);
+  // test hook
+  window.__surf = { step: (n) => { for (let i = 0; i < n; i++) update(1 / 60); draw(); }, G, S, LV, judge, winOf, maxRide, planHeights, makeWave, press, release, startGame, waveState };
+})();
+</script>
+</body>
+</html>
