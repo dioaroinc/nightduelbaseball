@@ -333,7 +333,7 @@ const Engine = (() => {
   // Returns { runs, outsAdded, text, ended:bool, rbi }
   function applyEvent(st, ev, bb) {
     const b = st.bases;
-    let runs = 0, outs = 0, text = '';
+    let runs = 0, outs = 0, text = '', moves = null, adv = false;
     const pushAll = (n) => { // batter to base n (1..4), forced-style advance of everyone n bases
       for (let i = 2; i >= 0; i--) {
         if (b[i]) { const to = i + n; if (to >= 3) runs++; else b[to] = 1; b[i] = 0; }
@@ -361,26 +361,51 @@ const Engine = (() => {
       case '3B': pushAll(3); text = 'Triple'; break;
       case 'HR': pushAll(4); text = runs === 4 ? 'GRAND SLAM!' : 'HOME RUN!'; break;
       case 'OUT': {
+        // Each runner (base 1..3) and the batter (0) gets a destination: 1..3 a base, 4 home, 0 out.
         outs = 1; text = bb ? bb.how : 'Out';
-        if (bb && bb.gb) {
-          if (b[0] && st.outs < 2 && rnd() < 0.45) {
-            outs = 2; text = 'Double play'; b[0] = 0;
-            if (b[2] && st.outs === 0) { runs++; b[2] = 0; }
-            if (b[1]) { b[2] = 1; b[1] = 0; }
-          } else {
-            if (st.outs < 2) {
-              if (b[2] && rnd() < 0.55) { runs++; b[2] = 0; }
-              if (b[1] && !b[2]) { b[2] = 1; b[1] = 0; }
-            }
-            if (b[0]) { // force at second, batter safe at first
-              if (b[1] && !b[2] && st.outs < 2) { b[2] = 1; b[1] = 0; }
-              b[1] = b[1] || 0; b[0] = 1; text = 'Fielder\'s choice';
-            }
+        const dest = { 3: b[2] ? 3 : null, 2: b[1] ? 2 : null, 1: b[0] ? 1 : null, 0: 0 };
+        const taken = (base) => [3, 2, 1].some((k) => dest[k] === base);
+        // move a runner up one base if the next base is free (lead runners are moved first)
+        const up = (k, p) => { if (dest[k] && dest[k] < 4 && (dest[k] + 1 === 4 || !taken(dest[k] + 1)) && rnd() < p) dest[k]++; };
+        if (bb && bb.gb && st.outs < 2) {
+          const f = bb.fielder, right = f === '1B' || f === '2B', comebacker = f === 'P';
+          const forced = { 1: !!b[0], 2: !!(b[0] && b[1]), 3: !!(b[0] && b[1] && b[2]) };
+          const pDP = b[0] ? (bb.gbT < 0.9 ? 0.26 : 0.12) * (f === '1B' ? 0.6 : 1) : 0;
+          const pFC = b[0] ? 0.15 : 0;
+          const roll = rnd();
+          if (roll < pDP) { // two outs: runner from first at second, batter at first
+            outs = 2; text = 'Double play';
+            dest[1] = 0;
+            if (dest[2]) dest[2] = 3;
+            if (dest[3] && st.outs === 0) dest[3] = 4;
+          } else if (roll < pDP + pFC) { // lead runner forced out at second, batter safe at first
+            text = 'Fielder\'s choice';
+            if (forced[3]) dest[3] = 4;
+            if (forced[2]) dest[2] = 3;
+            dest[1] = 0; dest[0] = 1;
+          } else { // batter thrown out at first, runners move up a base
+            up(3, forced[3] ? 1 : comebacker ? 0.25 : right ? 0.85 : 0.65);
+            up(2, forced[2] ? 1 : comebacker ? 0.35 : right ? 0.95 : 0.7);
+            up(1, 1);
+            text = 'Groundout';
+            if ([1, 2, 3].some((k) => dest[k] > k)) adv = true;
           }
         } else if (bb && (bb.kind === 'FB' || bb.kind === 'LD') && st.outs < 2 && bb.dist > 230) {
-          if (b[2] && rnd() < 0.85) { runs++; b[2] = 0; text = 'Sacrifice fly'; bb.sf = true; }
-          if (b[1] && bb.dist > 300 && !b[2] && rnd() < 0.5) { b[2] = 1; b[1] = 0; }
+          // deep fly: runners tag up after the catch
+          if (dest[3] && rnd() < 0.85) { dest[3] = 4; text = 'Sacrifice fly'; bb.sf = true; }
+          up(2, bb.dist > 300 ? 0.5 : 0);
+          if (dest[2] === 3) adv = true;
         }
+        // otherwise (strikeout-like catches, pop ups, liners, two-out plays) runners hold
+        b[0] = b[1] = b[2] = 0;
+        const mv = [];
+        for (const k of [3, 2, 1, 0]) {
+          const d = dest[k];
+          if (d === null) continue;
+          mv.push([k, d]);
+          if (d === 4) runs++; else if (d > 0) b[d - 1] = 1;
+        }
+        moves = mv;
         break;
       }
     }
@@ -393,7 +418,8 @@ const Engine = (() => {
     st.inningRuns += runs;
     let ended = false;
     if (st.outs >= 3) ended = true;
-    return { runs, outs, text, ended };
+    if (moves && ended) moves = moves.map(([k, d]) => [k, d === 4 ? 3 : d]); // the inning is over, nobody scores
+    return { runs, outs, text, ended, moves, adv: adv && !ended };
   }
 
   function nextInning(st) {

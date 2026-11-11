@@ -452,7 +452,7 @@ button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent
         <div class="mpstatus" id="mpStatus" hidden></div>
         <div class="note">The room creator picks the length and starts in the role picked above; the friend starts in the other. You switch sides every three outs. If the game is tied after the last inning it goes to extras. A pitcher who does not throw for 20 seconds forfeits.</div>
       </div>
-      <div class="note">Stats are saved in this browser only. No sign-up needed. <span id="buildTag">Build 2026-10-30 03:18 UTC</span></div>
+      <div class="note">Stats are saved in this browser only. No sign-up needed. <span id="buildTag">Build 2026-11-11 05:47 UTC</span></div>
     </div>
   </div>
 
@@ -851,7 +851,7 @@ const Engine = (() => {
   // Returns { runs, outsAdded, text, ended:bool, rbi }
   function applyEvent(st, ev, bb) {
     const b = st.bases;
-    let runs = 0, outs = 0, text = '';
+    let runs = 0, outs = 0, text = '', moves = null, adv = false;
     const pushAll = (n) => { // batter to base n (1..4), forced-style advance of everyone n bases
       for (let i = 2; i >= 0; i--) {
         if (b[i]) { const to = i + n; if (to >= 3) runs++; else b[to] = 1; b[i] = 0; }
@@ -879,26 +879,51 @@ const Engine = (() => {
       case '3B': pushAll(3); text = 'Triple'; break;
       case 'HR': pushAll(4); text = runs === 4 ? 'GRAND SLAM!' : 'HOME RUN!'; break;
       case 'OUT': {
+        // Each runner (base 1..3) and the batter (0) gets a destination: 1..3 a base, 4 home, 0 out.
         outs = 1; text = bb ? bb.how : 'Out';
-        if (bb && bb.gb) {
-          if (b[0] && st.outs < 2 && rnd() < 0.45) {
-            outs = 2; text = 'Double play'; b[0] = 0;
-            if (b[2] && st.outs === 0) { runs++; b[2] = 0; }
-            if (b[1]) { b[2] = 1; b[1] = 0; }
-          } else {
-            if (st.outs < 2) {
-              if (b[2] && rnd() < 0.55) { runs++; b[2] = 0; }
-              if (b[1] && !b[2]) { b[2] = 1; b[1] = 0; }
-            }
-            if (b[0]) { // force at second, batter safe at first
-              if (b[1] && !b[2] && st.outs < 2) { b[2] = 1; b[1] = 0; }
-              b[1] = b[1] || 0; b[0] = 1; text = 'Fielder\'s choice';
-            }
+        const dest = { 3: b[2] ? 3 : null, 2: b[1] ? 2 : null, 1: b[0] ? 1 : null, 0: 0 };
+        const taken = (base) => [3, 2, 1].some((k) => dest[k] === base);
+        // move a runner up one base if the next base is free (lead runners are moved first)
+        const up = (k, p) => { if (dest[k] && dest[k] < 4 && (dest[k] + 1 === 4 || !taken(dest[k] + 1)) && rnd() < p) dest[k]++; };
+        if (bb && bb.gb && st.outs < 2) {
+          const f = bb.fielder, right = f === '1B' || f === '2B', comebacker = f === 'P';
+          const forced = { 1: !!b[0], 2: !!(b[0] && b[1]), 3: !!(b[0] && b[1] && b[2]) };
+          const pDP = b[0] ? (bb.gbT < 0.9 ? 0.26 : 0.12) * (f === '1B' ? 0.6 : 1) : 0;
+          const pFC = b[0] ? 0.15 : 0;
+          const roll = rnd();
+          if (roll < pDP) { // two outs: runner from first at second, batter at first
+            outs = 2; text = 'Double play';
+            dest[1] = 0;
+            if (dest[2]) dest[2] = 3;
+            if (dest[3] && st.outs === 0) dest[3] = 4;
+          } else if (roll < pDP + pFC) { // lead runner forced out at second, batter safe at first
+            text = 'Fielder\'s choice';
+            if (forced[3]) dest[3] = 4;
+            if (forced[2]) dest[2] = 3;
+            dest[1] = 0; dest[0] = 1;
+          } else { // batter thrown out at first, runners move up a base
+            up(3, forced[3] ? 1 : comebacker ? 0.25 : right ? 0.85 : 0.65);
+            up(2, forced[2] ? 1 : comebacker ? 0.35 : right ? 0.95 : 0.7);
+            up(1, 1);
+            text = 'Groundout';
+            if ([1, 2, 3].some((k) => dest[k] > k)) adv = true;
           }
         } else if (bb && (bb.kind === 'FB' || bb.kind === 'LD') && st.outs < 2 && bb.dist > 230) {
-          if (b[2] && rnd() < 0.85) { runs++; b[2] = 0; text = 'Sacrifice fly'; bb.sf = true; }
-          if (b[1] && bb.dist > 300 && !b[2] && rnd() < 0.5) { b[2] = 1; b[1] = 0; }
+          // deep fly: runners tag up after the catch
+          if (dest[3] && rnd() < 0.85) { dest[3] = 4; text = 'Sacrifice fly'; bb.sf = true; }
+          up(2, bb.dist > 300 ? 0.5 : 0);
+          if (dest[2] === 3) adv = true;
         }
+        // otherwise (strikeout-like catches, pop ups, liners, two-out plays) runners hold
+        b[0] = b[1] = b[2] = 0;
+        const mv = [];
+        for (const k of [3, 2, 1, 0]) {
+          const d = dest[k];
+          if (d === null) continue;
+          mv.push([k, d]);
+          if (d === 4) runs++; else if (d > 0) b[d - 1] = 1;
+        }
+        moves = mv;
         break;
       }
     }
@@ -911,7 +936,8 @@ const Engine = (() => {
     st.inningRuns += runs;
     let ended = false;
     if (st.outs >= 3) ended = true;
-    return { runs, outs, text, ended };
+    if (moves && ended) moves = moves.map(([k, d]) => [k, d === 4 ? 3 : d]); // the inning is over, nobody scores
+    return { runs, outs, text, ended, moves, adv: adv && !ended };
   }
 
   function nextInning(st) {
@@ -1846,6 +1872,7 @@ if (typeof module !== 'undefined') module.exports = Engine;
     if (ev === '1B' && bb && bb.how === 'Infield single') main = 'Infield single';
     if (ev === 'OUT') main = r.text;
     let sub = subl || '';
+    if (r.adv) sub = 'Runners advance';
     if (r.runs > 0) sub = me === 'pitcher' ? `${r.runs} run${r.runs > 1 ? 's' : ''} allowed` : `${r.runs} RBI`;
     return { main, sub, good };
   }
@@ -1989,12 +2016,20 @@ if (typeof module !== 'undefined') module.exports = Engine;
       else { const j = free.find((b) => b + 1 > start); if (j !== undefined) { dest = j + 1; free.splice(free.indexOf(j), 1); } else { dest = Math.min(4, start + 1); out = true; } }
       return { start, dest, out };
     };
-    for (let i = 2; i >= 0; i--) if (before[i]) list.push(runnerAt(i));
-    if (fa.bb) list.push(runnerAt(-1));
+    const mv = info.r && info.r.moves;
+    if (mv) { // the engine says where each runner went: [from base (0 = batter), to base (4 = home, 0 = out)]
+      for (const [k, d] of mv) {
+        if (k === 0 && !fa.bb) continue;
+        list.push(d === 0 ? { start: k, dest: Math.min(4, k + 1), out: true } : { start: k, dest: d, out: false });
+      }
+    } else {
+      for (let i = 2; i >= 0; i--) if (before[i]) list.push(runnerAt(i));
+      if (fa.bb) list.push(runnerAt(-1));
+    }
     for (const r of list) {
       const dist = (r.dest - r.start) * 90;
       r.speed = Math.max(27, dist / (fa.dur + 1.6));
-      r.T = dist / r.speed;
+      r.T = Math.max(0.01, dist / r.speed);
       if (r.out) r.T = Math.min(r.T, fa.dur + 0.4); // called out when the throw beats them
     }
     return list;
@@ -2671,7 +2706,8 @@ if (typeof module !== 'undefined') module.exports = Engine;
       gbAlong: num(o.bb.gbAlong, 120), gbT: num(o.bb.gbT, 1), gb: !!o.bb.gb, sf: !!o.bb.sf,
     } : null;
     const h = o.hitV && typeof o.hitV === 'object' ? (o.hitV.foul ? { foul: true, fx: num(o.hitV.fx), fy: num(o.hitV.fy, 30), fz: num(o.hitV.fz, -40) } : { foul: false, ev: num(o.hitV.ev, 80), la: num(o.hitV.la), spray: num(o.hitV.spray) }) : null;
-    const r = o.r && typeof o.r === 'object' ? { runs: Math.max(0, Math.min(4, num(o.r.runs) | 0)), outs: Math.max(0, Math.min(3, num(o.r.outs) | 0)), text: txt(o.r.text), ended: !!o.r.ended } : null;
+    const r = o.r && typeof o.r === 'object' ? { runs: Math.max(0, Math.min(4, num(o.r.runs) | 0)), outs: Math.max(0, Math.min(3, num(o.r.outs) | 0)), text: txt(o.r.text), ended: !!o.r.ended, adv: !!o.r.adv,
+      moves: Array.isArray(o.r.moves) ? o.r.moves.slice(0, 4).filter((m) => Array.isArray(m)).map((m) => [Math.max(0, Math.min(3, m[0] | 0)), Math.max(0, Math.min(4, m[1] | 0))]) : null } : null;
     const ev = EVENTS.includes(o.ev) ? o.ev : null;
     return {
       seq: msg.seq | 0, state: msg.state,
