@@ -861,6 +861,7 @@
     if (ev === '1B' && bb && bb.how === 'Infield single') main = 'Infield single';
     if (ev === 'OUT') main = r.text;
     let sub = subl || '';
+    if (r.adv) sub = 'Runners advance';
     if (r.runs > 0) sub = me === 'pitcher' ? `${r.runs} run${r.runs > 1 ? 's' : ''} allowed` : `${r.runs} RBI`;
     return { main, sub, good };
   }
@@ -1004,12 +1005,20 @@
       else { const j = free.find((b) => b + 1 > start); if (j !== undefined) { dest = j + 1; free.splice(free.indexOf(j), 1); } else { dest = Math.min(4, start + 1); out = true; } }
       return { start, dest, out };
     };
-    for (let i = 2; i >= 0; i--) if (before[i]) list.push(runnerAt(i));
-    if (fa.bb) list.push(runnerAt(-1));
+    const mv = info.r && info.r.moves;
+    if (mv) { // the engine says where each runner went: [from base (0 = batter), to base (4 = home, 0 = out)]
+      for (const [k, d] of mv) {
+        if (k === 0 && !fa.bb) continue;
+        list.push(d === 0 ? { start: k, dest: Math.min(4, k + 1), out: true } : { start: k, dest: d, out: false });
+      }
+    } else {
+      for (let i = 2; i >= 0; i--) if (before[i]) list.push(runnerAt(i));
+      if (fa.bb) list.push(runnerAt(-1));
+    }
     for (const r of list) {
       const dist = (r.dest - r.start) * 90;
       r.speed = Math.max(27, dist / (fa.dur + 1.6));
-      r.T = dist / r.speed;
+      r.T = Math.max(0.01, dist / r.speed);
       if (r.out) r.T = Math.min(r.T, fa.dur + 0.4); // called out when the throw beats them
     }
     return list;
@@ -1686,7 +1695,8 @@
       gbAlong: num(o.bb.gbAlong, 120), gbT: num(o.bb.gbT, 1), gb: !!o.bb.gb, sf: !!o.bb.sf,
     } : null;
     const h = o.hitV && typeof o.hitV === 'object' ? (o.hitV.foul ? { foul: true, fx: num(o.hitV.fx), fy: num(o.hitV.fy, 30), fz: num(o.hitV.fz, -40) } : { foul: false, ev: num(o.hitV.ev, 80), la: num(o.hitV.la), spray: num(o.hitV.spray) }) : null;
-    const r = o.r && typeof o.r === 'object' ? { runs: Math.max(0, Math.min(4, num(o.r.runs) | 0)), outs: Math.max(0, Math.min(3, num(o.r.outs) | 0)), text: txt(o.r.text), ended: !!o.r.ended } : null;
+    const r = o.r && typeof o.r === 'object' ? { runs: Math.max(0, Math.min(4, num(o.r.runs) | 0)), outs: Math.max(0, Math.min(3, num(o.r.outs) | 0)), text: txt(o.r.text), ended: !!o.r.ended, adv: !!o.r.adv,
+      moves: Array.isArray(o.r.moves) ? o.r.moves.slice(0, 4).filter((m) => Array.isArray(m)).map((m) => [Math.max(0, Math.min(3, m[0] | 0)), Math.max(0, Math.min(4, m[1] | 0))]) : null } : null;
     const ev = EVENTS.includes(o.ev) ? o.ev : null;
     return {
       seq: msg.seq | 0, state: msg.state,
