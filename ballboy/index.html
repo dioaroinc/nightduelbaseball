@@ -704,7 +704,7 @@ setTimeout(finish,10000);tick();})();</script>
     const oldBest = st.best[lv] || 0;
     st.games++; st.balls += got; st.dodged += G.dodged; st.hits += G.hits; if (clean) st.clears++; if (perfect) st.perfect++;
     if (total > oldBest) st.best[lv] = total;
-    persist();
+    persist(); if (window.ndRankSync) ndRankSync();
     const T = $('endTitle'); T.innerHTML = clean ? (perfect ? 'PERFECT<br><em>CLEAN!</em>' : 'COURT<br><em>CLEAN!</em>') : G.result === 'ko' ? 'KNOCKED<br><em>OUT</em>' : 'LESSON<br><em>OVER</em>';
     $('endSub').textContent = clean ? (perfect ? 'Every ball picked up and not a scratch on you.' : `All ${N_BALLS} balls back in the basket with ${left} shots to spare.`)
       : G.result === 'ko' ? `The ${LV[lv].key.toLowerCase()} got you. ${N_BALLS - got} balls still on the court.` : `The lesson ended with ${N_BALLS - got} of your balls still on the court.`;

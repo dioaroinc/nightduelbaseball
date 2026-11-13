@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a111d">
+<title>Ranking · We Play Sports Games</title>
+<meta name="description" content="Who is the best across every game on We Play Sports Games.">
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="../icons/icon.svg">
+<link rel="icon" type="image/png" sizes="32x32" href="../icons/favicon-32.png">
+<link rel="apple-touch-icon" href="../icons/apple-touch-icon.png">
+<script defer src="../firebase-config.js"></script>
+<script defer src="../track.js"></script>
+<script>if("serviceWorker" in navigator)addEventListener("load",function(){navigator.serviceWorker.register("../sw.js",{scope:"/"}).catch(function(){})})</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700;800&display=swap" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Saira+Condensed:wght@500;700;800&display=swap"></noscript>
+<style>
+:root { --bg: #0a111d; --panel: #121c2e; --panel-2: #182439; --line: #2a3a58; --chalk: #f1ecdc; --muted: #9aa3b5; --accent: #ffbb4a; --green: #4fd88a; --gold: #ffcf5a; --silver: #c9d3e3; --bronze: #e0975a; }
+* { box-sizing: border-box; }
+html, body { margin: 0; background: var(--bg); color: var(--chalk); font: 15px system-ui, -apple-system, "Segoe UI", sans-serif; -webkit-text-size-adjust: 100%; }
+body { min-height: 100vh; padding: calc(env(safe-area-inset-top, 0px) + 20px) 16px calc(env(safe-area-inset-bottom, 0px) + 28px); background: radial-gradient(120% 70% at 50% -10%, #1b2b48 0, var(--bg) 60%); }
+main { max-width: 520px; margin: 0 auto; }
+.back { color: var(--muted); text-decoration: none; font-size: 14px; display: inline-block; padding: 6px 0; }
+.logo { font-family: "Saira Condensed", system-ui, sans-serif; font-weight: 800; font-size: 44px; line-height: .95; text-transform: uppercase; margin: 10px 0 6px; }
+.logo em { font-style: normal; color: var(--accent); }
+.tag { color: var(--muted); margin: 0 0 16px; line-height: 1.5; font-size: 14px; }
+.tabs { display: flex; gap: 8px; overflow-x: auto; margin: 0 -16px 14px; padding: 2px 16px 6px; scrollbar-width: none; }
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button { flex: none; display: flex; align-items: center; gap: 6px; padding: 7px 12px; border-radius: 999px; border: 1px solid var(--line); background: var(--panel); color: var(--chalk); font: 600 13px system-ui, -apple-system, sans-serif; cursor: pointer; }
+.tabs button img { width: 20px; height: 20px; border-radius: 5px; }
+.tabs button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #1a1205; }
+.me { display: none; margin: 0 0 14px; padding: 12px 14px; border-radius: 14px; background: var(--panel-2); border: 1px solid var(--accent); font-size: 14px; line-height: 1.45; }
+.me b { color: var(--accent); }
+.list { display: grid; gap: 6px; }
+.row { display: grid; grid-template-columns: 36px 1fr auto; align-items: center; gap: 10px; padding: 10px 12px; border-radius: 12px; background: var(--panel); border: 1px solid var(--line); }
+.row.you { border-color: var(--accent); background: #1d2a40; }
+.pos { font: 800 22px/1 "Saira Condensed", system-ui, sans-serif; text-align: center; color: var(--muted); }
+.row:nth-child(1) .pos { color: var(--gold); } .row:nth-child(2) .pos { color: var(--silver); } .row:nth-child(3) .pos { color: var(--bronze); }
+.who { min-width: 0; }
+.who .nm { font: 700 20px/1.1 "Saira Condensed", system-ui, sans-serif; text-transform: uppercase; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.who .nm small { color: var(--muted); font-size: 14px; margin-left: 4px; }
+.who .nm .tagyou { font: 700 10px system-ui, sans-serif; letter-spacing: .1em; color: #1a1205; background: var(--accent); border-radius: 4px; padding: 2px 5px; margin-left: 6px; vertical-align: 3px; }
+.who .sub { color: var(--muted); font-size: 12px; margin-top: 2px; display: flex; gap: 4px; flex-wrap: wrap; align-items: center; }
+.who .sub img { width: 16px; height: 16px; border-radius: 4px; }
+.val { text-align: right; font: 800 22px/1 "Saira Condensed", system-ui, sans-serif; font-variant-numeric: tabular-nums; }
+.val small { display: block; font: 500 11px system-ui, sans-serif; color: var(--muted); margin-top: 3px; }
+.note { color: var(--muted); font-size: 14px; text-align: center; padding: 30px 10px; line-height: 1.5; background: var(--panel); border: 1px dashed var(--line); border-radius: 14px; }
+.how { margin-top: 22px; color: var(--muted); font-size: 12px; line-height: 1.6; }
+.how b { color: var(--chalk); }
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="../">‹ All games</a>
+  <h1 class="logo">Player<br><em>Ranking</em></h1>
+  <p class="tag" id="tag">Your best in every game counts. Play them all to climb the overall board.</p>
+  <div class="tabs" id="tabs" role="toolbar" aria-label="Game"></div>
+  <div class="me" id="me"></div>
+  <div class="list" id="list"><div class="note">Loading the ranking…</div></div>
+  <div class="how">
+    <p><b>Overall:</b> your best record in each game is worth up to 1,000 points (the #1 record in that game gets 1,000, the rest get their share of it). Add up all 8 games for your total.</p>
+    <p><b>Score games</b> (clay, basketball, bowling, ball boy, surf) rank your best single game; a Normal game counts 1.25× and a Pro game 1.5× an Easy one. <b>Baseball, tennis and soccer</b> rank your wins against the CPU and friends.</p>
+    <p>You show up under the name and number you set in each game. Records go up when you finish a game online.</p>
+  </div>
+</main>
+<script>
+(function () {
+  'use strict';
+  var GAMES = [
+    { id: 'baseball', name: 'Baseball', k: 'nightduel_v1', win: 1 },
+    { id: 'clay', name: 'Clay', k: 'skyclay_v1', unit: '/90' },
+    { id: 'soccer', name: 'Soccer', k: 'spotkick_v1', win: 1 },
+    { id: 'basketball', name: 'Basketball', k: 'swishshot_v1', unit: ' pts' },
+    { id: 'bowling', name: 'Bowling', k: 'bowling_v1', unit: '' },
+    { id: 'tennis', name: 'Tennis', k: 'bptennis_v1', win: 1 },
+    { id: 'ballboy', name: 'Ball Boy', k: 'ballboy_v1', unit: ' pts', lvs: ['Beginner', 'Club', 'Tour pro'] },
+    { id: 'surf', name: 'Surf', k: 'crestrider_v1', unit: ' m' },
+  ];
+  var LVS = ['Easy', 'Normal', 'Pro'];
+  var $ = function (id) { return document.getElementById(id); };
+  function el(tag, cls, text) { var e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; }
+  function icon(g) { var i = new Image(); i.src = '../' + g.id + '/icons/icon-192.png'; i.alt = ''; return i; }
+  var fmt = function (n) { return Math.round(n).toLocaleString('en-US'); };
+
+  // this browser's players (one per game save), so their rows can be marked
+  var mine = {};
+  GAMES.forEach(function (g) {
+    try {
+      var p = JSON.parse(localStorage.getItem(g.k)).settings.player;
+      var n = String(p.name || '').toUpperCase().replace(/[^A-Z0-9 .'-]/g, '').trim().slice(0, 10), u = String(p.num).replace(/\D/g, '').slice(0, 2);
+      if (n && u) mine[n.replace(/ /g, '+').replace(/\./g, '!') + '_' + u] = 1;
+    } catch (e) { /* not played here */ }
+  });
+
+  var tab = 'all';
+  try { var t0 = sessionStorage.getItem('nd-rank-tab'); if (t0) tab = t0; } catch (e) { /* ignore */ }
+  var data = null, boards = null;
+
+  function buildTabs() {
+    var T = $('tabs'); T.textContent = '';
+    [{ id: 'all', name: 'Overall' }].concat(GAMES).forEach(function (g) {
+      var b = el('button'); b.type = 'button';
+      if (g.id !== 'all') b.append(icon(g)); else b.append('🏆');
+      b.append(g.name);
+      b.setAttribute('aria-pressed', String(tab === g.id));
+      b.onclick = function () { tab = g.id; try { sessionStorage.setItem('nd-rank-tab', tab); } catch (e) { /* ignore */ } buildTabs(); render(); };
+      T.append(b);
+    });
+  }
+
+  // data: { game: { KEY: { n, u, s, r?, lv?, t } } } -> sorted boards and the overall table
+  function compute(d) {
+    var by = {}, all = {};
+    GAMES.forEach(function (g) {
+      var rows = [], src = d && d[g.id] || {};
+      Object.keys(src).forEach(function (key) { var v = src[key]; if (v && typeof v.s === 'number' && v.s > 0 && typeof v.n === 'string') rows.push({ key: key, n: v.n, u: String(v.u || ''), s: v.s, r: v.r, lv: v.lv, t: v.t || 0 }); });
+      rows.sort(function (a, b) { return b.s - a.s || a.t - b.t; });
+      by[g.id] = rows;
+      var top = rows.length ? rows[0].s : 0;
+      rows.forEach(function (r, i) {
+        r.pos = i && rows[i - 1].s === r.s ? rows[i - 1].pos : i + 1;
+        var p = all[r.key] || (all[r.key] = { key: r.key, n: r.n, u: r.u, s: 0, games: [] , t: 0 });
+        r.pts = Math.round(1000 * r.s / top);
+        p.s += r.pts; p.games.push(g); if (r.t > p.t) { p.t = r.t; p.n = r.n; p.u = r.u; }
+      });
+    });
+    var list = Object.keys(all).map(function (k) { return all[k]; });
+    list.sort(function (a, b) { return b.s - a.s || b.games.length - a.games.length || a.n.localeCompare(b.n); });
+    list.forEach(function (r, i) { r.pos = i && list[i - 1].s === r.s ? list[i - 1].pos : i + 1; });
+    by.all = list;
+    return by;
+  }
+
+  function valueOf(g, r) {
+    if (g.win) return [fmt(r.s), r.s === 1 ? 'win' : 'wins'];
+    var lv = (g.lvs || LVS)[r.lv] || '';
+    return [fmt(r.r) + (g.unit === '/90' ? '' : ''), (g.unit === '/90' ? 'of 90' : g.unit.trim() || 'pins') + (lv ? ' · ' + lv : '')];
+  }
+
+  function render() {
+    var L = $('list'), M = $('me'); L.textContent = ''; M.style.display = 'none';
+    if (!boards) return;
+    var rows = boards[tab] || [], g = GAMES.filter(function (x) { return x.id === tab; })[0];
+    if (!rows.length) {
+      L.append(el('div', 'note', tab === 'all' ? 'No records yet. Finish a game to put your name on the board!' : 'No ' + g.name.toLowerCase() + ' records yet. Be the first!'));
+      return;
+    }
+    var you = rows.filter(function (r) { return mine[r.key]; })[0];
+    if (you) {
+      M.textContent = ''; M.style.display = 'block';
+      M.append('You are ', el('b', '', '#' + you.pos), ' of ' + rows.length + (tab === 'all' ? ' overall with ' : ' with '), el('b', '', tab === 'all' ? fmt(you.s) + ' points' : valueOf(g, you).join(' ')), tab === 'all' ? ' from ' + you.games.length + ' of ' + GAMES.length + ' games.' : '.');
+    }
+    rows.slice(0, 100).forEach(function (r) {
+      var row = el('div', 'row' + (mine[r.key] ? ' you' : ''));
+      row.append(el('div', 'pos', String(r.pos)));
+      var who = el('div', 'who'), nm = el('div', 'nm', r.n);
+      nm.append(el('small', '', '#' + r.u));
+      if (mine[r.key]) nm.append(el('span', 'tagyou', 'YOU'));
+      who.append(nm);
+      var sub = el('div', 'sub');
+      if (tab === 'all') { r.games.forEach(function (x) { sub.append(icon(x)); }); sub.append(' ' + r.games.length + ' of ' + GAMES.length + ' games'); }
+      else { sub.append(fmt(r.pts) + ' overall points'); }
+      who.append(sub); row.append(who);
+      var v = tab === 'all' ? [fmt(r.s), 'points'] : valueOf(g, r);
+      var val = el('div', 'val', v[0]); val.append(el('small', '', v[1])); row.append(val);
+      L.append(row);
+    });
+    if (rows.length > 100 && you && you.pos > 100) L.append(el('div', 'note', 'You are #' + you.pos + '. Keep playing to make the top 100!'));
+  }
+
+  function load() {
+    var cfg = window.FIREBASE_CONFIG;
+    if (!cfg || !cfg.databaseURL) { $('list').innerHTML = '<div class="note">The ranking could not load.</div>'; return; }
+    fetch(cfg.databaseURL + '/rank.json', { cache: 'no-store' })
+      .then(function (r) { if (r.status === 401 || r.status === 403) throw new Error('closed'); if (!r.ok) throw new Error('net'); return r.json(); })
+      .then(function (d) { data = d || {}; boards = compute(data); render(); })
+      .catch(function (e) {
+        $('list').textContent = '';
+        $('list').append(el('div', 'note', !navigator.onLine ? 'The ranking needs the internet. Your games still work offline.' : e.message === 'closed' ? 'The ranking board is getting ready. Your records will show up here soon.' : 'The ranking could not load. Pull down to try again.'));
+      });
+  }
+  buildTabs();
+  document.addEventListener('DOMContentLoaded', load); // firebase-config.js is deferred
+  if (document.readyState !== 'loading') load();
+  window.ndRankCompute = compute; // for tests
+})();
+</script>
+</body>
+</html>

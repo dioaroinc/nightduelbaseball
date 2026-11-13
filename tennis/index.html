@@ -1199,7 +1199,7 @@ setTimeout(finish,10000);tick();})();</script>
     const st = save.stats; st.matches++; if (win) st.wins++;
     for (const k of ['ptsW', 'ptsP', 'aces', 'dfs', 'winners', 'perfect', 'gamesW', 'gamesL']) st[k] += ms[k];
     st.fastServe = Math.max(st.fastServe, ms.fastServe);
-    save.match = null; persist();
+    save.match = null; persist(); if (window.ndRankSync) ndRankSync();
     G.phase = 'menu';
     $('endTitle').innerHTML = win ? 'YOU WIN<br><em>THE SET</em>' : 'CPU WINS<br><em>THE SET</em>';
     $('endSub').textContent = win ? 'Game, set and match.' : 'Shake hands and go again.';

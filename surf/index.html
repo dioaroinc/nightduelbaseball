@@ -635,7 +635,7 @@ setTimeout(finish,10000);tick();})();</script>
     if (rec) s.best[lv] = G.total;
     const win = mp && G.total > O.tot, tie = mp && G.total === O.tot;
     if (mp) { s.mpGames = (s.mpGames || 0) + 1; if (win) s.mpWins = (s.mpWins || 0) + 1; mpLeave(); }
-    persist();
+    persist(); if (window.ndRankSync) ndRankSync();
     const longest = Math.max(...G.rides.map((r) => r.d));
     const et = $('endTitle'); et.textContent = '';
     const t2 = (a, b) => { et.append(a, document.createElement('br')); const em = document.createElement('em'); em.textContent = b; et.append(em); };

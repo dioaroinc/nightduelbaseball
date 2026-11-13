@@ -943,7 +943,9 @@ setTimeout(finish,10000);tick();})();</script>
     const t = total(Gm), st = save.stats, prevBest = st.best, ms = Gm.ms;
     st.games++; st.pins += t; st.best = Math.max(st.best, t); if (t === 300) st.perfect++;
     st.strikes += ms.strikes; st.strikeCh += ms.strikeCh; st.spares += ms.spares; st.spareCh += ms.spareCh; st.gutters += ms.gutters;
-    Gm.done = true; save.game = null; persist();
+    if (!Array.isArray(st.lvBest)) st.lvBest = [0, 0, 0];
+    st.lvBest[Gm.lv] = Math.max(st.lvBest[Gm.lv] || 0, t);
+    Gm.done = true; save.game = null; persist(); if (window.ndRankSync) ndRankSync();
     G.phase = 'menu'; banner(''); renderSpin();
     $('endTitle').innerHTML = t === 300 ? 'PERFECT<br><em>GAME!</em>' : t > prevBest && st.games > 1 ? 'NEW<br><em>BEST!</em>' : 'FINAL<br><em>SCORE</em>';
     $('endSub').textContent = t >= 200 ? 'That is league-night bowling. Brilliant.' : t >= 150 ? 'Solid game. Pick up a few more spares and you are over 200.' : t >= 100 ? 'Nice. Aim for the pocket, just off the head pin.' : 'Every frame counts. Go again.';

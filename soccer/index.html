@@ -1059,7 +1059,7 @@ setTimeout(finish,10000);tick();})();</script>
     const quit = !!reason, win = quit || a > b, st = save.stats, mp = !!G.mp;
     st.shots += G.stat.shots; st.goals += G.stat.goals; st.faced += G.stat.faced; st.saves += G.stat.saves;
     if (mp) { st.mpGames++; if (win) st.mpWins++; } else { st.games++; if (win) st.wins++; }
-    persist();
+    persist(); if (window.ndRankSync) ndRankSync();
     if (mp) mpLeave();
     G.lastMp = mp; G.phase = 'end'; G.press = null; banner('');
     const sd = s.me.length > G.N;

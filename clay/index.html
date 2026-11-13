@@ -879,7 +879,9 @@ setTimeout(finish,10000);tick();})();</script>
   function endGame() {
     const t = total(), all = PER_ROUND * ROUNDS_N, st = save.stats, prevBest = st.best;
     st.games++; st.targets += all; st.hits += t; st.smashes += Gm.ms.smashes; st.best = Math.max(st.best, t);
-    Gm.done = true; save.game = null; persist();
+    if (!Array.isArray(st.lvBest)) st.lvBest = [0, 0, 0];
+    st.lvBest[Gm.lv] = Math.max(st.lvBest[Gm.lv] || 0, t);
+    Gm.done = true; save.game = null; persist(); if (window.ndRankSync) ndRankSync();
     $('endTitle').innerHTML = t > prevBest && st.games > 1 ? 'NEW<br><em>BEST!</em>' : 'FINAL<br><em>SCORE</em>';
     $('endSub').textContent = t >= 80 ? 'Shooting like a champion.' : t >= 60 ? 'Solid shooting. Lead a touch more on the crossers.' : 'Every clay counts. Go again.';
     $('endScore').textContent = `${S.player.name} ${t}/${all}`;
