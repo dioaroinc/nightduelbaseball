@@ -1144,7 +1144,7 @@ setTimeout(finish,10000);tick();})();</script>
     st.pts += me.pts; st.makes += me.makes; st.shots += me.shots; st.swishes += me.swishes;
     if (me.pts > oldBest) st.best[G.lv] = me.pts;
     if (mp) { st.mpGames++; if (win) st.mpWins++; } else if (solo) st.solo++; else { st.games++; if (win) st.wins++; }
-    persist();
+    persist(); if (window.ndRankSync) ndRankSync();
     if (mp) mpLeave();
     G.phase = 'end'; G.press = null; banner('');
     if (solo) $('endTitle').innerHTML = win ? 'NEW<br><em>BEST!</em>' : 'TIME<br><em>UP</em>';

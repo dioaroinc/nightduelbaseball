@@ -6,14 +6,14 @@
 // and the admin page still need the internet; the Firebase SDK is never served from the cache,
 // so friend games show an "offline" note instead of hanging.
 // Bump VERSION when the list below changes.
-const VERSION = 'v6';
+const VERSION = 'v7';
 const CACHE = 'wpsg-' + VERSION;
 const FONTS = 'wpsg-fonts';
 const GAMES = ['baseball', 'tennis', 'clay', 'bowling', 'soccer', 'basketball', 'ballboy', 'surf'];
 const PRECACHE = [
   './', 'manifest.webmanifest', 'firebase-config.js', 'track.js',
   'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png', 'icons/favicon-32.png',
-  'baseball/icons/favicon-32.png',
+  'baseball/icons/favicon-32.png', 'rank/',
 ].concat(...GAMES.map(g => [g + '/', g + '/icons/icon.svg', g + '/icons/icon-192.png']));
 const NET_WAIT = 4000; // ms to wait for the network before using the saved copy
 

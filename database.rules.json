@@ -45,6 +45,36 @@
           }
         }
       }
+    },
+    "rank": {
+      ".read": true,
+      "$g": {
+        "$p": {
+          ".write": "newData.exists() && $g.matches(/^(baseball|clay|soccer|basketball|bowling|tennis|ballboy|surf)$/) && $p.matches(/^[A-Z0-9+!'-]{1,10}_[0-9]{1,2}$/)",
+          ".validate": "newData.hasChildren(['n', 'u', 's', 't'])",
+          "n": {
+            ".validate": "newData.isString() && newData.val().matches(/^[A-Z0-9 .'-]{1,10}$/)"
+          },
+          "u": {
+            ".validate": "newData.isString() && newData.val().matches(/^[0-9]{1,2}$/)"
+          },
+          "s": {
+            ".validate": "newData.isNumber() && newData.val() > (data.exists() ? data.val() : 0) && newData.val() <= 100000 && ($g.matches(/^(baseball|tennis|soccer)$/) || newData.val() === newData.parent().child('r').val() * (newData.parent().child('lv').val() + 4))"
+          },
+          "r": {
+            ".validate": "newData.isNumber() && newData.val() > 0 && newData.val() <= 20000"
+          },
+          "lv": {
+            ".validate": "newData.val() === 0 || newData.val() === 1 || newData.val() === 2"
+          },
+          "t": {
+            ".validate": "newData.val() === now"
+          },
+          "$o": {
+            ".validate": false
+          }
+        }
+      }
     }
   }
 }

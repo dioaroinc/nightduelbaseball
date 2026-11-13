@@ -902,6 +902,8 @@
     G.started = false; G.phase = 'menu'; G.pwr = null; renderPower(0); hideToast(); banner('');
   }
   function showEnd(win, reason, me, opp, oppName, inn) {
+    if (win) { save.wins = (save.wins | 0) + 1; persist(); } // CPU and friend wins, for the site ranking
+    if (window.ndRankSync) ndRankSync();
     $('endTitle').textContent = ''; const em = document.createElement('em');
     $('endTitle').append('YOU ', em); em.textContent = win ? 'WIN' : 'LOSE';
     $('endSub').textContent = reason;
